@@ -56,6 +56,17 @@ the original warning flags. The uv environment includes CMake 3.31.10, and the
 native smoke wrapper builds Ramulator in a separate native directory. Full
 simulator rebuilds and workload checks remain queued after the FPGA build.
 
+The final ABI 2 DDR host test passed natively: 4,224 read-window cases plus
+CH1 training, both data edges, nine lanes, ECC, handoff and negative/timeout
+cases. Its log is `build_ypcb_native32/native-ddr-host-abi2.log`; the CSR/data
+oracle does not establish physical DDR training.
+
+The native bitstream CRC checker passed its four known-answer vectors and the
+previous image's two CRC checkpoints. Corrupted payload, corrupted CRC and
+truncated-image controls were rejected with the expected diagnostics. Evidence:
+`build_ypcb_native32/crc-tool-checks/manifest.json`. The new image still needs
+its own integrity check after implementation.
+
 # YPCB branch integration — October 18, 2026
 
 `master` matches upstream `7b67f0210`. The `ypcb` branch starts at that commit
