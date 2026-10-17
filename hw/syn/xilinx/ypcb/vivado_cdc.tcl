@@ -89,7 +89,7 @@ foreach channel {1} {
     set_property ASYNC_REG TRUE [list $first $second]
     set_false_path -to [ypcb_cdc_pin $first D]
 }
-set ypcb_status_first [ypcb_cdc_require [get_cells -hier -filter {NAME =~ status_meta_reg*}] 3 "DDR status first stages"]
+set ypcb_status_first [ypcb_cdc_require [get_cells -regexp {^status_meta_reg\[(1|3|5)\]$}] 3 "CH1 status first stages"]
 set_false_path -to [get_pins -of_objects $ypcb_status_first -filter {REF_PIN_NAME == D}]
 set ypcb_bus_reset [ypcb_cdc_require [get_cells -hier -filter {NAME =~ reset_sync_reg*}] 2 "Bus reset stages"]
 set_false_path -to [get_pins -of_objects $ypcb_bus_reset -filter {REF_PIN_NAME == PRE}]

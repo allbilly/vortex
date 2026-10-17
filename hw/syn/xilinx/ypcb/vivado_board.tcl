@@ -97,6 +97,9 @@ for {set iteration 0} {$iteration < 3} {incr iteration} {
     phys_opt_design -directive AggressiveExplore
     route_design -directive Explore
 }
+set setup [get_timing_paths -delay_type max -max_paths 1]
+set hold [get_timing_paths -delay_type min -max_paths 1]
+if {[llength $setup] != 1 || [llength $hold] != 1} {error "Missing final timing paths"}
 report_bus_skew -file [file join $output_dir bus-skew.rpt]
 report_cdc -details -file [file join $output_dir cdc-routed.rpt]
 report_clock_interaction -file [file join $output_dir clock-interaction-routed.rpt]

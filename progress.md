@@ -1,8 +1,8 @@
-> Current user instruction: continue the offline Vortex build while saving RAM.
-> The fresh run is `build_ypcb_native32/ch1-jtag-pcie-20261018-v6/`, with both
-> Vivado thread limits set to one, allocator arenas limited to two, and no
-> concurrent simulation build. The completed OpenTPU stop watcher interrupted v4;
-> its records remain below. OpenTPU retains the board; this run accesses no hardware.
+> The low-memory v6 synthesis passed and its full checkpoint is preserved.
+> Implementation stopped at the CH1 status-register constraint selection.
+> A new active OpenTPU exclusion watcher then terminated the diagnostic Vivado
+> probe. The conflicting project-priority question is pending; no native FPGA
+> build is currently running. OpenTPU retains the board.
 
 > OpenTPU hardware priority: Vortex Codex and its new synthesis build were stopped
 > after c0182800 finished at 19:31 UTC on October 17 (03:31 HKT October 18).
@@ -21,7 +21,7 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — in progress
+# Native CH1/JTAG/PCIe build — synthesis passed, implementation pending
 
 The Vortex Podman container and its Ubuntu image were removed as requested.
 Host source/toolchain folders and all other containers were verified preserved;
@@ -41,9 +41,34 @@ through PCIe and JTAG simulation, including JTAG with the PCIe clock stopped.
 Those prototypes used board ABI 1; ABI 2 still needs the final native shell
 rerun. No new image has been programmed or physically executed.
 
-The current build uses fresh output under
-`build_ypcb_native32/ch1-jtag-pcie-20261018-v6/`. Both Vivado thread limits
-are one; large simulation rebuilds wait until synthesis completes.
+The v6 outputs are under `build_ypcb_native32/ch1-jtag-pcie-20261018-v6/`.
+Both Vivado thread limits were one, with allocator arenas limited to two.
+Synthesis exited 0 in 1,081 seconds, with zero critical warnings/errors and
+about 5 GB reported peak physical memory. The checkpoint is `synth.dcp`;
+utilization is 79,303 LUTs, 66,110 registers and 151 BRAM tiles. The synthesis
+DRC report contains warnings only. Routing and the new bitstream are pending.
+
+Implementation exited 1 at the status synchronizer coverage check: six registers
+remain in the two-channel status vector, including three inactive CH0 bits.
+The proposed constraint now selects CH1 bits 1, 3 and 5 explicitly; confirmation
+against the synthesized netlist is pending. The runner now prepares reuse of a
+successful synthesis only when HDL, pins, source order, defines and synthesis Tcl
+match. Final timing paths are queried again after the last routing attempt.
+
+The diagnostic in `build_ypcb_native32/constraint-probe-v1/` was terminated by
+SIGTERM. The active watcher and its signal evidence are in
+`build_ypcb_vivado32/openTPU-return-20261018/exclusion-v1/`; it enforces
+all Vortex workers being stopped until `exclusion-release.json` exists with
+`release_vortex_exclusion: true`. Do not restart native jobs against that watcher
+while the project-priority question remains unresolved. Check the release and
+actual watcher process, then validate the constraint selection and resume only
+implementation in a fresh output directory.
+The checkpoint reuse contract passed eight fixture checks: implementation-only
+changes are accepted; HDL, pin, define, source-order and synthesis-Tcl changes,
+corrupted frozen inputs, and failed synthesis are rejected. The 718 real v6
+frozen inputs were independently hash-verified. Evidence is in
+`build_ypcb_native32/reuse-contract-checks/manifest.json`.
+
 Earlier v1 failed before IP creation, and v2/v3 were stopped for the ABI change
 and the lower-memory restart. The completed OpenTPU handover watcher stopped v4
 with SIGTERM. v5 was stopped during IP synthesis to correct a project/non-project

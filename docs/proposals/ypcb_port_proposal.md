@@ -52,6 +52,12 @@ exercises the AFU and command processor with memory/PHY oracles. A DDR host test
 checks training software against modeled CSRs; it is not physical training.
 Keep application, dispatcher and backend configuration identical.
 
+The Vivado runner accepts `--reuse-synthesis <completed-run>` with a fresh
+output directory to retry implementation. It requires a successful synthesis
+receipt, verifies the frozen inputs, and rejects changes to HDL, pin constraints,
+source order, defines or synthesis Tcl before copying the checkpoint. Only the
+implementation stages then run.
+
 The Linux backend uses an unbound `10ee:0480` endpoint with a 64 KiB BAR0.
 Select it with `VORTEX_DRIVER=ypcb VORTEX_YPCB_BDF=0000:bb:dd.f`.
 Its DDR shadow command arena must remain reserved in the generic allocator.

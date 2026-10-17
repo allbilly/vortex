@@ -59,6 +59,43 @@ def run(command, directory, output, name, timeout):
         raise RuntimeError(f'{name} failed; inspect {output / (name + ".log")}')
 
 
+def reuse_synthesis(original, output, manifest):
+    original = original.resolve()
+    receipt = json.loads((original / 'synthesize-exit.json').read_text())
+    if receipt['exit_code'] != 0 or receipt['interrupted']:
+        raise ValueError('The reused synthesis must have a successful exit receipt')
+    inputs = json.loads((original / 'inputs.json').read_text())['inputs']
+    for name, digest in inputs.items():
+        if hashlib.sha256((original / name).read_bytes()).hexdigest() != digest:
+            raise ValueError(f'Reused synthesis input changed: {name}')
+    suffixes = {'.sv', '.v', '.vh', '.xdc', '.mem', '.dat'}
+    previous = {name: digest for name, digest in inputs.items() if Path(name).suffix in suffixes}
+    current = {name: digest for name, digest in manifest['inputs'].items() if Path(name).suffix in suffixes}
+    if previous != current:
+        changed = sorted(name for name in previous.keys() | current.keys() if previous.get(name) != current.get(name))
+        raise ValueError(f'HDL or pin constraints changed; synthesis cannot be reused: {changed[:10]}')
+    for name in ('afu/sources.txt', 'afu/config.flags'):
+        before = (original / name).read_text().replace(str(original), '<run>')
+        after = (output / name).read_text().replace(str(output), '<run>')
+        if before != after:
+            raise ValueError(f'Synthesis sources or configuration changed: {name}')
+    script = 'snapshot/hw/syn/xilinx/ypcb/vivado_board.tcl'
+    delimiter = '\nopen_checkpoint [file join $output_dir synth.dcp]'
+    before = (original / script).read_text().split(delimiter, 1)
+    after = (output / script).read_text().split(delimiter, 1)
+    if len(before) != 2 or len(after) != 2 or before[0] != after[0]:
+        raise ValueError('Synthesis Tcl changed; a fresh synthesis is required')
+    for name in ('synth.dcp', 'utilization-synth.rpt', 'drc-synth.rpt'):
+        shutil.copy2(original / name, output / name)
+        manifest['inputs'][name] = hashlib.sha256((output / name).read_bytes()).hexdigest()
+    result = {'run': str(original), 'synth_dcp_sha256': manifest['inputs']['synth.dcp'],
+              'verified_hardware_inputs': len(previous),
+              'synthesis_exit_receipt_sha256': hashlib.sha256((original / 'synthesize-exit.json').read_bytes()).hexdigest(),
+              'original_inputs_sha256': hashlib.sha256((original / 'inputs.json').read_bytes()).hexdigest()}
+    save(output / 'reused-synthesis.json', result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--build', type=Path, required=True)
@@ -71,8 +108,11 @@ def main():
     parser.add_argument('--litex-root', type=Path, required=True)
     parser.add_argument('--vivado', default='vivado')
     parser.add_argument('--stage', choices=('synthesize', 'all'), default='all')
+    parser.add_argument('--reuse-synthesis', type=Path)
     parser.add_argument('--timeout', type=int, default=21600)
     args = parser.parse_args()
+    if args.reuse_synthesis and args.stage != 'all':
+        raise ValueError('Reusing synthesis requires the implementation stage')
     build, output = args.build.resolve(), args.output.resolve()
     root = Path(__file__).resolve().parents[4]
     if output.exists():
@@ -109,8 +149,12 @@ def main():
                 'source_diff': subprocess.check_output(['git', 'diff', 'HEAD'], cwd=root, text=True),
                 'inputs': {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
                 'scope': 'CH1 2 GiB, independent 125 MHz GPU clock, JTAG AXI and PCIe'}
+    if args.reuse_synthesis:
+        manifest['reused_synthesis'] = reuse_synthesis(args.reuse_synthesis, output, manifest)
     save(output / 'inputs.json', manifest)
     stages = ['synthesize'] if args.stage == 'synthesize' else ['synthesize', 'implement']
+    if args.reuse_synthesis:
+        stages = ['implement']
     for stage in stages:
         run([args.vivado, '-mode', 'batch', '-nojournal', '-nolog', '-source',
              snapshot / 'hw/syn/xilinx/ypcb/vivado_board.tcl', '-tclargs', snapshot,
