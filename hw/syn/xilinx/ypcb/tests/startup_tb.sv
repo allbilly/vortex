@@ -168,7 +168,7 @@ module startup_tb;
     initial begin
         board_reset();
         read_register(12'h000, 32'h56595043, '1, 0);
-        read_register(12'h004, 32'd1, '1, 0);
+        read_register(12'h004, 32'd2, '1, 0);
         read_register(12'h003, 0, '1, 3);
         read_register(12'h100, 0, '1, 3);
         write_register(12'h000, 0, 15, 2);
@@ -180,10 +180,10 @@ module startup_tb;
         if (starts || memory_ready) begin
             $fatal(1, "Uncalibrated/disabled command started scrub");
         end
-        pll_locked = 3;
+        pll_locked = 2;
         init_done = 1;
         write_register(12'h010, 1, 15, 2);
-        init_done = 3;
+        init_done = 2;
         stale_done = 1;
         pause_response = 1;
         write_register(12'h010, 32'hffffff01, 1, 0);
@@ -194,8 +194,8 @@ module startup_tb;
         write_register(12'h010, 1, 15, 2);
         stale_done = 0;
         pause_response = 0;
-        wait (memory_ready == 3);
-        read_register(12'h008, 32'h0000ce8f, 32'h0000ffff, 0);
+        wait (memory_ready == 2);
+        read_register(12'h008, 32'h0000cc8a, 32'h0000ffff, 0);
         write_register(12'h010, 1, 15, 0);
         if (starts != 1 || bursts != 1 || beats != 6) begin
             $fatal(1, "Ready command repeated destructive scrub");
@@ -225,7 +225,7 @@ module startup_tb;
         board_reset();
         m_bresp = 0;
         write_register(12'h010, 1, 15, 0);
-        wait (memory_ready == 3);
+        wait (memory_ready == 2);
         @(negedge clk);
         pll_locked = 1;
         repeat (2) begin
@@ -234,7 +234,7 @@ module startup_tb;
         if (memory_ready) begin
             $fatal(1, "PLL loss left memory ready");
         end
-        pll_locked = 3;
+        pll_locked = 2;
         write_register(12'h010, 1, 15, 2);
         $display("PASSED: startup with actual scrub RTL, %0d register checks, calibration gating, stale completion, B-response ordering, idempotence, byte masks, errors, PLL loss and reset recovery", checks);
         $finish;

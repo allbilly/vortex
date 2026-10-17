@@ -1,6 +1,7 @@
 ROOT_DIR := $(realpath ../../../..)
 include $(ROOT_DIR)/config.mk
 include $(VORTEX_HOME)/hw/syn/common.mk
+include $(VORTEX_HOME)/hw/syn/xilinx/ypcb/config.mk
 
 DEVICE := xc7k480tffg1156-2
 TOP := vortex_afu
@@ -29,7 +30,7 @@ BOARD_CFLAGS += -DVX_CFG_XLEN=32 -DVX_CFG_XLEN_32 -DVX_CFG_FPU_TYPE=STD -DSYNTHE
 BOARD_SOURCES := $(wildcard $(SRC_DIR)/VX_ypcb_*.sv) $(SRC_DIR)/ypcb_top.sv
 
 # Use the synthesizable RTL FPU, with the same choice in the simulation oracle.
-override CONFIGS += -DVX_CFG_FPU_TYPE=STD -DSYNTHESIS -DVIVADO -DNDEBUG
+override CONFIGS += $(YPCB_CONFIGS) -DSYNTHESIS -DVIVADO -DNDEBUG
 XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
 CFLAGS := -DVX_CFG_XLEN=$(XLEN) -DVX_CFG_XLEN_$(XLEN) $(CONFIGS)
 CFLAGS += $(filter -DVX_CFG_FPU_TYPE_%,$(XCONFIGS))
@@ -64,7 +65,7 @@ board-constraints:
 	python3 $(SRC_DIR)/gen_constraints.py --reference $(ROOT_DIR)/board_reference --package $(ROOT_DIR)/board_reference/package_pins-xc7k480tffg1156-2.csv --audit $(ROOT_DIR)/board-pin-audit.json --top $(SRC_DIR)/ypcb_top.sv --output $(BOARD_OUT_DIR)/ypcb-reference.xdc
 
 afu-control-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_afu_control --Mdir $(CURDIR)/afu-control-test -o afu-control-test $(SRC_DIR)/VX_ypcb_afu_control.sv $(SRC_DIR)/tests/afu_control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_afu_control --Mdir $(CURDIR)/afu-control-test -o afu-control-test $(SRC_DIR)/VX_ypcb_afu_control.sv $(SRC_DIR)/tests/afu_control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
 	$(CURDIR)/afu-control-test/afu-control-test
 
 board-sv2v:
@@ -141,19 +142,19 @@ $(DDR_OUT_DIR)/ypcb_ddr3_xc7.json: $(DDR_OUT_DIR)/ypcb_ddr3_pre_luts.il $(SRC_DI
 	$(YOSYS) -l $(DDR_OUT_DIR)/yosys-map.log -p 'read_rtlil $<; synth_xilinx -family xc7 -top ypcb_ddr3 -run map_luts:; delete t:$$scopeinfo; check -assert; select -assert-none ypcb_ddr3/t:$$*; stat; write_json $@'
 
 memory-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_memory --Mdir $(CURDIR)/memory-test$(MEMORY_NUM_INPUTS) -o memory-test -GNUM_INPUTS=$(MEMORY_NUM_INPUTS) $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION -y $(RTL_DIR)/libs $(SRC_DIR)/VX_ypcb_memory.sv $(SRC_DIR)/tests/memory.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -DTEST_NUM_INPUTS=$(MEMORY_NUM_INPUTS)'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_memory --Mdir $(CURDIR)/memory-test$(MEMORY_NUM_INPUTS) -o memory-test -GNUM_INPUTS=$(MEMORY_NUM_INPUTS) $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION -y $(RTL_DIR)/libs $(SRC_DIR)/VX_ypcb_memory.sv $(SRC_DIR)/tests/memory.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -DTEST_NUM_INPUTS=$(MEMORY_NUM_INPUTS)'
 	$(CURDIR)/memory-test$(MEMORY_NUM_INPUTS)/memory-test
 
 pio-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-test -o pio-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-test -o pio-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
 	$(CURDIR)/pio-test/pio-test
 
 pio-host-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-host-test -o pio-host-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-host-test -o pio-host-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
 	$(CURDIR)/pio-host-test/pio-host-test
 
 pio-memory-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-memory-test -o pio-memory-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp $(SW_COMMON_DIR)/ypcb_host_memory.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -DTEST_HOST_MEMORY -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-memory-test -o pio-memory-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp $(SW_COMMON_DIR)/ypcb_host_memory.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -DTEST_HOST_MEMORY -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
 	$(CURDIR)/pio-memory-test/pio-memory-test
 
 pio-synth:
@@ -161,7 +162,7 @@ pio-synth:
 	$(YOSYS) -l $(CURDIR)/pio/yosys.log -p 'read_verilog -sv -I$(RTL_DIR) -I$(ROOT_DIR)/hw $(SRC_DIR)/VX_ypcb_pio.sv; synth_xilinx -family xc7 -top VX_ypcb_pio -flatten -noiopad -noclkbuf; check -assert; stat; write_json $(CURDIR)/pio/pio.json'
 
 pcie-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_pcie --Mdir $(CURDIR)/pcie-test -o pcie-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pcie.sv $(SRC_DIR)/tests/pcie.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pcie --Mdir $(CURDIR)/pcie-test -o pcie-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pcie.sv $(SRC_DIR)/tests/pcie.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
 	$(CURDIR)/pcie-test/pcie-test
 
 pcie-synth:
@@ -169,7 +170,7 @@ pcie-synth:
 	$(YOSYS) -l $(CURDIR)/pcie/yosys.log -p 'read_verilog -sv -I$(RTL_DIR) -I$(ROOT_DIR)/hw $(SRC_DIR)/VX_ypcb_pcie.sv; synth_xilinx -family xc7 -top VX_ypcb_pcie -flatten -noiopad -noclkbuf; check -assert; stat; write_json $(CURDIR)/pcie/pcie.json'
 
 control-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_control --Mdir $(CURDIR)/control-test -o control-test $(SRC_DIR)/VX_ypcb_control.sv $(SRC_DIR)/tests/control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_control --Mdir $(CURDIR)/control-test -o control-test $(SRC_DIR)/VX_ypcb_control.sv $(SRC_DIR)/tests/control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
 	$(CURDIR)/control-test/control-test
 
 control-synth:
@@ -184,7 +185,7 @@ control-mapped-test: control-synth
 	$(VVP) $(CURDIR)/control/test.vvp
 
 ddr-control-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_ddr_control --Mdir $(CURDIR)/ddr-control-test -o ddr-control-test $(SRC_DIR)/VX_ypcb_ddr_control.sv $(SRC_DIR)/tests/ddr_control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_ddr_control --Mdir $(CURDIR)/ddr-control-test -o ddr-control-test $(SRC_DIR)/VX_ypcb_ddr_control.sv $(SRC_DIR)/tests/ddr_control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
 	$(CURDIR)/ddr-control-test/ddr-control-test
 
 ddr-control-synth:
@@ -202,11 +203,11 @@ startup-synth:
 	$(YOSYS) -l $(CURDIR)/startup/yosys.log -p 'read_verilog -sv -I$(RTL_DIR) $(SRC_DIR)/VX_ypcb_startup.sv; synth_xilinx -family xc7 -top VX_ypcb_startup -flatten -noiopad -noclkbuf; check -assert; stat; write_json $(CURDIR)/startup/startup.json'
 
 startup-host-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -DSIMULATION -j 2 --top-module startup_host_top --Mdir $(CURDIR)/startup-host-test -o startup-host-test -I$(RTL_DIR) $(SRC_DIR)/tests/startup_host_top.sv $(SRC_DIR)/VX_ypcb_startup.sv $(SRC_DIR)/VX_ypcb_scrub.sv $(SRC_DIR)/tests/startup_host.cpp $(SW_COMMON_DIR)/ypcb_startup.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
+	$(VERILATOR) --build --cc --exe --assert -Wall -DSIMULATION -j 1 --top-module startup_host_top --Mdir $(CURDIR)/startup-host-test -o startup-host-test -I$(RTL_DIR) $(SRC_DIR)/tests/startup_host_top.sv $(SRC_DIR)/VX_ypcb_startup.sv $(SRC_DIR)/VX_ypcb_scrub.sv $(SRC_DIR)/tests/startup_host.cpp $(SW_COMMON_DIR)/ypcb_startup.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
 	$(CURDIR)/startup-host-test/startup-host-test
 
 scrub-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 2 --top-module VX_ypcb_scrub --Mdir $(SCRUB_TEST_DIR) -o scrub-test "-GBASE_ADDR=64'h7ffff000" "-GEND_ADDR=64'h80002140" $(SRC_DIR)/VX_ypcb_scrub.sv $(SRC_DIR)/tests/scrub.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_scrub --Mdir $(SCRUB_TEST_DIR) -o scrub-test "-GBASE_ADDR=64'h3ffff000" "-GEND_ADDR=64'h40002140" $(SRC_DIR)/VX_ypcb_scrub.sv $(SRC_DIR)/tests/scrub.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
 	$(SCRUB_TEST_DIR)/scrub-test
 
 elaborate: sources
@@ -214,3 +215,11 @@ elaborate: sources
 
 synth: sources
 	$(VIVADO) -mode batch -nojournal -log $(OUT_DIR)/synth.log -source $(SRC_DIR)/afu.tcl -tclargs $(OUT_DIR) $(DEVICE) $(TOP) synth
+
+.PHONY: axil-cdc-test print-configs
+axil-cdc-test:
+	$(IVERILOG) -g2012 -Wall -s axil_cdc_tb -o $(CURDIR)/axil-cdc.vvp $(SRC_DIR)/VX_ypcb_axil_cdc.sv $(SRC_DIR)/tests/axil_cdc_tb.sv
+	$(VVP) $(CURDIR)/axil-cdc.vvp
+
+print-configs:
+	@printf '%s\n' '$(YPCB_CONFIGS)'

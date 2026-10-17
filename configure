@@ -77,7 +77,7 @@ copy_files() {
                         continue
                     fi
                     mkdir -p "$dest_dir"
-                    sed "s|@VORTEX_HOME@|$SOURCE_DIR|g; s|@XLEN@|$XLEN|g; s|@TOOLDIR@|$TOOLDIR|g; s|@OSVERSION@|$OSVERSION|g; s|@INSTALLDIR@|$PREFIX|g; s|@BUILDDIR@|$CURRENT_DIR|g; s|@TOOLCHAIN_REV@|$TOOLCHAIN_REV|g; s|@VORTEX_VERSION@|$VORTEX_VERSION|g; s|@GEM5_REV@|$GEM5_REV|g; s|@PROFILE@|$PROFILE|g" "$file" > "$dest_file"
+                    sed "s|@VORTEX_HOME@|$SOURCE_DIR|g; s|@XLEN@|$XLEN|g; s|@MEMORY_SIZE@|$MEMORY_SIZE|g; s|@TOOLDIR@|$TOOLDIR|g; s|@OSVERSION@|$OSVERSION|g; s|@INSTALLDIR@|$PREFIX|g; s|@BUILDDIR@|$CURRENT_DIR|g; s|@TOOLCHAIN_REV@|$TOOLCHAIN_REV|g; s|@VORTEX_VERSION@|$VORTEX_VERSION|g; s|@GEM5_REV@|$GEM5_REV|g; s|@PROFILE@|$PROFILE|g" "$file" > "$dest_file"
                     # apply permissions to bash scripts
                     read -r firstline < "$dest_file"
                     if [[ "$firstline" =~ ^#!.*bash ]]; then
@@ -137,6 +137,7 @@ copy_files() {
 
 # default configuration parameters
 default_xlen=32
+default_memory_size=
 default_tooldir=$HOME/tools
 default_osversion=$(detect_osversion)
 default_prefix=$CURRENT_DIR/install
@@ -150,6 +151,7 @@ if [ -f "config.mk" ]; then
         value="${value%"${value##*[![:space:]]}"}"   # Remove trailing whitespace
         case $key in
             XLEN\ ?*) default_xlen=${value//\?=/} ;;
+            MEMORY_SIZE\ ?*) default_memory_size=${value//\?=/} ;;
             TOOLDIR\ ?*) default_tooldir=${value//\?=/} ;;
             OSVERSION\ ?*) default_osversion=${value//\?=/} ;;
             PREFIX\ ?*) default_prefix=${value//\?=/} ;;
@@ -160,6 +162,7 @@ fi
 
 # set configuration parameters
 XLEN=${XLEN:=$default_xlen}
+MEMORY_SIZE=${MEMORY_SIZE:=$default_memory_size}
 TOOLDIR=${TOOLDIR:=$default_tooldir}
 OSVERSION=${OSVERSION:=$default_osversion}
 PREFIX=${PREFIX:=$default_prefix}
@@ -168,6 +171,7 @@ PROFILE=${PROFILE-$default_profile}
 # parse command line arguments
 usage() {
     echo "Usage: $0 [--xlen=<value>] [--tooldir=<path>] [--osversion=<version>]"
+    echo "  --memory-size=<bytes>  Device address-space size (default: 4 GiB RV32, 8 GiB RV64)"
     echo "  --xlen=<value>       Set the XLEN value (default: 32)"
     echo "  --tooldir=<path>     Set the TOOLDIR path (default: $HOME/tools)"
     echo "  --osversion=<version> Set the OS Version (default: $(detect_osversion))"
@@ -178,6 +182,7 @@ usage() {
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --xlen=*) XLEN="${1#*=}" ;;
+        --memory-size=*) MEMORY_SIZE="${1#*=}" ;;
         --tooldir=*) TOOLDIR="${1#*=}" ;;
         --osversion=*) OSVERSION="${1#*=}" ;;
         --prefix=*|--installdir=*) PREFIX="${1#*=}" ;;
@@ -192,6 +197,19 @@ done
 if [ -n "$PROFILE" ] && [ ! -f "$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )/profiles/$PROFILE.json" ]; then
     echo "Error: unknown profile '$PROFILE' (no profiles/$PROFILE.json)"
     exit -1
+fi
+
+if [ -z "$MEMORY_SIZE" ]; then
+    if [ "$XLEN" = 64 ]; then MEMORY_SIZE=8589934592; else MEMORY_SIZE=4294967296; fi
+fi
+if [[ ! "$MEMORY_SIZE" =~ ^[0-9]+$ ]] || (( MEMORY_SIZE < 1073741824 || (MEMORY_SIZE & (MEMORY_SIZE - 1)) != 0 )); then
+    echo "Error: memory size must be a power of two of at least 1 GiB."
+    exit 1
+fi
+
+if [ "$XLEN" = 32 ] && (( MEMORY_SIZE > 4294967296 )); then
+    echo "Error: RV32 device memory cannot exceed 4 GiB."
+    exit 1
 fi
 
 # check OS
@@ -213,7 +231,7 @@ source "$SOURCE_DIR/VERSION"
 
 # stamp file tracks config parameter changes; touched only when params change
 CONFIG_STAMP="$CURRENT_DIR/.config.stamp"
-CONFIG_SIG="XLEN=$XLEN TOOLDIR=$TOOLDIR OSVERSION=$OSVERSION PREFIX=$PREFIX PROFILE=$PROFILE SOURCE_DIR=$SOURCE_DIR BUILDDIR=$CURRENT_DIR"
+CONFIG_SIG="XLEN=$XLEN MEMORY_SIZE=$MEMORY_SIZE TOOLDIR=$TOOLDIR OSVERSION=$OSVERSION PREFIX=$PREFIX PROFILE=$PROFILE SOURCE_DIR=$SOURCE_DIR BUILDDIR=$CURRENT_DIR"
 if [ ! -f "$CONFIG_STAMP" ] || [ "$(cat "$CONFIG_STAMP" 2>/dev/null)" != "$CONFIG_SIG" ]; then
     echo "$CONFIG_SIG" > "$CONFIG_STAMP"
 fi
@@ -248,7 +266,7 @@ for toml in "$SOURCE_DIR"/*.toml; do
     name=$(basename -- "$toml" .toml)
     extra=""
     case "$name" in
-        VX_types) extra="--resolved" ;;
+        VX_types) extra="--resolved --cflags=-DVX_MEM_GLOBAL_SIZE=$MEMORY_SIZE" ;;
         VX_config) [ -n "$PROFILE" ] && extra="--profile=$PROFILE" ;;
     esac
     gen_header "$toml" "$CURRENT_DIR/hw/$name.vh" verilog "$extra"

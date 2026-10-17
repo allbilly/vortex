@@ -10,7 +10,7 @@ namespace vortex::ypcb {
 namespace {
 constexpr uint32_t pio_base = 0x2000;
 constexpr uint32_t signature = 0x56595043;
-constexpr uint64_t memory_size = 0x100000000ull;
+constexpr uint64_t memory_size = 0x80000000ull;
 constexpr size_t line_size = 64;
 }
 
@@ -58,7 +58,7 @@ Result Pio::initialize() {
   if (value & 1) {
     return Result::busy;
   }
-  if ((value & 0x30) != 0x30) {
+  if ((value & 0x30) != 0x20) {
     return Result::unready;
   }
   initialized_ = true;
@@ -108,7 +108,7 @@ Result Pio::transfer(uint64_t address, uint8_t* data, size_t size, bool write) {
     if (status & 1) {
       return Result::busy;
     }
-    if (!(status & (0x10u << (address >> 31)))) {
+    if (!(status & 0x20u)) {
       return Result::unready;
     }
     const auto offset = size_t(address & (line_size - 1));

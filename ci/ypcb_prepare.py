@@ -114,7 +114,7 @@ def preflight(build, home, vivado):
               "vortex_revision": command(["git", "rev-parse", "HEAD"], cwd=source),
               "submodules": command(["git", "submodule", "status", "--recursive"], cwd=source),
               "source_root": str(source), "vivado": executable}
-    checks["tools"] = {name: shutil.which(name) for name in ("sv2v", "iverilog", "podman")}
+    checks["tools"] = {name: shutil.which(name) for name in ("sv2v", "iverilog", "uv", "ccache")}
     checks["platform_sources"] = {str(path): (source / path).is_file() for path in
                                   (Path("hw/syn/xilinx/ypcb/ypcb_top.sv"),
                                    Path("sw/runtime/ypcb/vortex.cpp"))}

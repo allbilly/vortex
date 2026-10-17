@@ -42,7 +42,7 @@ module VX_ypcb_startup (
     reg [11:0] write_address;
     reg [7:0] write_command;
     reg command_enabled;
-    wire calibrated = pll_locked == 2'b11 && init_done == 2'b11 && init_error == 0;
+    wire calibrated = pll_locked == 2'b10 && init_done == 2'b10 && init_error == 0;
     wire write_fire = aw_pending && w_pending && !s_bvalid;
     wire request_start = write_fire && write_address == 12'h010 && command_enabled
         && write_command == 8'd1 && state == WAIT_INIT && calibrated && !scrub_failed;
@@ -78,12 +78,12 @@ module VX_ypcb_startup (
                     end
                     // A previous completion must not open memory before the new scrub starts.
                     if (busy_seen && scrub_done && !scrub_busy) begin
-                        memory_ready <= 2'b11;
+                        memory_ready <= 2'b10;
                         state <= READY;
                     end
                 end
                 READY: begin
-                    memory_ready <= 2'b11;
+                    memory_ready <= 2'b10;
                 end
                 FAILED: begin
                     memory_ready <= 0;
@@ -160,7 +160,7 @@ module VX_ypcb_startup (
                 s_rresp <= 0;
                 case (s_araddr)
                     12'h000: s_rdata <= 32'h56595043;
-                    12'h004: s_rdata <= 32'd1;
+                    12'h004: s_rdata <= 32'd2;
                     12'h008: s_rdata <= status;
                     12'h010: s_rdata <= 0;
                     default: s_rresp <= 2'b11;

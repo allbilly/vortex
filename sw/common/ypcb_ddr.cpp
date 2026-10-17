@@ -290,7 +290,7 @@ DdrResult Ddr::train(DdrReport* report) {
 
 DdrResult Ddr::initialize(DdrReport* report) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (report == nullptr || bank_ >= 2 || timeout_.count() <= 0) {
+  if (report == nullptr || bank_ != 1 || timeout_.count() <= 0) {
     return DdrResult::invalid;
   }
   *report = {};
@@ -303,7 +303,7 @@ DdrResult Ddr::initialize(DdrReport* report) {
       || mmio_.read32(0x3008, &status) != 0) {
     return DdrResult::io_error;
   }
-  if (signature != 0x56595043 || version != 1 || (status & (0x7ffu << 4)) != 0 || (status >> 16) != 0
+  if (signature != 0x56595043 || version != 2 || (status & ((3u << 4) | (1u << 6) | (1u << 8) | (3u << 9) | (15u << 11))) != 0 || (status >> 16) != 0
       || !(status & (1u << bank_))) {
     return DdrResult::unsafe_state;
   }

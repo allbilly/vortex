@@ -22,7 +22,7 @@ proc ypcb_cdc_budget {source destination} {
     return [expr {min($source_period, $destination_period)}]
 }
 
-set ypcb_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE}] 84 "Gray-pointer first stages"]
+set ypcb_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE}] 42 "Gray-pointer first stages"]
 set ypcb_gray_groups [dict create]
 foreach destination $ypcb_gray_first {
     set data_pin [ypcb_cdc_pin $destination D]
@@ -45,8 +45,8 @@ foreach destination $ypcb_gray_first {
     regsub {\[[0-9]+\]$} [get_property NAME $destination] {} group
     dict lappend ypcb_gray_groups $group [list $source $destination $budget]
 }
-if {[dict size $ypcb_gray_groups] != 28} {
-    error "Expected 28 Gray-pointer buses, found [dict size $ypcb_gray_groups]"
+if {[dict size $ypcb_gray_groups] != 14} {
+    error "Expected 14 Gray-pointer buses, found [dict size $ypcb_gray_groups]"
 }
 dict for {group bits} $ypcb_gray_groups {
     if {[llength $bits] != 3} { error "Gray-pointer bus $group is not three bits" }
@@ -60,7 +60,7 @@ dict for {group bits} $ypcb_gray_groups {
     set_bus_skew $budget -from $sources -to $destinations
 }
 
-foreach instance {axi_crossing_0 axi_crossing_1 csr_crossing_0 csr_crossing_1} {
+foreach instance {axi_crossing_1 csr_crossing_1} {
     set bus_clock [ypcb_cdc_clock [get_pins $instance/bus_clk]]
     set memory_clock [ypcb_cdc_clock [get_pins $instance/memory_clk]]
     set budget [ypcb_cdc_budget $bus_clock $memory_clock]
@@ -83,18 +83,39 @@ set_false_path -to [get_pins -of_objects $ypcb_reset_cells -filter {REF_PIN_NAME
 set_max_delay 2 -from [get_pins -of_objects $ypcb_reset_first -filter {REF_PIN_NAME == C}] \
     -to [get_pins -of_objects $ypcb_reset_second -filter {REF_PIN_NAME == D}]
 
-foreach channel {0 1} {
+foreach channel {1} {
     set first [ypcb_cdc_require [get_cells ddr_$channel/FDCE] 1 "DDR reset first stage"]
     set second [ypcb_cdc_require [get_cells ddr_$channel/FDCE_1] 1 "DDR reset second stage"]
     set_property ASYNC_REG TRUE [list $first $second]
     set_false_path -to [ypcb_cdc_pin $first D]
 }
-set ypcb_status_first [ypcb_cdc_require [get_cells -hier -filter {NAME =~ status_meta_reg*}] 6 "DDR status first stages"]
+set ypcb_status_first [ypcb_cdc_require [get_cells -hier -filter {NAME =~ status_meta_reg*}] 3 "DDR status first stages"]
 set_false_path -to [get_pins -of_objects $ypcb_status_first -filter {REF_PIN_NAME == D}]
 set ypcb_bus_reset [ypcb_cdc_require [get_cells -hier -filter {NAME =~ reset_sync_reg*}] 2 "Bus reset stages"]
 set_false_path -to [get_pins -of_objects $ypcb_bus_reset -filter {REF_PIN_NAME == PRE}]
-set_false_path -from [ypcb_cdc_require [get_ports {SYS_RSTN pcie_perstn}] 2 "Asynchronous reset ports"]
+set_false_path -from [ypcb_cdc_require [get_ports {SYS_RSTN}] 1 "Asynchronous reset ports"]
 
 set ypcb_pcie [ypcb_cdc_require [get_cells pcie/pcie_block_inst/pcie_2_1_block] 1 "PCIe hard block"]
 set_property LOC PCIE_X0Y0 $ypcb_pcie
-puts "YPCB_CDC_CONSTRAINTS_APPLIED gray_buses=28 gray_bits=84 reset_chains=[llength $ypcb_reset_first]"
+puts "YPCB_CDC_CONSTRAINTS_APPLIED gray_buses=14 gray_bits=42 reset_chains=[llength $ypcb_reset_first]"
+
+set link_first [ypcb_cdc_require [get_cells -regexp {^link_sync_reg\[0\]$}] 1 "PCIe link first stage"]
+set_false_path -to [ypcb_cdc_pin $link_first D]
+set mailbox shell/pcie_control_crossing
+foreach direction {request response} {
+    set first [ypcb_cdc_require [get_cells -regexp [format {^%s/%s_sync_reg\[0\]$} $mailbox $direction]] 1 "$direction first stage"]
+    set_false_path -to [ypcb_cdc_pin $first D]
+}
+set source_payload [get_cells $mailbox/request_data_reg*]
+if {![llength $source_payload]} {error "Mailbox request payload is absent"}
+set target_payload [get_cells $mailbox/m_*_reg*]
+set_max_delay -datapath_only 8 -from $source_payload -to $target_payload
+set response_payload [get_cells $mailbox/response_data_reg*]
+if {![llength $response_payload]} {error "Mailbox response payload is absent"}
+set source_response [get_cells $mailbox/s_*_reg*]
+set_max_delay -datapath_only 8 -from $response_payload -to $source_response
+
+set tx_error_first [ypcb_cdc_require [get_cells -regexp {^tx_error_sync_reg\[0\]$}] 1 "PCIe error first stage"]
+set_false_path -to [ypcb_cdc_pin $tx_error_first D]
+set source_reset_stages [ypcb_cdc_require [get_cells $mailbox/source_reset_sync_reg*] 2 "PCIe source reset stages"]
+set_false_path -to [get_pins -of_objects $source_reset_stages -filter {REF_PIN_NAME == PRE}]

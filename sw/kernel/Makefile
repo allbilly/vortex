@@ -52,16 +52,16 @@ $(PROJECT2).dump: $(PROJECT2).a
 
 STARTUP_FLAGS := -DNEED_GP -DNEED_TLS -DNEED_INITFINI
 
-%.S.o: $(SRC_DIR)/%.S
+%.S.o: $(SRC_DIR)/%.S $(ROOT_DIR)/sw/VX_types.h
 	$(CC) $(CFLAGS) $(STARTUP_FLAGS) -c $< -o $@
 
-%.c.o: $(SRC_DIR)/%.c
+%.c.o: $(SRC_DIR)/%.c $(ROOT_DIR)/sw/VX_types.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.S.2.o: $(SRC_DIR)/%.S
+%.S.2.o: $(SRC_DIR)/%.S $(ROOT_DIR)/sw/VX_types.h
 	$(CC) $(CFLAGS) $(STARTUP_FLAGS) -DKMU_ENABLE -c $< -o $@
 
-%.c.2.o: $(SRC_DIR)/%.c
+%.c.2.o: $(SRC_DIR)/%.c $(ROOT_DIR)/sw/VX_types.h
 	$(CC) $(CFLAGS) -DKMU_ENABLE -c $< -o $@
 
 $(PROJECT).a: $(OBJS)

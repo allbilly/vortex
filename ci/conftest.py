@@ -98,14 +98,14 @@ def pytest_sessionfinish(session):
 
 
 def _build_vars():
-    """(source root, XLEN) for the build tree pytest is running in.
+    """(source root, XLEN, memory size) for the build tree pytest is running in.
 
     config.mk is what configure recorded, so it is authoritative: an ambient
     XLEN in the environment may differ from the one this tree was generated
     with, and regenerating against the wrong width would report every header as
     stale.
     """
-    root, xlen = None, None
+    root, xlen, memory_size = None, None, None
     try:
         with open("config.mk") as fh:
             for line in fh:
@@ -115,9 +115,12 @@ def _build_vars():
                 m = re.match(r"\s*XLEN\s*[?:]?=\s*(\S+)", line)
                 if m:
                     xlen = m.group(1)
+                m = re.match(r"\s*MEMORY_SIZE\s*[?:]?=\s*(\S+)", line)
+                if m:
+                    memory_size = m.group(1)
     except OSError:
         pass
-    return root, xlen
+    return root, xlen, memory_size
 
 
 def _assert_config_current():
@@ -131,7 +134,7 @@ def _assert_config_current():
     Regeneration is byte-stable, so comparing against a fresh generation is an
     exact test.
     """
-    source_root, xlen = _build_vars()
+    source_root, xlen, memory_size = _build_vars()
     if not source_root or not xlen:
         return
     gen = os.path.join(source_root, "ci", "gen_config.py")
@@ -146,6 +149,8 @@ def _assert_config_current():
         for toml in tomls:
             name = os.path.splitext(os.path.basename(toml))[0]
             extra = ["--resolved"] if name == "VX_types" else []
+            if name == "VX_types" and memory_size:
+                extra.append("--cflags=-DVX_MEM_GLOBAL_SIZE=" + memory_size)
             for subdir, ext, fmt in (("hw", ".vh", "verilog"), ("sw", ".h", "cpp")):
                 built = os.path.join(subdir, name + ext)
                 if not os.path.exists(built):

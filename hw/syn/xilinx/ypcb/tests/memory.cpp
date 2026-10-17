@@ -48,14 +48,14 @@ int main() {
   VVX_ypcb_memory dut;
   std::array<std::deque<Transfer>, TEST_NUM_INPUTS> writes, reads;
   const std::array<Transfer, 8> cases = {{
-    {0x00000000, 0x00000000, 0, 0, false, 0},
-    {0x7ffff000, 0x7ffff000, 0, 63, false, 0},
-    {0x80000000, 0x00000000, 1, 3, false, 0},
-    {0xfffff000, 0x7ffff000, 1, 63, false, 0},
+    {0x00000000, 0x00000000, 1, 0, false, 0},
+    {0x7ffff000, 0x7ffff000, 1, 63, false, 0},
+    {0x10000000, 0x10000000, 1, 3, false, 0},
+    {0x7fffffc0, 0x7fffffc0, 1, 0, false, 0},
     {0x100000000ull, 0, 0, 3, true, 0},
     {0x80000004, 0, 0, 0, true, 0},
     {0x7fffffc0, 0, 0, 1, true, 0},
-    {0x80000000, 0, 0, 255, true, 0},
+    {0x80000000, 0, 0, 3, true, 0},
   }};
   for (unsigned source = 0; source < TEST_NUM_INPUTS; ++source) {
     for (unsigned index = 0; index < cases.size(); ++index) {
@@ -133,6 +133,7 @@ int main() {
     }
     dut.clk = 0;
     dut.eval();
+    require(!(dut.m_awvalid & 1) && !(dut.m_arvalid & 1) && !(dut.m_wvalid & 1), "Inactive CH0 received memory traffic");
     const unsigned awfire = dut.s_awvalid & dut.s_awready;
     const unsigned arfire = dut.s_arvalid & dut.s_arready;
     const unsigned wfire = dut.s_wvalid & dut.s_wready;
@@ -227,7 +228,7 @@ int main() {
     dut.eval();
     if (completed_writes == 8 * TEST_NUM_INPUTS && completed_reads == 8 * TEST_NUM_INPUTS) {
       require(ddr_writes == 4 * TEST_NUM_INPUTS && ddr_reads == 4 * TEST_NUM_INPUTS, "Incorrect DDR transaction count");
-      std::printf("PASSED: %u writes, %u reads, %u contending masters, 2 DDR channels, full IDs, byte enables, backpressure and DECERR\n",
+      std::printf("PASSED: %u writes, %u reads, %u contending masters, CH1 only, 2 GiB bounds and inactive CH0, full IDs, byte enables, backpressure and DECERR\n",
         completed_writes, completed_reads, TEST_NUM_INPUTS);
       return 0;
     }

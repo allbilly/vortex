@@ -134,11 +134,11 @@ module VX_ypcb_pio (
                                 if (write_value == 1 || write_value == 2) begin
                                     done <= 0;
                                     result <= 2'b00;
-                                    if (address[63:32] != 0 || address[5:0] != 0) begin
+                                    if (address[63:31] != 0 || address[5:0] != 0) begin
                                         done <= 1;
                                         result <= 2'b11;
                                         s_bresp <= 2'b10;
-                                    end else if (!memory_ready[address[31]]) begin
+                                    end else if (!memory_ready[1]) begin
                                         done <= 1;
                                         result <= 2'b10;
                                         s_bresp <= 2'b10;

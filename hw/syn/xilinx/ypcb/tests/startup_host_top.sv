@@ -47,8 +47,8 @@ module startup_host_top (
     wire scrub_start;
     VX_ypcb_startup startup (.*);
     VX_ypcb_scrub #(
-        .BASE_ADDR (64'h7fffff80),
-        .END_ADDR (64'h800000c0)
+        .BASE_ADDR (64'h3fffff80),
+        .END_ADDR (64'h400000c0)
     ) scrub (
         .clk (clk), .reset (reset), .start (scrub_start),
         .init_ready (pll_locked & init_done & ~init_error),

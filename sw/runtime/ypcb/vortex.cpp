@@ -5,6 +5,7 @@
 #include <ypcb_ddr.h>
 #include <ypcb_startup.h>
 #include <ypcb_host_memory.h>
+#include <ypcb_jtag.h>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -51,6 +52,7 @@ public:
       std::fprintf(stderr, "[VXDRV] YPCB AFU did not drain on close\n");
     }
     host_.reset();
+    jtag_.reset();
     if (bar_ != MAP_FAILED) {
       munmap(bar_, bar_size);
     }
@@ -62,6 +64,9 @@ public:
     }
     if (resource_ >= 0) {
       close(resource_);
+    }
+    if (owner_lock_ >= 0) {
+      close(owner_lock_);
     }
   }
 
@@ -75,6 +80,9 @@ public:
   }
 
   int read32(uint32_t offset, uint32_t* value) override {
+    if (jtag_) {
+      return jtag_->read32(offset, value);
+    }
     if (bar_ == MAP_FAILED || value == nullptr || offset >= bar_size || (offset & 3)) {
       return -1;
     }
@@ -85,6 +93,9 @@ public:
   }
 
   int write32(uint32_t offset, uint32_t value) override {
+    if (jtag_) {
+      return jtag_->write32(offset, value);
+    }
     if (bar_ == MAP_FAILED || offset >= bar_size || (offset & 3)) {
       return -1;
     }
@@ -123,48 +134,44 @@ public:
 
 private:
   int initialize() {
-    const char* selected = std::getenv("VORTEX_YPCB_BDF");
-    if (selected == nullptr || !valid_bdf(selected)) {
-      std::fprintf(stderr, "[VXDRV] Set VORTEX_YPCB_BDF to the full lowercase PCI BDF\n");
+    const char* method = std::getenv("VORTEX_YPCB_INTERFACE");
+    const std::string interface = method ? method : "pcie";
+    const auto lock_path = std::string("/tmp/vortex-ypcb-") + std::to_string(getuid()) + ".lock";
+    owner_lock_ = open(lock_path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
+    if (owner_lock_ < 0 || flock(owner_lock_, LOCK_EX | LOCK_NB) != 0) {
+      std::fprintf(stderr, "[VXDRV] Another YPCB runtime owns JTAG or PCIe\n");
       return -1;
     }
-    const std::string directory = std::string("/sys/bus/pci/devices/") + selected;
-    uint64_t vendor, device;
-    if (!sysfs_hex(directory + "/vendor", &vendor) || vendor != 0x10ee
-        || !sysfs_hex(directory + "/device", &device) || device != 0x0480
-        || access((directory + "/driver").c_str(), F_OK) == 0) {
-      std::fprintf(stderr, "[VXDRV] Selected PCI device is not an unbound YPCB endpoint (10ee:0480)\n");
+    if (interface == "jtag") {
+      const char* port_text = std::getenv("VORTEX_YPCB_JTAG_PORT");
+      char* end = nullptr;
+      const unsigned long port = port_text ? std::strtoul(port_text, &end, 10) : 3124;
+      if (port == 0 || port > 65535 || (port_text && (end == port_text || *end != '\0'))) {
+        return -1;
+      }
+      jtag_ = std::make_unique<Jtag>();
+      if (jtag_->connect(unsigned(port)) != 0) {
+        std::fprintf(stderr, "[VXDRV] Cannot connect to the local JTAG MMIO server\n");
+        return -1;
+      }
+    } else if (interface == "pcie") {
+      if (initialize_pcie() != 0) {
+        return -1;
+      }
+    } else {
+      std::fprintf(stderr, "[VXDRV] VORTEX_YPCB_INTERFACE must be jtag or pcie\n");
       return -1;
     }
-    uint64_t start, end, flags;
-    std::ifstream resources(directory + "/resource");
-    if (!(resources >> std::hex >> start >> end >> flags) || start == 0
-        || end < start || end - start != bar_size - 1 || !(flags & 0x200)) {
-      std::fprintf(stderr, "[VXDRV] YPCB BAR0 must be an assigned 64 KiB memory resource\n");
-      return -1;
-    }
-    resource_ = open((directory + "/resource0").c_str(), O_RDWR | O_CLOEXEC);
-    if (resource_ < 0 || flock(resource_, LOCK_EX | LOCK_NB) != 0) {
-      std::fprintf(stderr, "[VXDRV] Cannot exclusively open YPCB BAR0\n");
-      return -1;
-    }
-    enable_ = open((directory + "/enable").c_str(), O_WRONLY | O_CLOEXEC);
-    if (enable_ < 0 || pwrite(enable_, "1\n", 2, 0) != 2) {
-      std::fprintf(stderr, "[VXDRV] Cannot acquire YPCB PCI enable reference\n");
-      return -1;
-    }
-    enabled_ = true;
-    bar_ = mmap(nullptr, bar_size, PROT_READ | PROT_WRITE, MAP_SHARED, resource_, 0);
     uint32_t signature, version, status;
     if (read32(0x3000, &signature) != 0 || signature != 0x56595043
-        || read32(0x3004, &version) != 0 || version != 1
+        || read32(0x3004, &version) != 0 || version != 2
         || read32(0x3008, &status) != 0 || status == 0xffffffff) {
       std::fprintf(stderr, "[VXDRV] YPCB startup signature/version is unavailable\n");
       return -1;
     }
     if (((status >> 16) & 7) == 0) {
       const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-      while ((status & 3) != 3) {
+      while ((status & 3) != 2) {
         if ((status & 0x7870) || std::chrono::steady_clock::now() >= deadline
             || read32(0x3008, &status) != 0) {
           std::fprintf(stderr, "[VXDRV] YPCB DDR PLLs did not become ready\n");
@@ -172,7 +179,7 @@ private:
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-      for (unsigned bank = 0; bank < 2; ++bank) {
+      for (unsigned bank = 1; bank < 2; ++bank) {
         if (!(status & (4u << bank))) {
           Ddr ddr(*this, bank);
           DdrReport report;
@@ -219,6 +226,42 @@ private:
     return host_->initialize();
   }
 
+  int initialize_pcie() {
+    const char* selected = std::getenv("VORTEX_YPCB_BDF");
+    if (selected == nullptr || !valid_bdf(selected)) {
+      std::fprintf(stderr, "[VXDRV] Set VORTEX_YPCB_BDF to the full lowercase PCI BDF\n");
+      return -1;
+    }
+    const std::string directory = std::string("/sys/bus/pci/devices/") + selected;
+    uint64_t vendor, device;
+    if (!sysfs_hex(directory + "/vendor", &vendor) || vendor != 0x10ee
+        || !sysfs_hex(directory + "/device", &device) || device != 0x0480
+        || access((directory + "/driver").c_str(), F_OK) == 0) {
+      std::fprintf(stderr, "[VXDRV] Selected PCI device is not an unbound YPCB endpoint (10ee:0480)\n");
+      return -1;
+    }
+    uint64_t start, end, flags;
+    std::ifstream resources(directory + "/resource");
+    if (!(resources >> std::hex >> start >> end >> flags) || start == 0
+        || end < start || end - start != bar_size - 1 || !(flags & 0x200)) {
+      std::fprintf(stderr, "[VXDRV] YPCB BAR0 must be an assigned 64 KiB memory resource\n");
+      return -1;
+    }
+    resource_ = open((directory + "/resource0").c_str(), O_RDWR | O_CLOEXEC);
+    if (resource_ < 0 || flock(resource_, LOCK_EX | LOCK_NB) != 0) {
+      std::fprintf(stderr, "[VXDRV] Cannot exclusively open YPCB BAR0\n");
+      return -1;
+    }
+    enable_ = open((directory + "/enable").c_str(), O_WRONLY | O_CLOEXEC);
+    if (enable_ < 0 || pwrite(enable_, "1\n", 2, 0) != 2) {
+      std::fprintf(stderr, "[VXDRV] Cannot acquire YPCB PCI enable reference\n");
+      return -1;
+    }
+    enabled_ = true;
+    bar_ = mmap(nullptr, bar_size, PROT_READ | PROT_WRITE, MAP_SHARED, resource_, 0);
+    return bar_ == MAP_FAILED ? -1 : 0;
+  }
+
   int quiesce_and_reset() {
     if (write32(0x111c, 0) != 0 || write32(0x1000, 0) != 0
         || write32(0, 0x10) != 0) {
@@ -238,6 +281,8 @@ private:
     return -1;
   }
 
+  int owner_lock_ = -1;
+  std::unique_ptr<Jtag> jtag_;
   int resource_ = -1;
   int enable_ = -1;
   void* bar_ = MAP_FAILED;

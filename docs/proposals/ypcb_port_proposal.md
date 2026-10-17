@@ -28,14 +28,16 @@ Use a fresh out-of-tree RV32 build and the toolchain revision in `VERSION`:
 ```sh
 mkdir -p build_ypcb32
 cd build_ypcb32
-../configure --xlen=32 --tooldir="$HOME/tools" --osversion=ubuntu/focal
+../configure --xlen=32 --memory-size=2147483648 --tooldir="$HOME/tools" --osversion=ubuntu/focal
 ./ci/ypcb_env.sh setup
 ./ci/ypcb_env.sh install-toolchain
 ./ci/ypcb_env.sh smoke
 ./ci/ypcb_env.sh smoke-xrt
 ```
 
-The container wrapper runs an immutable copy of itself during reconfiguration.
+The native Linux wrapper uses a uv environment and runs an immutable copy of
+itself during reconfiguration. Install a C++ compiler, make, ccache, uv,
+pkg-config and UUID development headers/libraries before setup.
 `open-setup` stages pinned Migen, LiteX, LiteDRAM and PCIe generator references;
 it does not run the archived nextpnr implementation flow.
 
@@ -63,9 +65,14 @@ These results do not qualify an updated RTL design.
 
 ## Remaining qualification
 
-Implement and verify the independent JTAG control path, shared-access ownership,
-CH1-only memory map, runtime capacity and kernel placement before building the
-new image. Include full AFU simulation, byte-exact DMA, memory ordering tests,
+The independent JTAG control path, shared host arbitration, CH1 memory map,
+runtime capacity and kernel placement are implemented. Board ABI 2 identifies
+this layout. Set `VORTEX_YPCB_INTERFACE=jtag` to use the local Vivado MMIO
+server, or `pcie` for the Linux BAR transport. A runtime lock keeps one host
+interface in control of the shared staging windows.
+
+The initial shell prototype passed memory, demo and SGEMM over both interfaces,
+including JTAG with the PCIe clock stopped. Requalify the final ABI 2 image. Include full AFU simulation, byte-exact DMA, memory ordering tests,
 matching SimX timing checks, and both runtime interfaces.
 
 Before normal board operation, review CDC/reset crossings, external DDR timing,

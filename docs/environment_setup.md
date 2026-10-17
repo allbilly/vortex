@@ -49,3 +49,15 @@ Docker allows for isolated pre-built environments to be created, shared and used
 7. Run a test program: `./ci/blackbox.sh --cores=2 --app=dogfood`
 
 You may exit from a container and resume a container you have exited or start a second terminal session `docker exec -it <container-name> bash`
+
+## Device memory capacity
+
+`configure --memory-size=BYTES` selects the device address-space capacity.
+The defaults remain 4 GiB for RV32 and 8 GiB for RV64. YPCB CH1 uses
+`--xlen=32 --memory-size=2147483648`. The generated `VX_types` headers give
+hardware, kernel startup and runtime allocation the same memory and stack map.
+Reconfigure and rebuild kernel/runtime libraries when changing capacity.
+
+YPCB kernels link below the 2 GiB boundary with `STARTUP_ADDR=0x40000000`.
+Its shared board flags live in `hw/syn/xilinx/ypcb/config.mk`; use those flags
+for the application, dispatcher and backend together.

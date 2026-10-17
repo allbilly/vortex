@@ -16,38 +16,46 @@ fi
 source_dir='@VORTEX_HOME@'
 build_dir='@BUILDDIR@'
 tool_dir='@TOOLDIR@'
-container=${VORTEX_YPCB_CONTAINER:-vortex-ypcb-build}
-
-container_exec() {
-    podman start "$container" >/dev/null
-    podman exec -w "$build_dir" -e CCACHE_DISABLE=1 \
-        -e CONFIGS="${CONFIGS:-}" -e THREADS=2 "$container" "$@"
+native_exec() {
+    if [[ ! -x "$build_dir/.venv/bin/python" ]]; then
+        printf '%s\n' 'Run ./ci/ypcb_env.sh setup to create the uv environment.' >&2
+        return 1
+    fi
+    local -a environment=("PATH=$build_dir/.venv/bin:$tool_dir/verilator/bin:$PATH"
+                          "CONFIGS=${CONFIGS:-}" "THREADS=1")
+    local include_paths=${CPLUS_INCLUDE_PATH:-}
+    local library_paths=${LIBRARY_PATH:-}
+    for dependency in uuid libpng; do
+        if pkg-config --exists "$dependency"; then
+            local prefix
+            prefix=$(pkg-config --variable=prefix "$dependency")
+            include_paths="$prefix/include${include_paths:+:$include_paths}"
+            library_paths="$prefix/lib${library_paths:+:$library_paths}"
+        fi
+    done
+    environment+=("CPLUS_INCLUDE_PATH=$include_paths" "C_INCLUDE_PATH=$include_paths"
+                  "LIBRARY_PATH=$library_paths")
+    env "${environment[@]}" "$@"
 }
 
 case ${1:-help} in
     setup)
+        for dependency in uv ccache g++ make pkg-config; do
+            command -v "$dependency" >/dev/null || { printf 'Missing dependency: %s\n' "$dependency" >&2; exit 1; }
+        done
         mkdir -p "$tool_dir"
-        if ! podman container exists "$container"; then
-            podman run -d --name "$container" --security-opt label=disable \
-                -v "$source_dir:$source_dir" -v "$tool_dir:$tool_dir" \
-                -w "$build_dir" docker.io/library/ubuntu:22.04 sleep infinity
+        if [[ ! -x "$build_dir/.venv/bin/python" ]]; then
+            uv venv --python python3 "$build_dir/.venv"
         fi
-        container_exec bash -c 'set -euo pipefail
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update
-            apt-get install -y --no-install-recommends build-essential cmake ccache wget \
-                ca-certificates git python3 python3-pip python3-tomli python3-yaml \
-                python3-pytest zlib1g-dev libtinfo5 libtinfo-dev libncurses-dev uuid-dev \
-                libboost-serialization-dev libpng-dev libhwloc-dev libgmp-dev \
-                libmpfr-dev libgmpxx4ldbl libxml2-dev ocl-icd-opencl-dev pkg-config iverilog'
-        container_exec git -C "$source_dir" submodule update --init --recursive
+        uv pip install --python "$build_dir/.venv/bin/python" pytest PyYAML packaging pyserial colorama requests
+        native_exec git -C "$source_dir" submodule update --init --recursive
         ;;
     exec)
         shift
-        container_exec "$@"
+        native_exec "$@"
         ;;
     configure)
-        container_exec "$source_dir/configure" --xlen=32 --tooldir="$tool_dir" \
+        native_exec "$source_dir/configure" --xlen=32 --memory-size=2147483648 --tooldir="$tool_dir" \
             --osversion=ubuntu/focal
         ;;
     install-toolchain)
@@ -59,11 +67,11 @@ case ${1:-help} in
             fi
         done
         if ((${#flags[@]})); then
-            container_exec ./ci/toolchain_install.sh "${flags[@]}"
+            native_exec ./ci/toolchain_install.sh "${flags[@]}"
         fi
         ;;
     open-setup)
-        container_exec bash -c 'set -euo pipefail
+        native_exec bash -c 'set -euo pipefail
             mkdir -p open-reference
             while read -r name url revision; do
                 path="open-reference/$name"
@@ -82,27 +90,28 @@ litedram https://github.com/enjoy-digital/litedram.git 74522f715d7b10163ef6f6caa
 litex-boards https://github.com/litex-hub/litex-boards.git 10debf146d433ce8ac8aedcac84e97d252ff4d5b
 pcie_7x https://github.com/regymm/pcie_7x.git cd1c33f53401d6ce1b6ec35da17884455477c2e9
 PINS
-            python3 -m pip install --disable-pip-version-check --target open-python-deps \
-                PyYAML==6.0.3 packaging==26.3 pyserial==3.5 colorama==0.4.6 \
-                requests==2.34.2 urllib3==2.8.0 idna==3.20 certifi==2026.7.22 \
-                charset-normalizer==3.5.2'
+'
         ;;
     smoke|smoke-xrt)
         driver=simx
         [[ $1 != smoke-xrt ]] || driver=xrt
         bash "$0" configure
-        container_exec make -j2 -C "$source_dir/third_party"
-        container_exec make -C sw/kernel clean
-        container_exec make -j2 -C sw/kernel
-        container_exec make -C sw/runtime/stub clean
-        container_exec make -j2 -C sw/runtime/stub
-        container_exec make -j2 -C "sw/runtime/$driver"
-        container_exec make -C tests/regression/demo clean
-        container_exec make -C tests/regression/demo
-        container_exec timeout 600 ./ci/blackbox.sh --driver="$driver" --app=demo
-        container_exec make -C tests/regression/sgemm clean
-        container_exec make -C tests/regression/sgemm
-        container_exec timeout 600 ./ci/blackbox.sh --driver="$driver" --app=sgemm --args=-n16
+        if [[ -z ${CONFIGS:-} ]]; then
+            CONFIGS=$(native_exec make --no-print-directory -s -C hw/syn/xilinx/ypcb print-configs)
+        fi
+        export CONFIGS STARTUP_ADDR=0x40000000
+        native_exec make -j1 -C "$source_dir/third_party"
+        native_exec make -C sw/kernel clean
+        native_exec make -j1 -C sw/kernel
+        native_exec make -C sw/runtime/stub clean
+        native_exec make -j1 -C sw/runtime/stub
+        native_exec make -j1 -C "sw/runtime/$driver"
+        native_exec make -C tests/regression/demo clean
+        native_exec make -C tests/regression/demo
+        native_exec timeout 600 ./ci/blackbox.sh --driver="$driver" --app=demo
+        native_exec make -C tests/regression/sgemm clean
+        native_exec make -C tests/regression/sgemm
+        native_exec timeout 600 ./ci/blackbox.sh --driver="$driver" --app=sgemm --args=-n16
         ;;
     stage-reference|preflight|inventory)
         python3 "$source_dir/ci/ypcb_prepare.py" "$1" --build "$build_dir" "${@:2}"

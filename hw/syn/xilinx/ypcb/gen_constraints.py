@@ -32,7 +32,7 @@ def generate(reference, package_path, audit_path, top, output):
 
     rename = {'addr': 'a', 'ck_p': 'clk_p', 'ck_n': 'clk_n'}
     scalars = {'cke', 'cs_n', 'odt', 'ck_p', 'ck_n'}
-    for bank in range(2):
+    for bank in (1,):
         project = reference / f'ypcb003381p1/1.0/mig_{bank}.prj'
         inputs.append(project)
         tree = ET.parse(project)
@@ -60,7 +60,7 @@ def generate(reference, package_path, audit_path, top, output):
             if signal in ('dq', 'dqs_p', 'dqs_n') and profile['misc'] != ['IN_TERM=UNTUNED_SPLIT_40']:
                 raise ValueError(f'Unexpected DDR termination profile: {name}')
             add(name, pin.attrib['PADName'], standard)
-        if len(ports) != (bank + 1) * 117:
+        if len(ports) != 117:
             raise ValueError('Each board channel must expose all 117 DDR pins')
 
     board_xdc = inputs[2].read_text()

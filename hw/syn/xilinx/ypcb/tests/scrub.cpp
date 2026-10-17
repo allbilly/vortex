@@ -29,16 +29,16 @@ static void run(unsigned failed_response) {
     unsigned burst = 0, beat = 0, beats = 0, total = 0;
     bool writing = false, response = false;
     unsigned response_due = 0;
-    uint64_t expected_address = 0x7ffff000;
+    uint64_t expected_address = 0x3ffff000;
     for (unsigned cycle = 0; cycle < 10000; ++cycle) {
-        dut.init_ready = cycle < 20 ? 1 : 3;
+        dut.init_ready = cycle < 20 ? 1 : 2;
         dut.m_awready = !writing && !response && cycle % 5 == 1;
         dut.m_wready = writing && cycle % 7 > 1;
         dut.m_bvalid = response && cycle >= response_due;
         dut.m_bresp = burst == 2 ? failed_response : 0;
         dut.clk = 0; dut.eval();
         if (cycle < 20) {
-            require(!dut.m_awvalid && !dut.m_wvalid, "Scrub started before both PHYs were ready");
+            require(!dut.m_awvalid && !dut.m_wvalid, "Scrub started before CH1 PHY were ready");
         }
         if (dut.m_awvalid && dut.m_awready) {
             require(dut.m_awaddr == expected_address, "Scrub skipped or repeated a line");
@@ -71,7 +71,7 @@ static void run(unsigned failed_response) {
             require(!dut.busy && !dut.m_awvalid && !dut.m_wvalid, "Terminal scrub still issues traffic");
             require(bool(dut.error) == (failed_response != 0), "Scrub error status differs");
             if (!failed_response) {
-                require(total == 197 && expected_address == 0x80002140 && burst == 4,
+                require(total == 197 && expected_address == 0x40002140 && burst == 4,
                         "Scrub coverage or final tail differs");
             } else {
                 require(burst == 2 && total == 128, "Scrub did not stop after AXI error");
@@ -89,6 +89,6 @@ static void run(unsigned failed_response) {
 
 int main() {
     run(0); run(2); run(3);
-    std::puts("PASSED: ECC scrub, two-bank boundary, full byte enables, zero data, final tail, PHY readiness, backpressure and errors");
+    std::puts("PASSED: ECC scrub, CH1 and 4 KiB boundaries, full byte enables, zero data, final tail, PHY readiness, backpressure and errors");
     return 0;
 }

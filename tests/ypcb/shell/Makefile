@@ -8,12 +8,12 @@ MODEL_DIR := $(CURDIR)/model
 RUNTIME_DIR := $(ROOT_DIR)/sw/runtime
 VERILATOR ?= $(VERILATOR_PATH)/bin/verilator
 PROJECT := libvortex-ypcb-shell-test.so
-BOARD_CONFIGS := -DVX_CFG_FPU_TYPE=STD -DVX_CFG_PLATFORM_CLOCK_RATE=125
-BOARD_CONFIGS += -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=12800
+include $(BOARD_DIR)/config.mk
+BOARD_CONFIGS := $(YPCB_CONFIGS)
 
 RTL_FLAGS := -DVX_CFG_XLEN=32 -DVX_CFG_XLEN_32 -DVX_CFG_FPU_TYPE=STD -DVX_CFG_FPU_TYPE_STD
 RTL_FLAGS += -DSIMULATION -DNDEBUG -DVX_CFG_PLATFORM_CLOCK_RATE=125
-RTL_FLAGS += -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=12800
+RTL_FLAGS += $(BOARD_CONFIGS)
 RTL_FLAGS += -I$(ROOT_DIR)/hw -I$(RTL_DIR) -I$(BOARD_DIR) -I$(RTL_DIR)/libs
 RTL_FLAGS += -I$(RTL_DIR)/interfaces -I$(RTL_DIR)/core -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm
 RTL_FLAGS += -I$(RTL_DIR)/cache -I$(RTL_DIR)/fpu -I$(RTL_DIR)/cp
@@ -39,19 +39,19 @@ config.stamp: force
 	 if ! cmp -s $$stamp_tmp $@; then mv -f $$stamp_tmp $@; else rm -f $$stamp_tmp; fi
 
 $(PROJECT): $(SRCS) $(HEADERS) $(RTL_SRCS) $(ROOT_DIR)/hw/VX_config.vh $(wildcard $(BOARD_DIR)/VX_ypcb_*.sv) $(SRC_DIR)/Makefile config.stamp
-	$(VERILATOR) --build --cc --exe --assert -Wall -Wno-fatal --timescale 1ns/1ps -j 2 --top-module VX_ypcb_shell --Mdir $(MODEL_DIR) -o $(CURDIR)/$(PROJECT) $(RTL_FLAGS) "-GSCRUB_BASE_ADDR=64'h7fffffc0" "-GSCRUB_END_ADDR=64'h80000100" $(ROOT_DIR)/sim/xrtsim/verilator.vlt $(RTL_PKGS) $(BOARD_DIR)/VX_ypcb_shell.sv $(SRCS) -CFLAGS '$(CXXFLAGS)' -LDFLAGS '-shared -pthread -Wl,-z,defs'
+	$(VERILATOR) --build --cc --exe --assert -Wall -Wno-fatal --timescale 1ns/1ps -j 1 --top-module VX_ypcb_shell --Mdir $(MODEL_DIR) -o $(CURDIR)/$(PROJECT) $(RTL_FLAGS) "-GSCRUB_BASE_ADDR=64'h7ffffec0" "-GSCRUB_END_ADDR=64'h80000000" $(ROOT_DIR)/sim/xrtsim/verilator.vlt $(RTL_PKGS) $(BOARD_DIR)/VX_ypcb_shell.sv $(SRCS) -CFLAGS '$(CXXFLAGS)' -LDFLAGS '-shared -pthread -Wl,-z,defs'
 
 run: all
-	$(MAKE) -C $(ROOT_DIR)/tests/ypcb/memory_map CONFIGS='$(BOARD_CONFIGS)'
+	$(MAKE) -C $(ROOT_DIR)/tests/ypcb/memory_map CONFIGS='$(BOARD_CONFIGS)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)
 	LD_LIBRARY_PATH=$(CURDIR):$(RUNTIME_DIR) VORTEX_DRIVER=ypcb-shell-test VORTEX_CP_POLL_TIMEOUT_S=120 $(ROOT_DIR)/tests/ypcb/memory_map/memory_map
 
 kernel-build:
-	$(MAKE) -B -C $(ROOT_DIR)/sw/kernel CONFIGS='$(BOARD_CONFIGS)'
+	$(MAKE) -C $(ROOT_DIR)/sw/kernel CONFIGS='$(BOARD_CONFIGS)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)
 
 run-demo: all kernel-build
-	$(MAKE) -C $(ROOT_DIR)/tests/regression/demo CONFIGS='$(BOARD_CONFIGS)'
+	$(MAKE) -C $(ROOT_DIR)/tests/regression/demo CONFIGS='$(BOARD_CONFIGS)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)
 	cd $(ROOT_DIR)/tests/regression/demo && LD_LIBRARY_PATH=$(CURDIR):$(RUNTIME_DIR) VORTEX_DRIVER=ypcb-shell-test VORTEX_CP_POLL_TIMEOUT_S=120 ./demo -n64
 
 run-sgemm: all kernel-build
-	$(MAKE) -C $(ROOT_DIR)/tests/regression/sgemm CONFIGS='$(BOARD_CONFIGS)'
+	$(MAKE) -C $(ROOT_DIR)/tests/regression/sgemm CONFIGS='$(BOARD_CONFIGS)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)
 	cd $(ROOT_DIR)/tests/regression/sgemm && LD_LIBRARY_PATH=$(CURDIR):$(RUNTIME_DIR) VORTEX_DRIVER=ypcb-shell-test VORTEX_CP_POLL_TIMEOUT_S=120 ./sgemm -n16

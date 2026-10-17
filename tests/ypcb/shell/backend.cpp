@@ -36,10 +36,12 @@ struct Transfer {
 class Shell final : public Mmio {
 public:
   Shell() : dut_(&context_) {
+    jtag_mode_ = std::getenv("VORTEX_YPCB_TEST_JTAG") != nullptr;
     dut_.reset = 1;
-    dut_.link_up = 1;
+    dut_.pcie_reset = 1;
+    dut_.link_up = jtag_mode_ ? 0 : 1;
     dut_.tx_error = 0;
-    dut_.pll_locked = 3;
+    dut_.pll_locked = 2;
     dut_.init_done = 0;
     dut_.init_error = 0;
     dut_.rx_valid = 0;
@@ -52,6 +54,7 @@ public:
       tick();
     }
     dut_.reset = 0;
+    dut_.pcie_reset = jtag_mode_ ? 1 : 0;
     for (unsigned i = 0; i < 8; ++i) {
       tick();
     }
@@ -74,13 +77,13 @@ public:
     require(read32(0x3000, &value) == 0 && value == 0x56595043, "startup signature");
     require(read32(0x9000, &value) != 0, "unmapped control access succeeded");
     reset_model();
-    dut_.init_done = 3;
+    dut_.init_done = 2;
     Startup startup(*this, std::chrono::seconds(5));
     StartupReport report;
     require(startup.initialize(&report) == StartupResult::success, "startup scrub failed");
-    require(write_beats_[0] == 1 && write_beats_[1] == 4,
-        "reduced scrub did not cross the physical bank boundary");
-    require(dut_.memory_ready == 3, "startup did not release both banks");
+    require(write_beats_[0] == 0 && write_beats_[1] == 5,
+        "reduced scrub did not cover only CH1");
+    require(dut_.memory_ready == 2, "startup did not release CH1");
     std::fprintf(stderr, "Shell startup PASS: real readiness gate and five-beat scrub; DDR/PHY status and memory are oracles\n");
     return 0;
   }
@@ -90,7 +93,7 @@ public:
       return -1;
     }
     std::lock_guard<std::mutex> lock(mutex_);
-    return read_locked(offset, value);
+    return jtag_mode_ ? read_jtag(offset, value) : read_locked(offset, value);
   }
 
   int write32(uint32_t offset, uint32_t value) override {
@@ -98,6 +101,9 @@ public:
       return -1;
     }
     std::lock_guard<std::mutex> lock(mutex_);
+    if (jtag_mode_) {
+      return write_jtag(offset, value);
+    }
     send({0x40000001, 0x7a19000f, 0xabc00000 | offset, value});
     ++writes_;
     uint32_t status = 0;
@@ -121,15 +127,87 @@ public:
   }
 
 private:
+  int read_jtag(uint32_t offset, uint32_t* value) {
+    dut_.j_araddr = offset;
+    dut_.j_arvalid = 1;
+    for (unsigned wait = 0; wait < 10000; ++wait) {
+      dut_.eval();
+      const bool accepted = dut_.j_arready;
+      tick();
+      if (accepted) {
+        dut_.j_arvalid = 0;
+        break;
+      }
+      require(wait != 9999, "JTAG read address timed out");
+    }
+    for (unsigned wait = 0; wait < 10000; ++wait) {
+      dut_.eval();
+      if (dut_.j_rvalid) {
+        *value = dut_.j_rdata;
+        const unsigned response = dut_.j_rresp;
+        dut_.j_rready = 1;
+        tick();
+        dut_.j_rready = 0;
+        ++reads_;
+        return response == 0 ? 0 : -1;
+      }
+      tick();
+    }
+    require(false, "JTAG read response timed out");
+    return -1;
+  }
+
+  int write_jtag(uint32_t offset, uint32_t value) {
+    dut_.j_awaddr = offset;
+    dut_.j_awvalid = 1;
+    dut_.j_wdata = value;
+    dut_.j_wstrb = 15;
+    dut_.j_wvalid = 1;
+    for (unsigned wait = 0; wait < 10000; ++wait) {
+      dut_.eval();
+      const bool address = dut_.j_awvalid && dut_.j_awready;
+      const bool data = dut_.j_wvalid && dut_.j_wready;
+      tick();
+      if (address) {
+        dut_.j_awvalid = 0;
+      }
+      if (data) {
+        dut_.j_wvalid = 0;
+      }
+      if (!dut_.j_awvalid && !dut_.j_wvalid) {
+        break;
+      }
+      require(wait != 9999, "JTAG write request timed out");
+    }
+    for (unsigned wait = 0; wait < 10000; ++wait) {
+      dut_.eval();
+      if (dut_.j_bvalid) {
+        const unsigned response = dut_.j_bresp;
+        dut_.j_bready = 1;
+        tick();
+        dut_.j_bready = 0;
+        ++writes_;
+        return response == 0 ? 0 : -1;
+      }
+      tick();
+    }
+    require(false, "JTAG write response timed out");
+    return -1;
+  }
+
+  bool jtag_mode_ = false;
+
   void reset_model() {
     require(completions_.empty() && receiving_.empty(), "reset with an unread completion");
     write_ = {};
     read_ = {};
     dut_.reset = 1;
+    dut_.pcie_reset = 1;
     for (unsigned i = 0; i < 8; ++i) {
       tick();
     }
     dut_.reset = 0;
+    dut_.pcie_reset = jtag_mode_ ? 1 : 0;
     for (unsigned i = 0; i < 8; ++i) {
       tick();
     }
@@ -174,6 +252,7 @@ private:
     dut_.wb_dat_r = 0;
     dut_.tx_ready = cycle_ % 11 < 7;
     dut_.clk = 0;
+    dut_.pcie_clk = 0;
     dut_.eval();
   }
 
@@ -245,6 +324,7 @@ private:
     }
     context_.timeInc(4);
     dut_.clk = 1;
+    dut_.pcie_clk = jtag_mode_ ? 0 : 1;
     dut_.eval();
     context_.timeInc(4);
     ++cycle_;

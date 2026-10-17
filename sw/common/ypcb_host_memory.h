@@ -15,7 +15,7 @@ namespace vortex::ypcb {
 
 class HostMemory {
 public:
-  static constexpr uint64_t arena_base = 0x60000000;
+  static constexpr uint64_t arena_base = 0x50000000;
   static constexpr uint64_t arena_size = 0x10000000;
 
   HostMemory(Mmio& mmio, Pio& pio);

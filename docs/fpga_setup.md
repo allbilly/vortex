@@ -34,6 +34,11 @@ checks constant enables, inactive IGNORE inputs, complementary selection
 from one register, and both clock periods before excluding the two selection
 pins. Requalify those checks if the clock wrapper changes.
 
+For a low-memory run, set both `general.maxThreads` and `synth.maxThreads`
+to the chosen worker count. They are independent limits; changing only the
+general setting can leave synthesis using several worker processes. Run large
+simulation compilations and implementation stages sequentially.
+
 When running Vivado in a transient systemd unit, save the actual command exit
 code in its run directory before the wrapper exits. A successful unit can be
 unloaded before a dependent observes its result. Preserve its log and

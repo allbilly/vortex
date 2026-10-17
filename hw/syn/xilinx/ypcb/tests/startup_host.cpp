@@ -28,8 +28,8 @@ public:
   uint64_t address = 0;
 
   RtlMmio() {
-    dut.pll_locked = 3;
-    dut.init_done = 3;
+    dut.pll_locked = 2;
+    dut.init_done = 2;
     dut.link_up = 1;
     dut.reset = 1;
     for (unsigned i = 0; i < 5; ++i) {
@@ -62,8 +62,8 @@ public:
       }
       if (dut.m_awvalid && dut.m_awready) {
         require(!pending, "Overlapping scrub bursts");
-        require(dut.m_awaddr == (responses == 0 ? 0x7fffff80ull : 0x80000000ull),
-                "Scrub bank-boundary address differs");
+        require(dut.m_awaddr == (responses == 0 ? 0x3fffff80ull : 0x40000000ull),
+                "Scrub page-boundary address differs");
         require(dut.m_awlen == (responses == 0 ? 1 : 2), "Scrub burst length differs");
         address = dut.m_awaddr;
         remaining = dut.m_awlen + 1;
@@ -165,7 +165,7 @@ int main() {
   Startup startup(success);
   require(startup.initialize(&report) == StartupResult::success && report.scrub_started
           && !report.reused_ready && success.commands == 1 && success.responses == 2
-          && success.beats == 5 && success.dut.memory_ready == 3,
+          && success.beats == 5 && success.dut.memory_ready == 2,
           "Host startup failed with actual startup/scrub RTL");
   require(startup.initialize(&report) == StartupResult::success && report.reused_ready
           && !report.scrub_started && success.commands == 1,
@@ -197,5 +197,5 @@ int main() {
           "MMIO failure after scrub command was ignored");
   require(uncertain.initialize(&report) == StartupResult::unsafe_state
           && lost.commands == 1, "Uncertain scrub was restarted");
-  std::puts("PASSED: host startup against actual startup/scrub RTL, both-bank boundary, final BRESP ordering, ready reuse, untrained guard, AXI error, PLL loss, timeout and MMIO failure; reduced scrub range, no physical DDR claim");
+  std::puts("PASSED: host startup against actual startup/scrub RTL, CH1 page boundary, final BRESP ordering, ready reuse, untrained guard, AXI error, PLL loss, timeout and MMIO failure; reduced scrub range, no physical DDR claim");
 }

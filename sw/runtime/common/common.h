@@ -29,11 +29,7 @@
 
 #define ALLOC_BASE_ADDR   VX_MEM_USER_BASE_ADDR
 
-#if (VX_CFG_XLEN == 64)
-#define GLOBAL_MEM_SIZE    0x200000000  // 8 GB
-#else
-#define GLOBAL_MEM_SIZE    0x100000000  // 4 GB
-#endif
+#define GLOBAL_MEM_SIZE    VX_MEM_GLOBAL_SIZE
 
 #ifndef NDEBUG
 #define DBGPRINT(format, ...) do { printf("[VXDRV] " format "", ##__VA_ARGS__); } while (0)

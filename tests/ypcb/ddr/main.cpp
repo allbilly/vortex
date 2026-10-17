@@ -57,12 +57,12 @@ public:
       return 0;
     }
     if (offset == 0x3004) {
-      *value = 1;
+      *value = 2;
       return 0;
     }
     if (offset == 0x3008) {
-      *value = 0x8003 | forced_status;
-      for (unsigned bank = 0; bank < 2; ++bank) {
+      *value = 0x8002 | forced_status;
+      for (unsigned bank = 1; bank < 2; ++bank) {
         *value |= banks[bank].registers[cfg::ddrctrl_init_done / 4] << (2 + bank);
         *value |= banks[bank].registers[cfg::ddrctrl_init_error / 4] << (4 + bank);
       }
@@ -212,7 +212,7 @@ static void window_tests() {
 int main() {
   window_tests();
   CsrOracle oracle;
-  for (unsigned bank = 0; bank < 2; ++bank) {
+  for (unsigned bank = 1; bank < 2; ++bank) {
     Ddr ddr(oracle, bank);
     DdrReport report;
     require(ddr.initialize(&report) == DdrResult::success && report.calibrated,
@@ -236,45 +236,47 @@ int main() {
   for (int lane : {0, 8}) {
     CsrOracle failing;
     failing.broken_lane = lane;
-    Ddr ddr(failing, 0);
+    Ddr ddr(failing, 1);
     DdrReport report;
     require(ddr.initialize(&report) == DdrResult::training_failed && !report.calibrated
             && report.failed_lane == unsigned(lane) && report.cleanup_complete,
             "Failed lane was ignored or left initialized");
-    require(failing.banks[0].registers[cfg::ddrctrl_init_done / 4] == 0
-            && failing.banks[0].registers[cfg::ddrctrl_init_error / 4] == 1
-            && failing.banks[0].registers[cfg::sdram_dfii_control / 4] == cfg::dfii_control_odt,
+    require(failing.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0
+            && failing.banks[1].registers[cfg::ddrctrl_init_error / 4] == 1
+            && failing.banks[1].registers[cfg::sdram_dfii_control / 4] == cfg::dfii_control_odt,
             "Failed calibration did not hold DDR reset");
   }
   CsrOracle unsafe;
   unsafe.forced_status = 1u << 9;
-  Ddr blocked(unsafe, 0);
+  Ddr blocked(unsafe, 1);
   DdrReport report;
   require(blocked.initialize(&report) == DdrResult::unsafe_state
-          && unsafe.banks[0].modes.empty(), "Startup readiness guard was ignored");
+          && unsafe.banks[1].modes.empty(), "Startup readiness guard was ignored");
   CsrOracle rejected;
   rejected.reject_ecc_enable = true;
-  Ddr rejected_ddr(rejected, 0);
+  Ddr rejected_ddr(rejected, 1);
   require(rejected_ddr.initialize(&report) == DdrResult::io_error && !report.calibrated
           && report.cleanup_complete
-          && rejected.banks[0].registers[cfg::ddrctrl_init_done / 4] == 0,
+          && rejected.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0,
           "ECC-enable readback mismatch published initialization success");
   CsrOracle io;
-  io.fail_once = 0x4000 + cfg::sdram_dfii_pi0_wrdata;
-  Ddr io_ddr(io, 0);
+  io.fail_once = 0x6000 + cfg::sdram_dfii_pi0_wrdata;
+  Ddr io_ddr(io, 1);
   require(io_ddr.initialize(&report) == DdrResult::io_error && report.cleanup_complete,
           "CSR I/O failure was lost");
   require(io_ddr.initialize(&report) == DdrResult::unsafe_state, "Failed object retried initialization");
   CsrOracle timed;
-  Ddr timeout(timed, 0, std::chrono::milliseconds(1));
+  Ddr timeout(timed, 1, std::chrono::milliseconds(1));
   require(timeout.initialize(&report) == DdrResult::timeout && !report.calibrated
-          && timed.banks[0].registers[cfg::ddrctrl_init_done / 4] == 0,
+          && timed.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0,
           "Deadline marked DDR initialized");
   CsrOracle lost;
   lost.persistent_error = true;
-  Ddr lost_ddr(lost, 0);
+  Ddr lost_ddr(lost, 1);
   require(lost_ddr.initialize(&report) == DdrResult::io_error, "Startup I/O failure was lost");
+  require(Ddr(lost, 0).initialize(&report) == DdrResult::invalid,
+          "Inactive CH0 accessed hardware");
   require(Ddr(lost, 2).initialize(&report) == DdrResult::invalid,
           "Invalid DDR bank accessed hardware");
-  std::puts("PASSED: host DDR algorithm with explicit synthetic CSR/data oracle, both banks, positive/negative edges, all nine lanes, ECC-lane failure, generated JEDEC sequence, CSR packing, ECC readback, handoff, errors and timeout; no physical PHY/calibration claim");
+  std::puts("PASSED: host DDR algorithm with explicit synthetic CSR/data oracle, CH1, positive/negative edges, all nine lanes, ECC-lane failure, generated JEDEC sequence, CSR packing, ECC readback, handoff, errors and timeout; no physical PHY/calibration claim");
 }

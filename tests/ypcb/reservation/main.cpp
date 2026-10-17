@@ -34,9 +34,12 @@ int main() {
   require(library != nullptr, "Delegating test backend not loaded");
   auto count = reinterpret_cast<unsigned (*)()>(dlsym(library, "reservation_cp_operations"));
   require(count != nullptr && count() > 0, "Real SimX command processor was not exercised");
+  uint64_t capacity = 0;
+  require(vx_device_query(device, VX_CAPS_GLOBAL_MEM_SIZE, &capacity) == VX_SUCCESS,
+      "Query memory capacity failed");
   uint64_t free_bytes = 0, used_bytes = 0;
   require(vx_mem_info(device, &free_bytes, &used_bytes) == 0
-      && used_bytes == arena_size && free_bytes == 0xffff0000 - arena_size,
+      && used_bytes == arena_size && free_bytes == capacity - 0x10000 - arena_size,
       "DDR arena not counted as reserved");
   vx_buffer_h overlap = nullptr;
   require(vx_buffer_reserve(device, arena_base, 4096, VX_MEM_READ_WRITE, &overlap)
@@ -54,9 +57,8 @@ int main() {
   require(vx_mem_info(device, &free_bytes, &used_bytes) == 0 && used_bytes == arena_size,
       "User release removed the transport reservation");
   vx_buffer_h crossing = nullptr;
-  require(vx_buffer_reserve(device, 0x7ffff000, 8192, VX_MEM_READ_WRITE, &crossing)
-      == VX_SUCCESS, "Reserve across DDR bank boundary failed");
-  require(vx_buffer_release(crossing) == VX_SUCCESS, "Release crossing buffer failed");
+  require(vx_buffer_reserve(device, capacity - 4096, 8192, VX_MEM_READ_WRITE, &crossing)
+      == VX_ERR_INVALID_VALUE && crossing == nullptr, "Reservation crossed physical memory end");
   require(vx_device_release(device) == VX_SUCCESS, "Close reserved device failed");
 
   const std::array<std::array<uint64_t, 2>, 8> invalid = {{{1, 0}, {0, 4096},
@@ -78,7 +80,7 @@ int main() {
   unsetenv("RESERVATION_TEST_QUERY_ERROR");
   require(vx_device_open(0, &device) == VX_SUCCESS, "Separate host address space rejected");
   require(vx_mem_info(device, &free_bytes, &used_bytes) == 0 && used_bytes == 0
-      && free_bytes == 0xffff0000, "No-reservation backend lost device capacity");
+      && free_bytes == capacity - 0x10000, "No-reservation backend lost device capacity");
   require(vx_device_release(device) == VX_SUCCESS, "Close unreserved device failed");
   dlclose(library);
   std::puts("PASSED: mandatory transport reservation, real allocator and SimX CP, arena exclusion, 9 invalid/query cases rejected before CP access");

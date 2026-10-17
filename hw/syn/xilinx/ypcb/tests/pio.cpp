@@ -37,7 +37,7 @@ public:
   Test() {
     dut.s_awvalid = dut.s_wvalid = dut.s_arvalid = 0;
     dut.s_bready = dut.s_rready = 0;
-    dut.memory_ready = 3;
+    dut.memory_ready = 2;
     dut.reset = 1;
     for (unsigned cycle = 0; cycle < 4; ++cycle) {
       tick();
@@ -64,7 +64,7 @@ public:
   void tick() {
     drive();
     if (dut.m_awvalid && dut.m_awready) {
-      require((dut.m_awaddr & 63) == 0 && dut.m_awaddr < 0x100000000ull,
+      require((dut.m_awaddr & 63) == 0 && dut.m_awaddr < 0x80000000ull,
           "Invalid AXI write address");
       have_address = true;
       write_address = dut.m_awaddr;
@@ -96,7 +96,7 @@ public:
       have_address = have_data = false;
     }
     if (dut.m_arvalid && dut.m_arready) {
-      require((dut.m_araddr & 63) == 0 && dut.m_araddr < 0x100000000ull,
+      require((dut.m_araddr & 63) == 0 && dut.m_araddr < 0x80000000ull,
           "Invalid AXI read address");
       read_data = memory[dut.m_araddr];
       read_status = response;
@@ -235,10 +235,10 @@ static void host_test(Test& test) {
   Pio pio(mmio);
   test.dut.memory_ready = 1;
   require(pio.initialize() == Result::unready, "Host accepted incomplete readiness");
-  test.dut.memory_ready = 3;
+  test.dut.memory_ready = 2;
   require(pio.initialize() == Result::success, "Host PIO initialization failed");
   unsigned transfers = 0;
-  for (uint64_t base : {0x10000ull, 0x7fffff80ull, 0xffffff40ull}) {
+  for (uint64_t base : {0x10000ull, 0x3fffff80ull, 0x7fffff40ull}) {
     for (unsigned offset = 0; offset < 64; ++offset) {
       for (unsigned size : {0u, 1u, 3u, 31u, 64u, 65u, 129u}) {
         for (unsigned line = 0; line < 3; ++line) {
@@ -273,25 +273,25 @@ static void host_test(Test& test) {
     }
   }
   uint8_t last = 0x47, out = 0;
-  require(pio.write(0xffffffff, &last, 1) == Result::success
-          && pio.read(0xffffffff, &out, 1) == Result::success && last == out,
+  require(pio.write(0x7fffffff, &last, 1) == Result::success
+          && pio.read(0x7fffffff, &out, 1) == Result::success && last == out,
           "Final address byte differs");
   const unsigned before = mmio.accesses;
-  require(pio.read(0x100000000ull, nullptr, 0) == Result::success
-          && pio.write(0x100000000ull, nullptr, 0) == Result::success,
+  require(pio.read(0x80000000ull, nullptr, 0) == Result::success
+          && pio.write(0x80000000ull, nullptr, 0) == Result::success,
           "Empty end-of-memory transfer rejected");
-  require(pio.read(0xffffffff, &out, 2) == Result::invalid
-          && pio.write(0x100000001ull, nullptr, 0) == Result::invalid
+  require(pio.read(0x7fffffff, &out, 2) == Result::invalid
+          && pio.write(0x80000001ull, nullptr, 0) == Result::invalid
           && pio.write(1, nullptr, 1) == Result::invalid
           && pio.read(0xffffffffffffffffull, &out, 1) == Result::invalid,
           "Host range or pointer validation failed");
   require(mmio.accesses == before, "Empty/invalid transfer accessed MMIO");
-  for (unsigned bank = 0; bank < 2; ++bank) {
-    test.dut.memory_ready = 1u << (bank ^ 1);
-    require(pio.write(uint64_t(bank) << 31, &last, 1) == Result::unready,
+  for (unsigned ready : {0u, 1u}) {
+    test.dut.memory_ready = ready;
+    require(pio.write(0x1000, &last, 1) == Result::unready,
             "Host accessed an unready channel");
   }
-  test.dut.memory_ready = 3;
+  test.dut.memory_ready = 2;
   for (unsigned response : {2u, 3u}) {
     test.response = response;
     require(pio.read(0x10000, &out, 1) == Result::memory_error,
@@ -458,7 +458,7 @@ static void memory_host_test() {
 int main() {
   Test test;
   require(test.read(0) == 0x56595043, "Signature differs");
-  require(test.read(4) == 0x30, "Reset status differs");
+  require(test.read(4) == 0x20, "Reset status differs");
   require(test.write(0x100, 0x12345678) == 0, "Data write failed");
   require(test.write(0x100, 0xaabbccdd, 5) == 0, "Masked register write failed");
   require(test.read(0x100) == 0x12bb56dd, "Register byte enables differ");
@@ -467,7 +467,7 @@ int main() {
   test.read(0x102, 3);
   test.read(0x200, 3);
 
-  const std::array<uint64_t, 4> addresses = {0x1000, 0x7fffffc0, 0x80001000, 0xffffefc0};
+  const std::array<uint64_t, 4> addresses = {0x1000, 0x3fffffc0, 0x40001000, 0x7fffefc0};
   const std::array<uint64_t, 3> masks = {~uint64_t(0), 0, 0x8123456789abcdefull};
   for (uint64_t address : addresses) {
     auto& line = test.memory[address];
@@ -510,14 +510,14 @@ int main() {
       && test.write(0x10, 2) == 2, "Out-of-range command accepted");
   test.wait(3);
   require(test.write(0xc, 0) == 0, "High address clear failed");
-  for (unsigned bank = 0; bank < 2; ++bank) {
-    test.dut.memory_ready = 1u << (bank ^ 1);
-    require(test.write(8, bank * 0x80000000u + 0x1000) == 0
+  for (unsigned ready : {0u, 1u}) {
+    test.dut.memory_ready = ready;
+    require(test.write(8, 0x1000) == 0
         && test.write(0x10, 1) == 2, "Unready channel command accepted");
     test.wait(2);
   }
   require(test.reads + test.writes == issued, "Rejected command issued AXI traffic");
-  test.dut.memory_ready = 3;
+  test.dut.memory_ready = 2;
   for (unsigned response : {2u, 3u}) {
     test.response = response;
     require(test.write(0x10, 1) == 0, "Error read command rejected");

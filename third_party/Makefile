@@ -1,3 +1,5 @@
+THREADS ?= 4
+
 all: cvfpu softfloat ramulator cocogfx
 
 cvfpu:
@@ -6,7 +8,7 @@ softfloat:
 	SPECIALIZE_TYPE=RISCV SOFTFLOAT_OPTS="-fPIC -DSOFTFLOAT_ROUND_ODD -DINLINE_LEVEL=5 -DSOFTFLOAT_FAST_DIV32TO16 -DSOFTFLOAT_FAST_DIV64TO32 -DTHREAD_LOCAL=_Thread_local" $(MAKE) -C softfloat/build/Linux-x86_64-GCC
 
 ramulator/libramulator.so:
-	cd ramulator && mkdir -p build && cd build && cmake .. && make -j4
+	cd ramulator && mkdir -p build && cd build && cmake .. && $(MAKE) -j$(THREADS)
 
 # The GDDR6 device model Ramulator ships but does not build. It registers with
 # Ramulator's factory when the library loads, built as Ramulator builds itself.

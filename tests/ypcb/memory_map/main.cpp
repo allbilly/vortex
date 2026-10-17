@@ -55,7 +55,7 @@ int main() {
     check(vx_queue_create(device, &info, &queue), "create queue");
 
     constexpr std::array<uint64_t, 4> addresses = {
-        0x00100000, 0x80100000, 0x7ffff000, 0xfffee000
+        0x00100000, 0x40100000, 0x7fffd000, 0x7ffee000
     };
     std::array<vx_buffer_h, addresses.size()> buffers{};
     std::array<std::vector<uint8_t>, addresses.size()> reference;
@@ -114,6 +114,6 @@ int main() {
     }
     check(vx_queue_release(queue), "release queue");
     check(vx_device_release(device), "release device");
-    std::puts("PASSED: CP DMA, 4 distinct regions, 2 GiB boundary, byte-exact upload/download/copy and no aliases");
+    std::puts("PASSED: CP DMA, 4 distinct regions, CH1 2 GiB bounds, byte-exact upload/download/copy and no aliases");
     return 0;
 }

@@ -7,10 +7,10 @@
 namespace vortex::ypcb {
 namespace {
 constexpr uint32_t status_errors = (3u << 4) | (1u << 8) | (15u << 11);
-constexpr uint32_t required_status = 15u | (1u << 15);
+constexpr uint32_t required_status = 10u;
 
 bool ready(uint32_t status) {
-  return (status & 0x7ff) == (15u | (1u << 7) | (3u << 9)) && (status >> 16) == 3;
+  return (status & 0x7ff) == (10u | (1u << 7) | (2u << 9)) && (status >> 16) == 3;
 }
 }
 
@@ -34,7 +34,7 @@ StartupResult Startup::initialize(StartupReport* report) {
     return StartupResult::io_error;
   }
   report->initial_status = report->final_status = status;
-  if (signature != 0x56595043 || version != 1 || (status & status_errors) != 0
+  if (signature != 0x56595043 || version != 2 || (status & status_errors) != 0
       || (status & required_status) != required_status) {
     return StartupResult::unsafe_state;
   }

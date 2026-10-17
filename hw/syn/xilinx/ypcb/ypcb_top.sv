@@ -13,20 +13,6 @@ module ypcb_top (
     input wire pci_exp_rxn,
     output wire pci_exp_txp,
     output wire pci_exp_txn,
-    output wire [14:0] ddr0_a,
-    output wire [2:0] ddr0_ba,
-    output wire  ddr0_cas_n,
-    output wire  ddr0_cke,
-    output wire  ddr0_clk_n,
-    output wire  ddr0_clk_p,
-    output wire  ddr0_cs_n,
-    inout wire [71:0] ddr0_dq,
-    inout wire [8:0] ddr0_dqs_n,
-    inout wire [8:0] ddr0_dqs_p,
-    output wire  ddr0_odt,
-    output wire  ddr0_ras_n,
-    output wire  ddr0_reset_n,
-    output wire  ddr0_we_n,
     output wire [14:0] ddr1_a,
     output wire [2:0] ddr1_ba,
     output wire  ddr1_cas_n,
@@ -43,10 +29,12 @@ module ypcb_top (
     output wire  ddr1_we_n
 );
     wire clock_50, clock_200, clock_200_raw, clock_feedback, clock_feedback_raw;
-    wire board_locked, pcie_refclk, bus_clk, pcie_reset, link_up, shell_busy;
+    wire board_locked, pcie_refclk, bus_clk, pcie_clk, pcie_reset, link_up, shell_busy;
+    wire clock_125_raw, pcie_link_up;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] link_sync;
     wire [1:0] memory_clk, memory_reset, pll_locked, init_done, init_error;
     wire [1:0] memory_ready;
-    wire reset_async = !SYS_RSTN || pcie_reset || !board_locked || !link_up;
+    wire reset_async = !SYS_RSTN || !board_locked;
     (* ASYNC_REG = "TRUE" *) reg [1:0] reset_sync = 2'b11;
     always @(posedge bus_clk or posedge reset_async) begin
         if (reset_async) begin
@@ -56,6 +44,15 @@ module ypcb_top (
         end
     end
     wire reset = reset_sync[1];
+    always @(posedge bus_clk) begin
+        if (reset) begin
+            link_sync <= 0;
+        end else begin
+            link_sync <= {link_sync[0], pcie_link_up};
+        end
+    end
+    assign link_up = link_sync[1];
+
 
     IBUF board_clock (
         .I (SYS_CLK),
@@ -69,17 +66,19 @@ module ypcb_top (
         .I (clock_200_raw),
         .O (clock_200)
     );
+    BUFG board_clock_125 (.I(clock_125_raw), .O(bus_clk));
     PLLE2_BASE #(
         .CLKIN1_PERIOD  (20.0),
         .CLKFBOUT_MULT  (20),
         .DIVCLK_DIVIDE  (1),
-        .CLKOUT0_DIVIDE (5)
+        .CLKOUT0_DIVIDE (5),
+        .CLKOUT1_DIVIDE (8)
     ) board_pll (
         .CLKIN1   (clock_50),
         .CLKFBIN  (clock_feedback),
         .CLKFBOUT (clock_feedback_raw),
         .CLKOUT0  (clock_200_raw),
-        .CLKOUT1  (),
+        .CLKOUT1  (clock_125_raw),
         .CLKOUT2  (),
         .CLKOUT3  (),
         .CLKOUT4  (),
@@ -98,22 +97,30 @@ module ypcb_top (
 
     wire rx_valid, rx_ready, rx_last, tx_valid, tx_ready, tx_last, tx_error;
     wire [63:0] rx_data, tx_data;
+    wire tx_error_raw;
+    reg tx_error_latched;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] tx_error_sync;
+    always @(posedge pcie_clk or posedge reset_async) begin
+        if (reset_async) begin
+            tx_error_latched <= 0;
+        end else if (tx_error_raw) begin
+            tx_error_latched <= 1;
+        end
+    end
+    always @(posedge bus_clk) begin
+        if (reset) begin
+            tx_error_sync <= 0;
+        end else begin
+            tx_error_sync <= {tx_error_sync[0], tx_error_latched};
+        end
+    end
+    assign tx_error = tx_error_sync[1];
     wire [7:0] rx_keep, tx_keep;
     wire [21:0] rx_user;
     wire [7:0] bus_number;
     wire [4:0] device_number;
     wire [2:0] function_number;
     wire turnoff_requested;
-    reg ever_ready;
-    always @(posedge bus_clk) begin
-        if (reset) begin
-            ever_ready <= 0;
-        end else if (|memory_ready) begin
-            ever_ready <= 1;
-        end
-    end
-    // A ready AFU can issue future requests even when the AXI ports are idle.
-    wire turnoff_ok = turnoff_requested && !reset && !ever_ready && !shell_busy;
 
     pcie_7x #(
         .PCIE_GT_DEVICE               ("GTX"),
@@ -136,14 +143,14 @@ module ypcb_top (
         .pci_exp_rxp                  (pci_exp_rxp),
         .pipe_mmcm_rst_n              (SYS_RSTN && pcie_perstn),
         .pipe_mmcm_lock               (),
-        .user_clk_out                 (bus_clk),
+        .user_clk_out                 (pcie_clk),
         .user_reset_out               (pcie_reset),
-        .user_lnk_up                  (link_up),
+        .user_lnk_up                  (pcie_link_up),
         .tx_cfg_gnt                   (1'b1),
         .rx_np_ok                     (1'b1),
         .rx_np_req                    (1'b1),
-        .cfg_turnoff_ok               (turnoff_ok),
-        .cfg_trn_pending              (shell_busy),
+        .cfg_turnoff_ok               (1'b0),
+        .cfg_trn_pending              (1'b1),
         .cfg_pm_halt_aspm_l0s         (1'b1),
         .cfg_pm_halt_aspm_l1          (1'b1),
         .cfg_pm_force_state_en        (1'b0),
@@ -162,7 +169,7 @@ module ypcb_top (
         .m_axis_rx_tkeep              (rx_keep),
         .m_axis_rx_tlast              (rx_last),
         .m_axis_rx_tuser              (rx_user),
-        .tx_err_drop                  (tx_error),
+        .tx_err_drop                  (tx_error_raw),
         .tx_cfg_req                   (),
         .tx_buf_av                    (),
         .cfg_status                   (),
@@ -309,11 +316,84 @@ module ypcb_top (
         end
     end
 
+    wire j_awvalid;
+    wire j_awready;
+    wire [15:0] j_awaddr;
+    wire j_wvalid;
+    wire j_wready;
+    wire [31:0] j_wdata;
+    wire [3:0] j_wstrb;
+    wire j_bvalid;
+    wire j_bready;
+    wire [1:0] j_bresp;
+    wire j_arvalid;
+    wire j_arready;
+    wire [15:0] j_araddr;
+    wire j_rvalid;
+    wire j_rready;
+    wire [31:0] j_rdata;
+    wire [1:0] j_rresp;
+    reg jtag_error;
+    always @(posedge bus_clk) begin
+        if (reset) begin
+            jtag_error <= 0;
+        end else if ((j_bvalid && j_bready && (|j_bresp))
+                || (j_rvalid && j_rready && (|j_rresp))) begin
+            jtag_error <= 1;
+        end
+    end
+    wire [31:0] j_awaddr_full, j_araddr_full;
+    assign j_awaddr = (|j_awaddr_full[31:16]) ? 16'hf000 : j_awaddr_full[15:0];
+    assign j_araddr = (|j_araddr_full[31:16]) ? 16'hf000 : j_araddr_full[15:0];
+    ypcb_jtag_axi jtag (
+        .aclk (bus_clk),
+        .aresetn (!reset),
+        .m_axi_awvalid (j_awvalid),
+        .m_axi_awready (j_awready),
+        .m_axi_awaddr (j_awaddr_full),
+        .m_axi_wvalid (j_wvalid),
+        .m_axi_wready (j_wready),
+        .m_axi_wdata (j_wdata),
+        .m_axi_wstrb (j_wstrb),
+        .m_axi_bvalid (j_bvalid),
+        .m_axi_bready (j_bready),
+        .m_axi_bresp (j_bresp),
+        .m_axi_arvalid (j_arvalid),
+        .m_axi_arready (j_arready),
+        .m_axi_araddr (j_araddr_full),
+        .m_axi_rvalid (j_rvalid),
+        .m_axi_rready (j_rready),
+        .m_axi_rdata (j_rdata),
+        .m_axi_rresp (j_rresp),
+        `UNUSED_PIN (m_axi_awprot),
+        `UNUSED_PIN (m_axi_arprot)
+    );
+
     VX_ypcb_shell shell (
+        .pcie_clk (pcie_clk),
+        .pcie_reset (pcie_reset),
+        .j_awvalid (j_awvalid),
+        .j_awready (j_awready),
+        .j_awaddr (j_awaddr),
+        .j_wvalid (j_wvalid),
+        .j_wready (j_wready),
+        .j_wdata (j_wdata),
+        .j_wstrb (j_wstrb),
+        .j_bvalid (j_bvalid),
+        .j_bready (j_bready),
+        .j_bresp (j_bresp),
+        .j_arvalid (j_arvalid),
+        .j_arready (j_arready),
+        .j_araddr (j_araddr),
+        .j_rvalid (j_rvalid),
+        .j_rready (j_rready),
+        .j_rdata (j_rdata),
+        .j_rresp (j_rresp),
+
         .clk          (bus_clk),
         .reset        (reset),
         .link_up      (link_up),
-        .tx_error     (tx_error),
+        .tx_error     (tx_error || jtag_error),
         .pll_locked   (status_sync[5:4]),
         .init_done    (status_sync[3:2]),
         .init_error   (status_sync[1:0]),
@@ -367,195 +447,25 @@ module ypcb_top (
         .wb_dat_r     (wb_dat_r)
     );
 
-    wire crossing_reset_0 = reset_async || memory_reset[0];
-    ypcb_axi_cdc axi_crossing_0 (
-        .bus_clk        (bus_clk),
-        .bus_reset      (crossing_reset_0),
-        .m_axi_araddr   (ddr_axi_araddr[0]),
-        .m_axi_arburst  (ddr_axi_arburst[0]),
-        .m_axi_arcache  (ddr_axi_arcache[0]),
-        .m_axi_arid     (ddr_axi_arid[0]),
-        .m_axi_arlen    (ddr_axi_arlen[0]),
-        .m_axi_arlock   (ddr_axi_arlock[0]),
-        .m_axi_arprot   (ddr_axi_arprot[0]),
-        .m_axi_arqos    (ddr_axi_arqos[0]),
-        .m_axi_arready  (ddr_axi_arready[0]),
-        .m_axi_arregion (ddr_axi_arregion[0]),
-        .m_axi_arsize   (ddr_axi_arsize[0]),
-        .m_axi_aruser   (ddr_axi_aruser[0]),
-        .m_axi_arvalid  (ddr_axi_arvalid[0]),
-        .m_axi_awaddr   (ddr_axi_awaddr[0]),
-        .m_axi_awburst  (ddr_axi_awburst[0]),
-        .m_axi_awcache  (ddr_axi_awcache[0]),
-        .m_axi_awid     (ddr_axi_awid[0]),
-        .m_axi_awlen    (ddr_axi_awlen[0]),
-        .m_axi_awlock   (ddr_axi_awlock[0]),
-        .m_axi_awprot   (ddr_axi_awprot[0]),
-        .m_axi_awqos    (ddr_axi_awqos[0]),
-        .m_axi_awready  (ddr_axi_awready[0]),
-        .m_axi_awregion (ddr_axi_awregion[0]),
-        .m_axi_awsize   (ddr_axi_awsize[0]),
-        .m_axi_awuser   (ddr_axi_awuser[0]),
-        .m_axi_awvalid  (ddr_axi_awvalid[0]),
-        .m_axi_bid      (ddr_axi_bid[0]),
-        .m_axi_bready   (ddr_axi_bready[0]),
-        .m_axi_bresp    (ddr_axi_bresp[0]),
-        .m_axi_buser    (1'b0),
-        .m_axi_bvalid   (ddr_axi_bvalid[0]),
-        .m_axi_rdata    (ddr_axi_rdata[0]),
-        .m_axi_rid      (ddr_axi_rid[0]),
-        .m_axi_rlast    (ddr_axi_rlast[0]),
-        .m_axi_rready   (ddr_axi_rready[0]),
-        .m_axi_rresp    (ddr_axi_rresp[0]),
-        .m_axi_ruser    (1'b0),
-        .m_axi_rvalid   (ddr_axi_rvalid[0]),
-        .m_axi_wdata    (ddr_axi_wdata[0]),
-        .m_axi_wlast    (ddr_axi_wlast[0]),
-        .m_axi_wready   (ddr_axi_wready[0]),
-        .m_axi_wstrb    (ddr_axi_wstrb[0]),
-        .m_axi_wuser    (ddr_axi_wuser[0]),
-        .m_axi_wvalid   (ddr_axi_wvalid[0]),
-        .memory_clk     (memory_clk[0]),
-        .memory_reset   (crossing_reset_0),
-        .s_axi_araddr   (m_araddr[0]),
-        .s_axi_arburst  (2'b01),
-        .s_axi_arcache  (4'd0),
-        .s_axi_arid     (m_arid[0]),
-        .s_axi_arlen    (m_arlen[0]),
-        .s_axi_arlock   ('0),
-        .s_axi_arprot   (3'd0),
-        .s_axi_arqos    (4'd0),
-        .s_axi_arready  (m_arready[0]),
-        .s_axi_arregion (4'd0),
-        .s_axi_arsize   (3'd6),
-        .s_axi_aruser   ('0),
-        .s_axi_arvalid  (m_arvalid[0]),
-        .s_axi_awaddr   (m_awaddr[0]),
-        .s_axi_awburst  (2'b01),
-        .s_axi_awcache  (4'd0),
-        .s_axi_awid     (m_awid[0]),
-        .s_axi_awlen    (m_awlen[0]),
-        .s_axi_awlock   ('0),
-        .s_axi_awprot   (3'd0),
-        .s_axi_awqos    (4'd0),
-        .s_axi_awready  (m_awready[0]),
-        .s_axi_awregion (4'd0),
-        .s_axi_awsize   (3'd6),
-        .s_axi_awuser   ('0),
-        .s_axi_awvalid  (m_awvalid[0]),
-        .s_axi_bid      (m_bid[0]),
-        .s_axi_bready   (m_bready[0]),
-        .s_axi_bresp    (m_bresp[0]),
-        .s_axi_buser    (),
-        .s_axi_bvalid   (m_bvalid[0]),
-        .s_axi_rdata    (m_rdata[0]),
-        .s_axi_rid      (m_rid[0]),
-        .s_axi_rlast    (m_rlast[0]),
-        .s_axi_rready   (m_rready[0]),
-        .s_axi_rresp    (m_rresp[0]),
-        .s_axi_ruser    (),
-        .s_axi_rvalid   (m_rvalid[0]),
-        .s_axi_wdata    (m_wdata[0]),
-        .s_axi_wlast    (m_wlast[0]),
-        .s_axi_wready   (m_wready[0]),
-        .s_axi_wstrb    (m_wstrb[0]),
-        .s_axi_wuser    ('0),
-        .s_axi_wvalid   (m_wvalid[0])
-    );
-
-    ypcb_wb_cdc csr_crossing_0 (
-        .bus_clk      (bus_clk),
-        .bus_reset    (crossing_reset_0),
-        .m_wb_ack     (ddr_wb_ack[0]),
-        .m_wb_adr     (ddr_wb_adr[0]),
-        .m_wb_bte     (ddr_wb_bte[0]),
-        .m_wb_cti     (ddr_wb_cti[0]),
-        .m_wb_cyc     (ddr_wb_cyc[0]),
-        .m_wb_dat_r   (ddr_wb_dat_r[0]),
-        .m_wb_dat_w   (ddr_wb_dat_w[0]),
-        .m_wb_err     (ddr_wb_err[0]),
-        .m_wb_sel     (ddr_wb_sel[0]),
-        .m_wb_stb     (ddr_wb_stb[0]),
-        .m_wb_we      (ddr_wb_we[0]),
-        .memory_clk   (memory_clk[0]),
-        .memory_reset (crossing_reset_0),
-        .s_wb_ack     (wb_ack[0]),
-        .s_wb_adr     (wb_adr[0]),
-        .s_wb_bte     (2'd0),
-        .s_wb_cti     (3'd0),
-        .s_wb_cyc     (wb_cyc[0]),
-        .s_wb_dat_r   (wb_dat_r[0]),
-        .s_wb_dat_w   (wb_dat_w[0]),
-        .s_wb_err     (wb_err[0]),
-        .s_wb_sel     (wb_sel[0]),
-        .s_wb_stb     (wb_stb[0]),
-        .s_wb_we      (wb_we[0])
-    );
-
-    ypcb_ddr3 ddr_0 (
-        .clk                     (clock_200),
-        .ddram_a                 (ddr0_a),
-        .ddram_ba                (ddr0_ba),
-        .ddram_cas_n             (ddr0_cas_n),
-        .ddram_cke               (ddr0_cke),
-        .ddram_clk_n             (ddr0_clk_n),
-        .ddram_clk_p             (ddr0_clk_p),
-        .ddram_cs_n              (ddr0_cs_n),
-        .ddram_dm                (),
-        .ddram_dq                (ddr0_dq),
-        .ddram_dqs_n             (ddr0_dqs_n),
-        .ddram_dqs_p             (ddr0_dqs_p),
-        .ddram_odt               (ddr0_odt),
-        .ddram_ras_n             (ddr0_ras_n),
-        .ddram_reset_n           (ddr0_reset_n),
-        .ddram_we_n              (ddr0_we_n),
-        .init_done               (init_done[0]),
-        .init_error              (init_error[0]),
-        .pll_locked              (pll_locked[0]),
-        .rst                     (reset_async),
-        .user_clk                (memory_clk[0]),
-        .user_port_axi_0_araddr  (ddr_axi_araddr[0]),
-        .user_port_axi_0_arburst (ddr_axi_arburst[0]),
-        .user_port_axi_0_arid    (ddr_axi_arid[0]),
-        .user_port_axi_0_arlen   (ddr_axi_arlen[0]),
-        .user_port_axi_0_arready (ddr_axi_arready[0]),
-        .user_port_axi_0_arsize  (ddr_axi_arsize[0]),
-        .user_port_axi_0_arvalid (ddr_axi_arvalid[0]),
-        .user_port_axi_0_awaddr  (ddr_axi_awaddr[0]),
-        .user_port_axi_0_awburst (ddr_axi_awburst[0]),
-        .user_port_axi_0_awid    (ddr_axi_awid[0]),
-        .user_port_axi_0_awlen   (ddr_axi_awlen[0]),
-        .user_port_axi_0_awready (ddr_axi_awready[0]),
-        .user_port_axi_0_awsize  (ddr_axi_awsize[0]),
-        .user_port_axi_0_awvalid (ddr_axi_awvalid[0]),
-        .user_port_axi_0_bid     (ddr_axi_bid[0]),
-        .user_port_axi_0_bready  (ddr_axi_bready[0]),
-        .user_port_axi_0_bresp   (ddr_axi_bresp[0]),
-        .user_port_axi_0_bvalid  (ddr_axi_bvalid[0]),
-        .user_port_axi_0_rdata   (ddr_axi_rdata[0]),
-        .user_port_axi_0_rid     (ddr_axi_rid[0]),
-        .user_port_axi_0_rlast   (ddr_axi_rlast[0]),
-        .user_port_axi_0_rready  (ddr_axi_rready[0]),
-        .user_port_axi_0_rresp   (ddr_axi_rresp[0]),
-        .user_port_axi_0_rvalid  (ddr_axi_rvalid[0]),
-        .user_port_axi_0_wdata   (ddr_axi_wdata[0]),
-        .user_port_axi_0_wlast   (ddr_axi_wlast[0]),
-        .user_port_axi_0_wready  (ddr_axi_wready[0]),
-        .user_port_axi_0_wstrb   (ddr_axi_wstrb[0]),
-        .user_port_axi_0_wvalid  (ddr_axi_wvalid[0]),
-        .user_rst                (memory_reset[0]),
-        .wb_ctrl_ack             (ddr_wb_ack[0]),
-        .wb_ctrl_adr             (ddr_wb_adr[0]),
-        .wb_ctrl_bte             (ddr_wb_bte[0]),
-        .wb_ctrl_cti             (ddr_wb_cti[0]),
-        .wb_ctrl_cyc             (ddr_wb_cyc[0]),
-        .wb_ctrl_dat_r           (ddr_wb_dat_r[0]),
-        .wb_ctrl_dat_w           (ddr_wb_dat_w[0]),
-        .wb_ctrl_err             (ddr_wb_err[0]),
-        .wb_ctrl_sel             (ddr_wb_sel[0]),
-        .wb_ctrl_stb             (ddr_wb_stb[0]),
-        .wb_ctrl_we              (ddr_wb_we[0])
-    );
+    assign memory_clk[0] = 1'b0;
+    assign memory_reset[0] = 1'b1;
+    assign pll_locked[0] = 1'b0;
+    assign init_done[0] = 1'b0;
+    assign init_error[0] = 1'b0;
+    assign m_awready[0] = 1'b0;
+    assign m_wready[0] = 1'b0;
+    assign m_bvalid[0] = 1'b0;
+    assign m_bid[0] = '0;
+    assign m_bresp[0] = '0;
+    assign m_arready[0] = 1'b0;
+    assign m_rvalid[0] = 1'b0;
+    assign m_rdata[0] = '0;
+    assign m_rlast[0] = 1'b0;
+    assign m_rid[0] = '0;
+    assign m_rresp[0] = '0;
+    assign wb_ack[0] = wb_cyc[0] && wb_stb[0];
+    assign wb_err[0] = wb_cyc[0] && wb_stb[0];
+    assign wb_dat_r[0] = '0;
 
     wire crossing_reset_1 = reset_async || memory_reset[1];
     ypcb_axi_cdc axi_crossing_1 (
@@ -747,5 +657,6 @@ module ypcb_top (
         .wb_ctrl_we              (ddr_wb_we[1])
     );
 
+    `UNUSED_VAR ({turnoff_requested, j_awaddr_full[31:16], j_araddr_full[31:16]})
     `UNUSED_VAR ({ddr_axi_arcache, ddr_axi_arlock, ddr_axi_arprot, ddr_axi_arqos, ddr_axi_arregion, ddr_axi_aruser, ddr_axi_awcache, ddr_axi_awlock, ddr_axi_awprot, ddr_axi_awqos, ddr_axi_awregion, ddr_axi_awuser, ddr_axi_wuser})
 endmodule

@@ -1,3 +1,41 @@
+# OpenTPU hardware return requested — October 18, 2026
+
+The user requires all Vortex work to stop when the combined-interface OpenTPU
+c0182800 implementation finishes. Preserve Vortex results in this repository,
+finish any atomic hardware programming safely and release the cable. A watcher
+is active; its request, logs and receipt are under
+[openTPU-return-20261018](build_ypcb_vivado32/openTPU-return-20261018/).
+This is coordination of the existing temporary test, not permission for a new
+permanent flash operation. The PCIe-only c0182301 target is retired.
+
+# Native CH1/JTAG/PCIe build — in progress
+
+The Vortex Podman container and its Ubuntu image were removed as requested.
+Host source/toolchain folders and all other containers were verified preserved;
+the deletion receipt is `build_ypcb_native32/podman-removal.json`.
+The wrapper now runs natively with a uv environment. `master` remains at
+upstream `7b67f0210`; the retained port is committed on `ypcb` as `6e0238af2`.
+
+The new design uses only CH1's 2 GiB, an independent 125 MHz board-derived GPU
+clock, PCIe AXI-Lite clock crossing, and a JTAG AXI master. Its board register
+ABI is version 2. Runtime capacity, stack/IO maps and kernel placement agree
+on the 2 GiB address space. Kernels link at `0x40000000`.
+
+Completed checks: 777 DMA cases, nine native uv/Python/build regressions,
+CH1 bounds/arbitration checks, startup and asynchronous AXI-Lite tests.
+The initial CH1 shell prototype passed memory transfers, demo and SGEMM
+through PCIe and JTAG simulation, including JTAG with the PCIe clock stopped.
+Those prototypes used board ABI 1; ABI 2 still needs the final native shell
+rerun. No new image has been programmed or physically executed.
+
+The current build uses fresh output under
+`build_ypcb_native32/ch1-jtag-pcie-20261018-v4/`. Both Vivado thread limits
+are one; large simulation rebuilds wait until synthesis completes.
+Earlier v1 failed before IP creation, and v2/v3 were stopped for the ABI change
+and the lower-memory restart. Their logs/exit receipts remain preserved.
+Native GCC 16 raises a bundled fmt 9 dangling-reference diagnostic in SimX;
+no warning has been suppressed. A compatible native compiler is being checked.
+
 # YPCB branch integration — October 18, 2026
 
 `master` matches upstream `7b67f0210`. The `ypcb` branch starts at that commit
