@@ -69,6 +69,14 @@ corrupted frozen inputs, and failed synthesis are rejected. The 718 real v6
 frozen inputs were independently hash-verified. Evidence is in
 `build_ypcb_native32/reuse-contract-checks/manifest.json`.
 
+The prepared resume command is
+`./build_ypcb_native32/resume-implementation.sh`. It checks for the active
+exclusion watcher before reconfiguration, keeps the one-worker/allocator limits,
+and uses the completed v6 checkpoint with a fresh v7 output directory. Its
+preflight was verified to exit 2 without starting implementation while the
+watcher remains active. If v7 already exists at resume time, supply another
+fresh output directory as its argument.
+
 Earlier v1 failed before IP creation, and v2/v3 were stopped for the ABI change
 and the lower-memory restart. The completed OpenTPU handover watcher stopped v4
 with SIGTERM. v5 was stopped during IP synthesis to correct a project/non-project
