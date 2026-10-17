@@ -59,8 +59,8 @@ typedef struct {
   // Returns BOTH a CPU-addressable pointer (out_host_ptr — the runtime
   // memcpy's the command ring / DMA staging through it) and the device-
   // side address the CP uses to reach the same bytes (out_cp_addr).
-  // host_mem_free is keyed by that cp_addr. The region must be coherent
-  // with the CP's m_axi_host view (no explicit sync callback).
+  // host_mem_free is keyed by that cp_addr. Shadowed regions use the
+  // explicit push/pull callbacks below.
   int (*host_mem_alloc)(void* dev_ctx, uint64_t size,
                         void** out_host_ptr, uint64_t* out_cp_addr);
   int (*host_mem_free) (void* dev_ctx, uint64_t cp_addr);
@@ -83,6 +83,11 @@ typedef struct {
   // generic regions; the backend itself syncs only what it owns (the ring
   // at each doorbell, the head/completion lines it manages).
   int (*host_mem_push) (void* dev_ctx, uint64_t cp_addr);
+
+  // One page-aligned device-memory range owned by the transport, reserved
+  // before CP setup or user allocations. Separate host address spaces report
+  // base=0, size=0. Every backend must implement this query.
+  int (*host_mem_device_range)(void* dev_ctx, uint64_t* base, uint64_t* size);
 
 } callbacks_t;
 

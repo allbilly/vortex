@@ -476,9 +476,15 @@ unconditionally on every backend.
   flush completes ([`:105-134`](../../hw/rtl/cp/VX_cp_dcr_proxy.sv#L105)).
 - **DMA** ([`VX_cp_dma.sv`](../../hw/rtl/cp/VX_cp_dma.sv)) — dual-port
   multi-beat bursts in ≤4 KB INCR chunks (`MAX_BURST` = 64 × 64 B beats),
-  each chunk clipped so no burst crosses a 4 KB boundary on either
-  operand. A chunk is read fully into a buffer, then written out:
-  sequential, not pipelined.
+  each chunk clipped in bytes so no burst crosses a 4 KB boundary on either
+  operand. AXI addresses are aligned to 64 bytes; source and destination
+  offsets determine separate read/write beat counts. Adjacent buffered lines
+  supply the destination alignment, and each beat's `WSTRB` enables exactly
+  the requested bytes. Host-direction readback compares only written lanes.
+  Zero-length commands issue no memory traffic. A chunk is read fully into
+  a buffer, then written out sequentially. The `cp_dma` RTL unit test covers
+  777 upload/download/copy cases, guard bytes and backpressure; the YPCB
+  `memory_map` runtime test also checks byte-exact transfers through XRT.
 - **Event unit** ([`VX_cp_event_unit.sv`](../../hw/rtl/cp/VX_cp_event_unit.sv)) —
   `EVENT_SIGNAL` writes a counter slot (`awsize=3`, `wstrb[7:0]=0xFF`);
   `EVENT_WAIT` ARs the slot and re-issues until the compare passes
@@ -592,13 +598,19 @@ ray-tracing/compute so a mixed raster+RT frame becomes one CP batch.
 ## 9. Runtime architecture
 
 The runtime ([`sw/runtime/`](../../sw/runtime/)) is built around a
-**`callbacks_t` dlopen dispatcher** with a minimal 6-function transport
-HAL ([`sw/runtime/common/callbacks.h:39-68`](../../sw/runtime/common/callbacks.h#L39)):
-`dev_open/close`, `cp_reg_write/read`, `host_mem_alloc/free`. Everything
-above that — command encoding, queues, events, buffers, VM — is
-backend-agnostic common code. `host_mem_free` is keyed by the CP-visible
-address, not the host pointer, and there is no explicit sync callback:
-host memory must already be coherent with the CP's `axi_host` view.
+**`callbacks_t` dlopen dispatcher** with nine mandatory transport functions
+([`callbacks.h`](../../sw/runtime/common/callbacks.h)): `dev_open/close`,
+`cp_reg_write/read`, `host_mem_alloc/free`, `host_mem_push/pull`, and
+`host_mem_device_range`. Command encoding, queues, events, buffers and VM live
+in backend-agnostic common code. Free and sync use the CP-visible address.
+Coherent transports implement explicit no-op sync callbacks; DDR shadow
+transports publish and refresh only the named region.
+
+`host_mem_device_range` reports one page-aligned device-memory interval shared
+with transport allocations, or `(0, 0)` for a separate host address space.
+`Device::cp_init()` validates and reserves it before any CP access or
+application allocation. The reservation remains owned for the device lifetime
+and is released during destruction. Device open fails on missing callbacks or invalid ranges before any CP access.
 
 Layout:
 
@@ -609,7 +621,8 @@ Layout:
   `queue.cpp` (per-queue worker threads + launch encoding), `event.cpp`,
   `buffer.cpp`, `module.cpp`, `vm.{h,cpp}`, `caps.h`, `callbacks.{h,inc}`,
   legacy wrappers, `vortex2_internal.h`.
-- Backends: `simx/`, `rtlsim/`, `xrt/`, `opae/`, `gem5/`, and the `stub/`
+- Backends: `simx/`, `rtlsim/`, `xrt/`, `opae/`, `gem5/`, `aved/`,
+  `firesim/`, `ypcb/`, and the `stub/`
   dispatcher.
 
 **Init.** `Device::cp_init()`
@@ -708,57 +721,50 @@ The following gaps remain **open**.
 
 **Correctness gaps (RTL ↔ emulation divergence):**
 
-1. **Byte-exact DMA in RTL.** `VX_cp_dma` rounds transfer size up to a
-   64 B multiple (`rem_beats=(arg2+63)>>6`, `wstrb='1'`,
-   [`VX_cp_dma.sv:119`](../../hw/rtl/cp/VX_cp_dma.sv#L119)) while the
-   Emulation CP is byte-exact
-   ([`cmd_processor.cpp:531-541`](../../sim/common/cmd_processor.cpp#L531)).
-   Non-cache-line-aligned transfers can over-write on FPGA. Needs tail
-   `wstrb` on the last beat.
-2. **VM in RTL.** Add `CP_SATP_LO/HI` regfile decode + a hardware
+1. **VM in RTL.** Add `CP_SATP_LO/HI` regfile decode + a hardware
    page-table walker + TLB in `VX_cp_dma`, and route `F_MEM_PHYSICAL`, so
    FPGA matches the simulator's MMU-aware DMA. Today VM works on
    simx/rtlsim/gem5 and silently no-ops on FPGA.
-3. **Real `CMD_FENCE` semantics.** The engine retires FENCE as a NOP
+2. **Real `CMD_FENCE` semantics.** The engine retires FENCE as a NOP
    ([`VX_cp_engine.sv:109-112`](../../hw/rtl/cp/VX_cp_engine.sv#L109));
    it should honor `FENCE_DMA_BIT` / `FENCE_GPU_BIT` ordering.
-4. **`dcr_req_ready` backpressure.** `VX_cp_dcr_proxy` assumes the DCR bus
+3. **`dcr_req_ready` backpressure.** `VX_cp_dcr_proxy` assumes the DCR bus
    accepts every request in one cycle
    ([`:115-122`](../../hw/rtl/cp/VX_cp_dcr_proxy.sv#L115)); `VX_cp_core`
    discards `dcr_req_ready` outright
    ([`:340`](../../hw/rtl/cp/VX_cp_core.sv#L340)) even though
    `VX_cp_gpu_slice` now carries a real elastic buffer that can stall.
-5. **Resource re-entry under multi-queue** (§4.4, item 2). A grant landing
+4. **Resource re-entry under multi-queue** (§4.4, item 2). A grant landing
    on a busy resource unit is silently dropped while the granted CPE still
    retires on the previous command's `done`. Latent at `NUM_QUEUES=1`;
    blocking for anything more.
 
 **Performance / feature gaps:**
 
-6. **QMD `CMD_LAUNCH_QMD` in the RTL CP.** The atomic-launch opcode, the
+5. **QMD `CMD_LAUNCH_QMD` in the RTL CP.** The atomic-launch opcode, the
    in-memory descriptor format, the runtime encoder, and the
    `SUPPORTS_QMD` gate all exist and are validated on the Emulation CP
    (§2.3); the RTL CP does not decode 0x0B and advertises 0. Until it does,
    every FPGA launch pays the 20-`CMD_DCR_WRITE` dance, and per-queue
-   launch concurrency stays blocked on item 5.
-7. **`CMD_DRAW` in the RTL CP** (§8.1) — same shape: shipped in emulation,
+   launch concurrency stays blocked on item 4.
+6. **`CMD_DRAW` in the RTL CP** (§8.1) — same shape: shipped in emulation,
    cap bit cleared in RTL.
-8. **Multi-queue everywhere.** RTL is parameterized on `NUM_QUEUES` but
+7. **Multi-queue everywhere.** RTL is parameterized on `NUM_QUEUES` but
    defaults to 1; the Emulation CP models only `q0_`; the runtime programs
    only queue 0 and funnels every host queue through one ring lock (§9).
-   Real concurrency depends on items 5 and 6.
-9. **Batch the launch path.** `enqueue_launch` submits its 22 commands
+   Real concurrency depends on items 4 and 5.
+8. **Batch the launch path.** `enqueue_launch` submits its 22 commands
    unbatched — 22 doorbells, 22 busy-polls — while `cp_batch_begin/end`
    already exists and is used by `enqueue_commands`. Cheap win independent
-   of item 6.
-10. **EVENT_WAIT fairness + backoff.** `EVENT_WAIT` holds its arbiter
+   of item 5.
+9. **EVENT_WAIT fairness + backoff.** `EVENT_WAIT` holds its arbiter
     grant for the whole wait
     ([`VX_cp_event_unit.sv:124-129`](../../hw/rtl/cp/VX_cp_event_unit.sv#L124));
     it should release between polls and back off.
-11. **Priority arbitration.** `VX_cp_engine` already drives `bid_priority`
+10. **Priority arbitration.** `VX_cp_engine` already drives `bid_priority`
     from `q_state.prio`; `VX_cp_arbiter` ties it off
     ([`:41`](../../hw/rtl/cp/VX_cp_arbiter.sv#L41)). Wire it through.
-12. **Profiling writeback.** [`VX_cp_profiling.sv`](../../hw/rtl/cp/VX_cp_profiling.sv)
+11. **Profiling writeback.** [`VX_cp_profiling.sv`](../../hw/rtl/cp/VX_cp_profiling.sv)
     is **not instantiated by anything** — `VX_cp_axil_regfile` carries its
     own free-running counter for `CP_CYCLE_LO/HI` at `0x010/0x014` (the
     profiling module's header comment claiming `0x040/0x044` is stale).
@@ -767,19 +773,19 @@ The following gaps remain **open**.
     To give `vx_event_get_profiling` hardware backing: instantiate the
     module, emit the 32 B `{queued,submit,start,end}` record, and add a
     `CP_CYCLE_FREQ_HZ` register.
-13. **Interrupt path.** Add IP_ISR/IER/GIER in the AFU and
+12. **Interrupt path.** Add IP_ISR/IER/GIER in the AFU and
     `xrt::ip::interrupt` so the runtime sleeps instead of busy-polling
     `Q_SEQNUM` (the `irq` pulse already exists,
     [`VX_cp_core.sv:505`](../../hw/rtl/cp/VX_cp_core.sv#L505)).
-14. **Host-coherent completion mailbox / `head_addr` writeback.** The CP
+13. **Host-coherent completion mailbox / `head_addr` writeback.** The CP
     tracks `head` internally and never DMAs it to `head_addr`; the runtime
     likewise ignores the cmpl slot it programs (§9). A cacheable host
     mailbox would let both replace the per-poll MMIO read.
-15. **A CP DCR range.** `command_processor` has no DCR block of its own for
+14. **A CP DCR range.** `command_processor` has no DCR block of its own for
     CP↔GPU coordination / multi-context KMU. The range once earmarked for
     it (`0x080–0x0BF`) is now occupied by `[dcr_om]` in `VX_types.toml`, so
     this needs a fresh allocation rather than the old reservation.
-16. **Opcode-constant duplication.** The command opcodes are re-declared in
+15. **Opcode-constant duplication.** The command opcodes are re-declared in
     `VX_cp_pkg.sv`, `cmd_processor.h`, `device.cpp` **and** `queue.cpp`,
     with no shared header — four copies of one ABI, and a standing drift
     hazard.

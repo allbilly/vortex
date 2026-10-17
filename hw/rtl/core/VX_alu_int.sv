@@ -80,7 +80,7 @@ module VX_alu_int import VX_gpu_pkg::*; #(
     wire [31:0] lui_imm32 = {execute_if.data.op_args.alu.imm20, 12'd0};
     wire [20:0] br_imm21 = {execute_if.data.op_args.alu.imm20, 1'b0};
 
-    wire [`VX_CFG_XLEN-1:0] alu_imm = `SEXT(`VX_CFG_XLEN, execute_if.data.op_args.alu.imm20);
+    wire [`VX_CFG_XLEN-1:0] alu_imm = `VX_CFG_XLEN'($signed(execute_if.data.op_args.alu.imm20));
     wire [`VX_CFG_XLEN-1:0] lui_imm = `SEXT(`VX_CFG_XLEN, lui_imm32);
     wire [`VX_CFG_XLEN-1:0] br_imm  = `SEXT(`VX_CFG_XLEN, br_imm21);
     wire [`VX_CFG_XLEN-1:0] add_imm = is_lui_op ? lui_imm : (is_br_jal_op ? br_imm : alu_imm);

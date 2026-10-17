@@ -14,8 +14,8 @@ This is the canonical entry point for **both human contributors and AI coding ag
 
 ### Codebase orientation
 - [docs/codebase.md](docs/codebase.md) — repo file-tree map
-- [docs/microarchitecture.md](docs/microarchitecture.md) — pipeline & cache architecture
-- [docs/cache_subsystem.md](docs/cache_subsystem.md) — cache subsystem details
+- [docs/designs/microarchitecture.md](docs/designs/microarchitecture.md) — pipeline & cache architecture
+- [docs/designs/cache_subsystem.md](docs/designs/cache_subsystem.md) — cache subsystem details
 - [docs/hardware_library.md](docs/hardware_library.md) — `hw/rtl/libs/` reference
 
 ### Coding conventions
@@ -26,7 +26,7 @@ This is the canonical entry point for **both human contributors and AI coding ag
 - [docs/simulation.md](docs/simulation.md) — driver modes (simx, rtlsim, opae, xrt) and blackbox usage
 - [docs/testing.md](docs/testing.md) — test and regression flow
 - [docs/debugging.md](docs/debugging.md) — debug traces (`--debug`), VCD (`--vcd`), scope, trace_csv
-- [docs/debug_mode.md](docs/debug_mode.md) — debug-mode hardware support
+- [docs/kernel_debugging.md](docs/kernel_debugging.md) — kernel debugging with GDB
 - [docs/perfetto_analysis.md](docs/perfetto_analysis.md) — Perfetto trace and analysis
 - [docs/synthesis_analysis.md](docs/synthesis_analysis.md) — synthesis/PPA analysis
 
@@ -51,10 +51,14 @@ See [docs/install_vortex.md](docs/install_vortex.md) for the full recipe. The no
   make -s
   ```
 - **Separate build dirs per major variant** (`build32/`, `build64/`, `build_fpga64/`, ...) to avoid config/tool contamination. Never reuse one build dir for incompatible configurations.
+- **Standalone FPGA RTL exports must select the target toolchain explicitly and load its timing constraints.** LiteX defaults to ISE, which omits Vivado CDC attributes even when the exported logic is unchanged; see [docs/fpga_setup.md](docs/fpga_setup.md).
+- **Transient build stages must preserve their actual command exit status.** Successful systemd units can be unloaded before a dependent polls them; record an exit receipt in the run directory and do not infer success from a missing unit. See [docs/fpga_setup.md](docs/fpga_setup.md).
 - **`configure` generates a runnable tree** by copying and instantiating `ci/`, `runtime/`, `sim/`, and `tests/` into `build/`. For execution and test automation, *always* prefer the generated scripts/Makefiles under `build/` over the source-tree `.in` files.
 - **Re-`../configure` from `build/`** whenever you `git pull`, edit source Makefiles, edit `VX_config.toml` / any `*.toml`, or add/remove a build-participating directory. Symptom of forgetting this: stale binaries, missing targets, or "I edited this Makefile and nothing happened."
+- **Generated wrappers that invoke `configure` must run from an immutable script copy.** Replacing a running script can make Bash read a mixture of old and new input and fail after its child command finishes. Each invocation must own and clean up its copy, including nested invocations.
 - **Always ensure the build is current before running any test or app** — re-run `../configure` from `build/` first. `configure` regenerates `<build>/sw/VX_config.h` and `<build>/hw/*.vh` from `VX_config.toml`, but only when the toml is newer (it guards on mtime). The simx/RTL **cores `#include` this generated header**, so a stale header makes a core compile against old config values and silently diverge from the toml — and from the runtime/RTL, which re-expand the config every build. This is a real footgun: a stale `VX_config.h` once made SimX run a write-back D-cache while the toml/RTL were write-through, producing SimX-only wrong results. **Never** work around such a divergence by injecting `-DVX_CFG_*` overrides into a Makefile — that masks the stale artifact and fights the config system. The toml is the single source of truth; fix it by re-`configure`-ing.
 - **`ccache` can serve stale objects on `fmt`-version mismatches** (typical symptom: `fmt::v8` undefined-reference link errors in sim builds). Before deep-diving, retry with `CCACHE_DISABLE=1`.
+- **Compiler flag stamps must exclude per-target dependency-output options.** Keep `-MF $(@:.o=.d)` in compile recipes: `$@` changes with output paths, so storing it in the configuration fingerprint can force full rebuilds for equivalent directories. Normalize `DESTDIR` in both caller and callee: make treats equivalent path strings as different targets and can otherwise skip a required rebuild.
 - **Toolchain changes must ship through `vortex-toolchain-prebuilt`.** Vortex never builds its toolchain components from source: `ci/toolchain_install.sh` (used by CI and by every fresh `TOOLDIR`) downloads prebuilt binary tarballs from the `vortex-toolchain-prebuilt` repository at the tag pinned in `VERSION` (`TOOLCHAIN_REV`), resolved at run time. So any change to a component packaged there (mesa, pocl, LLVM, RISC-V GNU, libc/libcrt, Verilator, ...) is invisible to Vortex until the corresponding tarball is repackaged, committed to `vortex-toolchain-prebuilt`, and the pinned tag is moved — pushing the component's source repo alone does nothing for CI. Landing order for a coupled change: component source repos first, then the prebuilt refresh (tarballs + tag push), then the Vortex push **last, immediately after**, so the CI run the Vortex push triggers already downloads matching binaries.
 
 ---
@@ -81,9 +85,13 @@ See [docs/testing.md](docs/testing.md) and [docs/debugging.md](docs/debugging.md
   CONFIGS="-DVX_CFG_NUM_THREADS=8 -DVX_CFG_EXT_TCU_ENABLE" make -C tests/regression/<app>
   CONFIGS="-DVX_CFG_EXT_TCU_ENABLE" ./ci/blackbox.sh --driver=simx --app=<app> --threads=8
   ```
+- **The runtime dispatcher must track configuration changes too.** Rebuild `sw/runtime/stub` with the same `CONFIGS` as the backend and application. Capabilities such as `VX_CAPS_CLOCK_RATE` come from its compile flags; stale flags can report the wrong clock even when the backend is current. Preserve its compiler-flag stamp and generated-header dependencies.
 - **`make tests` / `make -C tests/regression` build with *default* macros.** Use `CONFIGS` + explicit per-app rebuild for non-default configurations.
 - **There is no `--rebuild` option.** `blackbox.sh` re-makes the driver on every run, and make rebuilds it on any source or flag change.
 - **Keep smoke/regression runs lean.** Don't enable debug or perf collection unless the run is explicitly for debug or measurement.
+- **Synthesis frontend checks must exercise parameter overrides with nested interfaces.** A successful conversion does not prove elaboration: specialization can break module-rooted interface references even when the default module works. Keep a small elaboration/functional check ahead of long whole-design runs; see [docs/synthesis_analysis.md](docs/synthesis_analysis.md).
+- **Staged synthesis must include every mapping stage and reject internal hardware cells in its final netlist.** Yosys `-run` excludes its ending label, and connectivity checks alone accept unmapped flip-flops. Normalize `$scopeinfo` metadata before applying cell gates; see [docs/synthesis_analysis.md](docs/synthesis_analysis.md).
+- **Clock-control exceptions require a verified primitive mode and switching-latency contract.** BUFGCTRL selection inputs differ from its enables: qualify the glitch protection and exact endpoints before excluding selection timing; see [docs/fpga_setup.md](docs/fpga_setup.md).
 - **RTL coverage path is `xrt`, not `rtlsim`.** When discussing or planning RTL verification, `xrt` is the canonical path — `rtlsim` bypasses the AFU surface. `rtlsim` remains useful for fast iteration on processor RTL; `xrt` is what proves the full integration.
 - **`ci/regression.sh` is the canonical source of tested configurations.** Use it to discover supported parameter combinations before inventing ad hoc ones.
 - **Perf-regression baselines (`ci/baselines/perf/*.json`) are golden data — never hand-edit them, and never "fix" a red perf gate by bumping the number.** They are regenerated only by `pytest ci -m perf_gate --update-baselines` (a human-run, reviewed step), and CI must never pass that flag. A `perf_gate` failure means real cycles moved: root-cause it, or — if the change is intended — regenerate the baseline so the diff shows the perf delta for review. Same rule as image goldens and `known_issue:`.
@@ -95,7 +103,7 @@ See [docs/testing.md](docs/testing.md) and [docs/debugging.md](docs/debugging.md
 
 ```bash
 ./ci/blackbox.sh --driver=simx --app=demo
-./ci/blackbox.sh --driver=simx --app=sgemm --args="-n10"
+./ci/blackbox.sh --driver=simx --app=sgemm --args="-n16"
 ```
 
 ### Regression suites
@@ -148,6 +156,7 @@ See [docs/coding_guidelines_cpp.md](docs/coding_guidelines_cpp.md) and [docs/cod
 - **Comments explain *why*, not *what*.** Well-named identifiers carry the *what*.
 - **Never reference the current task, PR, caller, issue number, or fix.** Those belong in the commit message and rot in code. Don't write `// used by foo()`, `// added for the X flow`, `// handles issue #123`.
 - **`RTL_PKGS` is for `VX_*_pkg.sv` only.** Verilog interfaces are illegal there. If an interface isn't being discovered, fix it via include paths or file naming — not by stuffing it into `RTL_PKGS`.
+- **RTL parameter names must avoid Vivado synthesis-property names.** Vivado exports module parameters as case-insensitive cell properties: a Boolean `USE_DSP` collides with the enum property `use_dsp`. Use `DSP_ENABLE` for the Boolean feature knob.
 - **Library RTL defaults to `TRACING_OFF`.** Modules under `hw/rtl/libs/` are excluded from VCD by default to keep waveform size manageable. Toggle per-file with `TRACING_ON`/`TRACING_OFF`, or globally with `CONFIGS="-DTRACING_ALL"`.
 - **No multi-paragraph docstrings or multi-line block comments** for trivial code. One short line is the ceiling unless the logic genuinely needs more.
 - **No `// removed code` or stale-rename breadcrumbs.** If something is unused, delete it.

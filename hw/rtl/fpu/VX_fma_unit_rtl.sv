@@ -25,7 +25,7 @@ module VX_fma_unit_rtl import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     //    hint; pipeline depth + retiming pack a DSP48 cascade).
     // 0: target ASIC standard cells (Wallace/CPA tree, area-optimal). Portable:
     //    the use_dsp attribute is ignored by ASIC synthesis tools.
-    parameter USE_DSP  = 0,
+    parameter DSP_ENABLE  = 0,
     // 1: full IEEE subnormal support. 0: flush-to-zero (DAZ subnormal inputs to
     //    signed zero; results already FTZ) for area. Use 0 for relaxed paths (RTU).
     parameter SUBNORM_ENABLE = 1,
@@ -247,7 +247,7 @@ module VX_fma_unit_rtl import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     // forces a registered DSP output per segment, breaking the cascade into
     // short pipelined hops. Portable: pure RTL + a 'use_dsp' hint (ASIC ignores
     // it and uses the Wallace/inferred path below).
-    localparam SPLIT_MUL = (USE_DSP != 0) && (SIG_BITS > 24) && (MUL_LATENCY >= 2);
+    localparam SPLIT_MUL = (DSP_ENABLE != 0) && (SIG_BITS > 24) && (MUL_LATENCY >= 2);
 
     if (SPLIT_MUL) begin : g_mul_dsp_split
         localparam BL_W = SIG_BITS - (SIG_BITS/2);   // low chunk of B
@@ -262,7 +262,7 @@ module VX_fma_unit_rtl import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
         // 2 stages consumed above; pad the remainder of MUL_LATENCY.
         VX_pipe_register #(.DATAW(PROD_BITS), .DEPTH(MUL_LATENCY-2)) pm (
             .clk(clk), .reset(reset), .enable(enable), .data_in(prod_q), .data_out(s1_prod));
-    end else if (USE_DSP) begin : g_mul_dsp
+    end else if (DSP_ENABLE) begin : g_mul_dsp
         (* use_dsp = "yes" *) wire [PROD_BITS-1:0] dsp_prod = PROD_BITS'(r1_sig_a) * PROD_BITS'(r1_sig_b);
         VX_pipe_register #(.DATAW(PROD_BITS), .DEPTH(MUL_LATENCY)) pm (
             .clk(clk), .reset(reset), .enable(enable), .data_in(dsp_prod), .data_out(s1_prod));

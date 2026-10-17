@@ -1,6 +1,7 @@
 include ../common.mk
 
 DESTDIR ?= $(CURDIR)/..
+override DESTDIR := $(abspath $(DESTDIR))
 
 CONFIG_FILE := $(DESTDIR)/simx_rt_config.stamp
 SRC_DIR := $(VORTEX_HOME)/sw/runtime/simx

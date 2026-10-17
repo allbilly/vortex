@@ -1,246 +1,225 @@
 // Copyright © 2019-2023
 // Licensed under the Apache License, Version 2.0.
 
-// ============================================================================
-// Verilator unit test for VX_cp_dma.
-//
-// VX_cp_dma is dual-port (axi_host + axi_dev). A CMD_MEM_COPY routes both
-// the read and the write to the device port, so this TB attaches a full
-// AXI slave memory model to the device port (d_*) and holds the host port
-// (h_*) idle.
-//
-// Verifies that the DMA module:
-//   1. Issues an AXI AR at src on axi_dev, captures one cache line of rdata.
-//   2. Issues an AXI AW at dst + W with the captured data, awaits B.
-//   3. Pulses `done` exactly once.
-//
-// Scenarios:
-//   1. COPY between two regions of the synthetic memory; verify dst
-//      bytes match src bytes byte-for-byte.
-//   2. Second back-to-back COPY (different addrs / pattern) re-arms
-//      cleanly — DMA returns to IDLE and accepts the next grant.
-// ============================================================================
-
 #include "vl_simulator.h"
-#include "util.h"
 #include "VVX_cp_dma_top.h"
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#ifndef TRACE_START_TIME
-#define TRACE_START_TIME 0ull
-#endif
-#ifndef TRACE_STOP_TIME
-#define TRACE_STOP_TIME -1ull
-#endif
-
 static uint64_t timestamp = 0;
-static bool     trace_en  = false;
+static bool trace_en = false;
 double sc_time_stamp() { return timestamp; }
-bool   sim_trace_enabled() { return trace_en; }
-void   sim_trace_enable(bool e) { trace_en = e; }
+bool sim_trace_enabled() { return trace_en; }
+void sim_trace_enable(bool enable) { trace_en = enable; }
 
-#define EXPECT(cond, msg) do { \
-    if (!(cond)) { \
-        std::fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, msg); \
-        std::exit(1); \
-    } \
-} while (0)
-
-// cmd_t packer: opcode in MSB word (index 8), arg0/1/2 in words [6..7],
-// [4..5], [2..3] respectively.
-static void pack_cmd(uint32_t out_words[9],
-                     uint8_t opcode, uint8_t flags,
-                     uint64_t arg0, uint64_t arg1, uint64_t arg2) {
-    for (int i = 0; i < 9; ++i) out_words[i] = 0;
-    out_words[0] = 0;
-    out_words[1] = 0;
-    out_words[2] = (uint32_t)(arg2 & 0xffffffffu);
-    out_words[3] = (uint32_t)(arg2 >> 32);
-    out_words[4] = (uint32_t)(arg1 & 0xffffffffu);
-    out_words[5] = (uint32_t)(arg1 >> 32);
-    out_words[6] = (uint32_t)(arg0 & 0xffffffffu);
-    out_words[7] = (uint32_t)(arg0 >> 32);
-    out_words[8] = (uint32_t)opcode | ((uint32_t)flags << 8);
+static void expect(bool condition, const char* message) {
+    if (!condition) {
+        std::fprintf(stderr, "FAIL: %s\n", message);
+        std::exit(1);
+    }
 }
 
-// ---- AXI4 slave model ----
+struct Port {
+    CData &awvalid, &awready;
+    QData &awaddr;
+    CData &awid, &awlen, &wvalid, &wready;
+    VlWide<16>& wdata;
+    QData& wstrb;
+    CData &wlast, &bvalid, &bready, &bid, &bresp;
+    CData &arvalid, &arready;
+    QData& araddr;
+    CData &arid, &arlen, &rvalid, &rready;
+    VlWide<16>& rdata;
+    CData &rid, &rlast, &rresp;
+};
+
+#define PORT(top, prefix) Port{ \
+    top->prefix##_awvalid, top->prefix##_awready, top->prefix##_awaddr, \
+    top->prefix##_awid, top->prefix##_awlen, top->prefix##_wvalid, \
+    top->prefix##_wready, top->prefix##_wdata, top->prefix##_wstrb, \
+    top->prefix##_wlast, top->prefix##_bvalid, top->prefix##_bready, \
+    top->prefix##_bid, top->prefix##_bresp, top->prefix##_arvalid, \
+    top->prefix##_arready, top->prefix##_araddr, top->prefix##_arid, \
+    top->prefix##_arlen, top->prefix##_rvalid, top->prefix##_rready, \
+    top->prefix##_rdata, top->prefix##_rid, top->prefix##_rlast, top->prefix##_rresp}
+
 struct AxiSlave {
-    static constexpr uint64_t MEM_BASE = 0x1000;
-    static constexpr int      MEM_SIZE = 4096;
-    uint8_t mem[MEM_SIZE] = {0};
+    static constexpr uint64_t BASE = 0x1000;
+    static constexpr unsigned SIZE = 65536;
+    std::array<uint8_t, SIZE> memory{};
+    bool reading = false, writing = false, response = false;
+    uint64_t read_address = 0, write_address = 0;
+    unsigned read_left = 0, write_left = 0, cycle_count = 0;
+    uint8_t read_id = 0, write_id = 0;
+    unsigned read_requests = 0, write_requests = 0;
 
-    bool         r_inflight = false;
-    uint64_t     r_addr     = 0;
-    uint8_t      r_id       = 0;
-
-    bool         aw_taken   = false;
-    uint64_t     aw_addr    = 0;
-    uint8_t      aw_id      = 0;
-    bool         b_pending  = false;
-    uint8_t      b_id       = 0;
-
-    void mem_write_cl(uint64_t addr, const uint8_t* src) {
-        for (int i = 0; i < 64; ++i) {
-            int64_t a = (int64_t)addr - (int64_t)MEM_BASE + i;
-            if (a >= 0 && a < MEM_SIZE) mem[a] = src[i];
-        }
-    }
-    void mem_read_cl(uint64_t addr, uint32_t* dst) const {
-        for (int w = 0; w < 16; ++w) {
-            uint32_t v = 0;
-            for (int b = 0; b < 4; ++b) {
-                int64_t a = (int64_t)addr - (int64_t)MEM_BASE + w*4 + b;
-                if (a >= 0 && a < MEM_SIZE) v |= (uint32_t)mem[a] << (8 * b);
+    void drive(Port port) {
+        port.arready = !reading && cycle_count % 3 != 0;
+        port.rvalid = reading;
+        port.rid = read_id;
+        port.rlast = read_left == 1;
+        port.rresp = 0;
+        if (reading) {
+            for (unsigned word = 0; word < 16; ++word) {
+                uint32_t value = 0;
+                for (unsigned byte = 0; byte < 4; ++byte) {
+                    value |= uint32_t(memory.at(read_address - BASE + word * 4 + byte)) << (byte * 8);
+                }
+                port.rdata[word] = value;
             }
-            dst[w] = v;
         }
-    }
-    int mem_cmp_cl(uint64_t addr_a, uint64_t addr_b) const {
-        for (int i = 0; i < 64; ++i) {
-            int64_t aa = (int64_t)addr_a - (int64_t)MEM_BASE + i;
-            int64_t ab = (int64_t)addr_b - (int64_t)MEM_BASE + i;
-            uint8_t va = (aa >= 0 && aa < MEM_SIZE) ? mem[aa] : 0;
-            uint8_t vb = (ab >= 0 && ab < MEM_SIZE) ? mem[ab] : 0;
-            if (va != vb) return i;
-        }
-        return -1;
+        port.awready = !writing && !response && cycle_count % 5 != 0;
+        port.wready = writing && cycle_count % 7 < 5;
+        port.bvalid = response;
+        port.bid = write_id;
+        port.bresp = 0;
     }
 
-    template <typename T>
-    void comb_drive(T* top) {
-        top->d_arready = !r_inflight;
-        top->d_rvalid = r_inflight;
-        top->d_rid    = r_id;
-        top->d_rlast  = 1;
-        top->d_rresp  = 0;
-        if (r_inflight) {
-            mem_read_cl(r_addr, vortex::VDataCast<uint32_t*, sizeof(top->d_rdata)>::get(top->d_rdata));
+    void step(Port port) {
+        if (port.arvalid && port.arready) {
+            expect((port.araddr & 63) == 0, "Unaligned full-width read address");
+            expect((port.araddr & 4095) + (unsigned(port.arlen) + 1) * 64 <= 4096,
+                   "Read burst crosses 4 KiB");
+            reading = true;
+            read_address = port.araddr;
+            read_left = unsigned(port.arlen) + 1;
+            read_id = port.arid;
+            ++read_requests;
+        } else if (port.rvalid && port.rready) {
+            read_address += 64;
+            --read_left;
+            reading = read_left != 0;
         }
-
-        top->d_awready = !aw_taken;
-        top->d_wready  = aw_taken && !b_pending;
-        top->d_bvalid  = b_pending;
-        top->d_bid     = b_id;
-        top->d_bresp   = 0;
-    }
-
-    template <typename T>
-    void posedge_update(T* top) {
-        if (top->d_arvalid && top->d_arready) {
-            r_inflight = true;
-            r_addr     = top->d_araddr;
-            r_id       = top->d_arid;
-        } else if (r_inflight && top->d_rvalid && top->d_rready) {
-            r_inflight = false;
+        if (port.awvalid && port.awready) {
+            expect((port.awaddr & 63) == 0, "Unaligned full-width write address");
+            expect((port.awaddr & 4095) + (unsigned(port.awlen) + 1) * 64 <= 4096,
+                   "Write burst crosses 4 KiB");
+            writing = true;
+            write_address = port.awaddr;
+            write_left = unsigned(port.awlen) + 1;
+            write_id = port.awid;
+            ++write_requests;
         }
-
-        if (top->d_awvalid && top->d_awready) {
-            aw_taken = true;
-            aw_addr  = top->d_awaddr;
-            aw_id    = top->d_awid;
-        }
-        if (aw_taken && top->d_wvalid && top->d_wready) {
-            // Write 64 bytes from wdata[0..15] into memory at aw_addr.
-            for (int w = 0; w < 16; ++w) {
-                uint32_t v = top->d_wdata[w];
-                for (int b = 0; b < 4; ++b) {
-                    int64_t a = (int64_t)aw_addr - (int64_t)MEM_BASE + w*4 + b;
-                    if (a >= 0 && a < MEM_SIZE) mem[a] = (uint8_t)(v >> (8 * b));
+        if (port.wvalid && port.wready) {
+            expect(bool(port.wlast) == (write_left == 1), "Incorrect WLAST");
+            for (unsigned byte = 0; byte < 64; ++byte) {
+                if ((port.wstrb >> byte) & 1) {
+                    memory.at(write_address - BASE + byte) =
+                        uint8_t(port.wdata[byte / 4] >> ((byte % 4) * 8));
                 }
             }
-            aw_taken  = false;
-            b_pending = true;
-            b_id      = aw_id;
+            write_address += 64;
+            --write_left;
+            if (write_left == 0) {
+                writing = false;
+                response = true;
+            }
         }
-        if (b_pending && top->d_bvalid && top->d_bready) b_pending = false;
+        if (port.bvalid && port.bready) {
+            response = false;
+        }
+        ++cycle_count;
     }
 };
 
-template <typename T>
-static void cycle(vl_simulator<T>& sim, AxiSlave& s, uint64_t& tick) {
+static void cycle(vl_simulator<VVX_cp_dma_top>& sim, AxiSlave& host,
+                  AxiSlave& device, uint64_t& tick) {
     auto* top = sim.operator->();
-    s.comb_drive(top);
+    host.drive(PORT(top, h));
+    device.drive(PORT(top, d));
     top->eval();
-    s.comb_drive(top);
+    host.drive(PORT(top, h));
+    device.drive(PORT(top, d));
     top->eval();
-    s.posedge_update(top);
+    host.step(PORT(top, h));
+    device.step(PORT(top, d));
     tick = sim.step(tick, 2);
-    s.comb_drive(top);
+    host.drive(PORT(top, h));
+    device.drive(PORT(top, d));
     top->eval();
 }
 
-template <typename T>
-static void run_copy(vl_simulator<T>& sim, AxiSlave& slave, uint64_t& tick,
-                     uint64_t src, uint64_t dst, const uint8_t* pattern) {
-    slave.mem_write_cl(src, pattern);
+static void transfer(vl_simulator<VVX_cp_dma_top>& sim, AxiSlave& host,
+                     AxiSlave& device, uint64_t& tick, uint8_t opcode,
+                     uint64_t source, uint64_t destination, unsigned size) {
+    for (unsigned byte = 0; byte < AxiSlave::SIZE; ++byte) {
+        host.memory[byte] = uint8_t(byte * 17 + byte / 64 + 0x27);
+        device.memory[byte] = uint8_t(byte * 23 + byte / 32 + 0x91);
+    }
+    auto expected_host = host.memory;
+    auto expected_device = device.memory;
+    const auto& input = opcode == 1 ? host.memory : device.memory;
+    auto& output = opcode == 2 ? expected_host : expected_device;
+    std::memcpy(output.data() + destination - AxiSlave::BASE,
+                input.data() + source - AxiSlave::BASE, size);
 
-    // Drain any leftover state (a previous run_copy returns with the FSM
-    // in S_DONE; one idle cycle takes it back to S_IDLE before we drive
-    // the next grant).
     sim->grant = 0;
-    for (int i = 0; i < 2; ++i) cycle(sim, slave, tick);
-
-    uint32_t c[9];
-    pack_cmd(c, /*opcode=*/0x03 /*MEM_COPY*/, 0, /*arg0=dst*/dst,
-             /*arg1=src*/src, /*arg2=size*/64);
-    for (int i = 0; i < 9; ++i) sim->cmd_packed[i] = c[i];
-
-    // Hold grant high until the FSM observably leaves IDLE (i.e. the
-    // master starts issuing AXI traffic). Dropping grant too early is a
-    // common race — IDLE -> REQ_AR is on a posedge so the FSM must see
-    // grant=1 at that exact edge.
+    for (unsigned idle = 0; idle < 2; ++idle) {
+        cycle(sim, host, device, tick);
+    }
+    for (unsigned word = 0; word < 9; ++word) {
+        sim->cmd_packed[word] = 0;
+    }
+    sim->cmd_packed[2] = size;
+    sim->cmd_packed[4] = uint32_t(source);
+    sim->cmd_packed[5] = uint32_t(source >> 32);
+    sim->cmd_packed[6] = uint32_t(destination);
+    sim->cmd_packed[7] = uint32_t(destination >> 32);
+    sim->cmd_packed[8] = opcode;
+    const unsigned prior_requests = host.read_requests + device.read_requests
+                                 + host.write_requests + device.write_requests;
     sim->grant = 1;
-    bool latched = false;
-    for (int g = 0; g < 8 && !latched; ++g) {
-        cycle(sim, slave, tick);
-        if (sim->d_arvalid) latched = true;
-    }
+    cycle(sim, host, device, tick);
+    cycle(sim, host, device, tick);
     sim->grant = 0;
-    EXPECT(latched, "DMA never asserted arvalid (grant capture failed)");
-
-    bool got_done = false;
-    for (int g = 0; g < 50 && !got_done; ++g) {
-        cycle(sim, slave, tick);
-        if (sim->done) got_done = true;
+    bool done = sim->done;
+    for (unsigned wait = 0; wait < 6000 && !done; ++wait) {
+        cycle(sim, host, device, tick);
+        done = sim->done;
     }
-    EXPECT(got_done, "DMA did not signal done within 50 cycles");
+    expect(done, "DMA timed out");
+    if (host.memory != expected_host || device.memory != expected_device) {
+        std::fprintf(stderr, "opcode=%u src=0x%llx dst=0x%llx bytes=%u\n",
+                     unsigned(opcode), static_cast<unsigned long long>(source),
+                     static_cast<unsigned long long>(destination), size);
+        expect(false, "Copied data or untouched guard bytes differ");
+    }
+    if (size == 0) {
+        expect(prior_requests == host.read_requests + device.read_requests
+             + host.write_requests + device.write_requests, "Zero-size DMA issued traffic");
+    }
 }
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     vl_simulator<VVX_cp_dma_top> sim;
+    AxiSlave host, device;
     uint64_t tick = 0;
-    AxiSlave slave;
-
     sim->grant = 0;
-    for (int i = 0; i < 9; ++i) sim->cmd_packed[i] = 0;
-    // The host AXI port (h_*) stays idle for CMD_MEM_COPY; verilator
-    // zero-inits its input ports and the harness never drives them.
+    for (unsigned word = 0; word < 9; ++word) {
+        sim->cmd_packed[word] = 0;
+    }
     tick = sim.reset(tick);
-
-    // ----- Test 1: copy at known offsets -----
-    {
-        uint8_t pat[64];
-        for (int i = 0; i < 64; ++i) pat[i] = (uint8_t)(0xA0 + i);
-        run_copy(sim, slave, tick, /*src=*/0x1000, /*dst=*/0x1100, pat);
-
-        int diff = slave.mem_cmp_cl(0x1000, 0x1100);
-        EXPECT(diff < 0, "T1: dst doesn't match src after copy");
+    const std::array<unsigned, 6> lengths = {1, 13, 63, 64, 65, 4097};
+    const std::array<unsigned, 4> destination_offsets = {0, 1, 31, 63};
+    unsigned cases = 0;
+    for (uint8_t opcode = 1; opcode <= 3; ++opcode) {
+        transfer(sim, host, device, tick, opcode, 0x2000, 0x6000, 0);
+        transfer(sim, host, device, tick, opcode, 0x2000, 0x6000, 64);
+        transfer(sim, host, device, tick, opcode, 0x2000, 0x6000, 8192);
+        cases += 3;
+        for (unsigned source_offset = 0; source_offset < 64; ++source_offset) {
+            for (unsigned index = 0; index < destination_offsets.size(); ++index) {
+                transfer(sim, host, device, tick, opcode, 0x2fc0 + source_offset,
+                         0x6fc0 + destination_offsets[index],
+                         lengths[(source_offset + index) % lengths.size()]);
+                ++cases;
+            }
+        }
     }
-
-    // ----- Test 2: back-to-back copy with different pattern -----
-    {
-        uint8_t pat[64];
-        for (int i = 0; i < 64; ++i) pat[i] = (uint8_t)(0x5A ^ (i << 1));
-        run_copy(sim, slave, tick, /*src=*/0x1200, /*dst=*/0x1300, pat);
-
-        int diff = slave.mem_cmp_cl(0x1200, 0x1300);
-        EXPECT(diff < 0, "T2: second copy mismatch");
-    }
-
-    std::printf("PASSED — 2 scenarios\n");
+    std::printf("PASSED: %u DMA cases, upload/download/copy, byte offsets, tails, guards, 4 KiB splits and backpressure\n", cases);
     return 0;
 }

@@ -85,20 +85,20 @@ module VX_rtu_xform import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         for (genvar k = 0; k < 2; ++k) begin : g_ray
             // step 0: origin seeds with the translation, direction with -0
             // (so the product keeps its own zero sign)
-            VX_fma_unit #(.USE_DSP (`VX_CFG_RTU_USE_DSP), .LATENCY (F), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_s0 (
+            VX_fma_unit #(.DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .LATENCY (F), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_s0 (
                 .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
                 .op_type (INST_FPU_MADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
                 .dataa ((k == 0) ? ro[0] : rd[0]), .datab (col[0][i]),
                 .datac ((k == 0) ? xform[4*i + 3] : 32'h80000000),
                 .result (acc0[i][k]), `UNUSED_PIN (fflags)
             );
-            VX_fma_unit #(.USE_DSP (`VX_CFG_RTU_USE_DSP), .LATENCY (F), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_s1 (
+            VX_fma_unit #(.DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .LATENCY (F), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_s1 (
                 .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
                 .op_type (INST_FPU_MADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
                 .dataa (ray1_d[k]), .datab (col1_d[i]), .datac (acc0[i][k]),
                 .result (acc1[i][k]), `UNUSED_PIN (fflags)
             );
-            VX_fma_unit #(.USE_DSP (`VX_CFG_RTU_USE_DSP), .LATENCY (F), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_s2 (
+            VX_fma_unit #(.DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .LATENCY (F), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_s2 (
                 .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
                 .op_type (INST_FPU_MADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
                 .dataa (ray2_d[k]), .datab (col2_d[i]), .datac (acc1[i][k]),

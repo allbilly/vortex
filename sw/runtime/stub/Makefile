@@ -6,6 +6,7 @@ include ../common.mk
 HOST_ARCH ?= x86_64
 
 DESTDIR ?= $(CURDIR)/..
+override DESTDIR := $(abspath $(DESTDIR))
 
 SRC_DIR := $(VORTEX_HOME)/sw/runtime/stub
 
@@ -73,12 +74,21 @@ all: $(OUT_DIR)/$(PROJECT)
 RT_HDRS := $(wildcard $(SW_COMMON_DIR)/*.h) \
            $(wildcard $(RT_COMMON_DIR)/*.h) \
            $(wildcard $(INC_DIR)/*.h)
+RT_HDRS += $(ROOT_DIR)/sw/VX_config.h $(ROOT_DIR)/sw/VX_types.h
+CONFIG_STAMP := $(OUT_DIR)/stub_config.stamp
+stamp_quote = '$(subst ','"'"',$(1))'
 
-$(OUT_DIR)/$(PROJECT): $(SRCS) $(RT_HDRS)
+$(CONFIG_STAMP): FORCE
 	@mkdir -p $(OUT_DIR)
-	$(CXX) $(CXXFLAGS) $(filter-out $(RT_HDRS),$^) $(LDFLAGS) -o $@
+	@stamp_tmp=$@.tmp.$$$$; printf '%s\n' $(call stamp_quote,$(CXX)) $(call stamp_quote,$(CXXFLAGS)) $(call stamp_quote,$(LDFLAGS)) > $$stamp_tmp; \
+	 if ! cmp -s $$stamp_tmp $@; then mv -f $$stamp_tmp $@; else rm -f $$stamp_tmp; fi
+
+$(OUT_DIR)/$(PROJECT): $(SRCS) $(RT_HDRS) $(SRC_DIR)/Makefile $(CONFIG_STAMP)
+	@mkdir -p $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) $(SRCS) $(LDFLAGS) -o $@
 
 clean:
 	rm -f $(DESTDIR)/$(PROJECT) $(DESTDIR)/aarch64/$(PROJECT) $(DESTDIR)/armhf/$(PROJECT)
+	rm -f $(DESTDIR)/stub_config.stamp $(DESTDIR)/aarch64/stub_config.stamp $(DESTDIR)/armhf/stub_config.stamp
 
-.PHONY: all clean
+.PHONY: all clean FORCE

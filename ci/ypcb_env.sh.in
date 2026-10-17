@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${BASH_SOURCE[0]} == "${VORTEX_YPCB_SNAPSHOT_PATH:-}" \
+   && $$ == "${VORTEX_YPCB_SNAPSHOT_OWNER:-}" \
+   && ${BASH_SOURCE[0]##*/} == vortex-ypcb-env.*.sh ]]; then
+    ypcb_snapshot=${BASH_SOURCE[0]}
+    trap 'rm -f -- "$ypcb_snapshot"' EXIT
+else
+    ypcb_snapshot=$(mktemp "${TMPDIR:-/tmp}/vortex-ypcb-env.XXXXXXXX.sh")
+    cp -- "${BASH_SOURCE[0]}" "$ypcb_snapshot"
+    exec env VORTEX_YPCB_SNAPSHOT_PATH="$ypcb_snapshot" \
+        VORTEX_YPCB_SNAPSHOT_OWNER="$$" bash "$ypcb_snapshot" "$@"
+fi
+
+source_dir='@VORTEX_HOME@'
+build_dir='@BUILDDIR@'
+tool_dir='@TOOLDIR@'
+container=${VORTEX_YPCB_CONTAINER:-vortex-ypcb-build}
+
+container_exec() {
+    podman start "$container" >/dev/null
+    podman exec -w "$build_dir" -e CCACHE_DISABLE=1 \
+        -e CONFIGS="${CONFIGS:-}" -e THREADS=2 "$container" "$@"
+}
+
+case ${1:-help} in
+    setup)
+        mkdir -p "$tool_dir"
+        if ! podman container exists "$container"; then
+            podman run -d --name "$container" --security-opt label=disable \
+                -v "$source_dir:$source_dir" -v "$tool_dir:$tool_dir" \
+                -w "$build_dir" docker.io/library/ubuntu:22.04 sleep infinity
+        fi
+        container_exec bash -c 'set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y --no-install-recommends build-essential cmake ccache wget \
+                ca-certificates git python3 python3-pip python3-tomli python3-yaml \
+                python3-pytest zlib1g-dev libtinfo5 libtinfo-dev libncurses-dev uuid-dev \
+                libboost-serialization-dev libpng-dev libhwloc-dev libgmp-dev \
+                libmpfr-dev libgmpxx4ldbl libxml2-dev ocl-icd-opencl-dev pkg-config iverilog'
+        container_exec git -C "$source_dir" submodule update --init --recursive
+        ;;
+    exec)
+        shift
+        container_exec "$@"
+        ;;
+    configure)
+        container_exec "$source_dir/configure" --xlen=32 --tooldir="$tool_dir" \
+            --osversion=ubuntu/focal
+        ;;
+    install-toolchain)
+        flags=()
+        for pair in llvm:llvm-vortex libcrt32:libcrt32 libc32:libc32 \
+            riscv32:riscv32-gnu-toolchain verilator:verilator pocl:pocl sv2v:sv2v; do
+            if [[ ! -d "$tool_dir/${pair#*:}" ]]; then
+                flags+=("--${pair%%:*}")
+            fi
+        done
+        if ((${#flags[@]})); then
+            container_exec ./ci/toolchain_install.sh "${flags[@]}"
+        fi
+        ;;
+    open-setup)
+        container_exec bash -c 'set -euo pipefail
+            mkdir -p open-reference
+            while read -r name url revision; do
+                path="open-reference/$name"
+                if [[ ! -d "$path" ]]; then
+                    git init "$path"
+                    git -C "$path" remote add origin "$url"
+                    git -C "$path" fetch --depth=1 origin "$revision"
+                    git -C "$path" checkout --detach FETCH_HEAD
+                fi
+                [[ $(git -C "$path" rev-parse HEAD) == "$revision" ]]
+                [[ -z $(git -C "$path" status --porcelain --untracked-files=no) ]]
+            done <<PINS
+migen https://github.com/m-labs/migen.git e19524c963a8342952840983047557707fbe0b6a
+litex https://github.com/enjoy-digital/litex.git 8c01073afb71aa0a0709f02f8e24247589e8f5e4
+litedram https://github.com/enjoy-digital/litedram.git 74522f715d7b10163ef6f6caa09887a90874be83
+litex-boards https://github.com/litex-hub/litex-boards.git 10debf146d433ce8ac8aedcac84e97d252ff4d5b
+pcie_7x https://github.com/regymm/pcie_7x.git cd1c33f53401d6ce1b6ec35da17884455477c2e9
+PINS
+            python3 -m pip install --disable-pip-version-check --target open-python-deps \
+                PyYAML==6.0.3 packaging==26.3 pyserial==3.5 colorama==0.4.6 \
+                requests==2.34.2 urllib3==2.8.0 idna==3.20 certifi==2026.7.22 \
+                charset-normalizer==3.5.2'
+        ;;
+    smoke|smoke-xrt)
+        driver=simx
+        [[ $1 != smoke-xrt ]] || driver=xrt
+        bash "$0" configure
+        container_exec make -j2 -C "$source_dir/third_party"
+        container_exec make -C sw/kernel clean
+        container_exec make -j2 -C sw/kernel
+        container_exec make -C sw/runtime/stub clean
+        container_exec make -j2 -C sw/runtime/stub
+        container_exec make -j2 -C "sw/runtime/$driver"
+        container_exec make -C tests/regression/demo clean
+        container_exec make -C tests/regression/demo
+        container_exec timeout 600 ./ci/blackbox.sh --driver="$driver" --app=demo
+        container_exec make -C tests/regression/sgemm clean
+        container_exec make -C tests/regression/sgemm
+        container_exec timeout 600 ./ci/blackbox.sh --driver="$driver" --app=sgemm --args=-n16
+        ;;
+    stage-reference|preflight|inventory)
+        python3 "$source_dir/ci/ypcb_prepare.py" "$1" --build "$build_dir" "${@:2}"
+        ;;
+    *)
+        printf '%s\n' 'Usage: ./ci/ypcb_env.sh {setup|configure|install-toolchain|open-setup|smoke|smoke-xrt|exec COMMAND...|stage-reference|preflight|inventory}'
+        exit 1
+        ;;
+esac

@@ -36,7 +36,7 @@ module VX_fdiv_unit_rtl import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     parameter FLEN    = 32,
     // Reserved for a future vendor/DSP backend select. The SRT datapath has no
     // multiplier, so it is a no-op here; accepted for a uniform FPU unit API.
-    parameter USE_DSP = 0,
+    parameter DSP_ENABLE = 0,
     // 1: full IEEE subnormal support. 0: flush-to-zero (DAZ subnormal inputs to
     //    signed zero + FTZ subnormal results) for area — drops the input
     //    normalization. Use 0 for relaxed-precision datapaths (e.g. RTU).
@@ -63,7 +63,7 @@ module VX_fdiv_unit_rtl import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     localparam HAS_D     = (FLEN >= 64);
     wire is_d = HAS_D ? fmt[0] : 1'b0;
     `UNUSED_VAR (fmt)
-    `UNUSED_PARAM (USE_DSP)
+    `UNUSED_PARAM (DSP_ENABLE)
 
     // ---- SUPER (widest) format the datapath is built for ----
     localparam SUPER_MAN = HAS_D ? 52 : 23;

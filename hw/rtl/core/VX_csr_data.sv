@@ -23,7 +23,7 @@
 `else
     `define CSR_READ_64(addr, dst, src) \
         addr : dst = src[31:0]; \
-        addr+12'h80 : dst = 32'(src[$bits(src)-1:32])
+        addr+12'h80 : dst = 32'(src >> 32)
 `endif
 
 module VX_csr_data

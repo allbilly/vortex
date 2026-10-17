@@ -192,7 +192,7 @@ module VX_fpu_dsp import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
         `FANOUT_BUFFER (fma_pe_ce, pe_enable);
 
         // Separate F32 / F64 FMA cores (pure-RTL, mantissa multiply mapped to DSP
-        // via USE_DSP). fmt[0] selects the result; pe_shared is input-aligned, so
+        // via DSP_ENABLE). fmt[0] selects the result; pe_shared is input-aligned, so
         // delay the selector by FMA latency to line it up with the unit output.
         wire is_d_in = (`VX_CFG_FLEN >= 64) & pe_shared[INST_FRM_BITS+0];
         wire is_d_fma;
@@ -220,7 +220,7 @@ module VX_fpu_dsp import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
                 .LATENCY  (`VX_CFG_FMA_LATENCY),
                 .MAN_BITS (23),
                 .EXP_BITS (8),
-                .USE_DSP  (1),
+                .DSP_ENABLE  (1),
                 .SUBNORM_ENABLE (FPU_SNORM)
             ) fma32 (
                 .clk     (clk),
@@ -243,7 +243,7 @@ module VX_fpu_dsp import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
                     .LATENCY  (`VX_CFG_FMA_LATENCY),
                     .MAN_BITS (52),
                     .EXP_BITS (11),
-                    .USE_DSP  (1),
+                    .DSP_ENABLE  (1),
                     .SUBNORM_ENABLE (FPU_SNORM)
                 ) fma64 (
                     .clk     (clk),
@@ -406,7 +406,7 @@ module VX_fpu_dsp import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
             VX_fdiv_unit #(
                 .LATENCY (`VX_CFG_FDIV_LATENCY),
                 .FLEN    (`VX_CFG_FLEN),
-                .USE_DSP (1),
+                .DSP_ENABLE (1),
                 .SUBNORM_ENABLE (FPU_SNORM)
             ) fdiv_unit (
                 .clk     (clk),
@@ -493,7 +493,7 @@ module VX_fpu_dsp import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
             VX_fsqrt_unit #(
                 .LATENCY (`VX_CFG_FSQRT_LATENCY),
                 .FLEN    (`VX_CFG_FLEN),
-                .USE_DSP (1),
+                .DSP_ENABLE (1),
                 .SUBNORM_ENABLE (FPU_SNORM)
             ) fsqrt_unit (
                 .clk     (clk),

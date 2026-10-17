@@ -548,7 +548,10 @@ module VX_fdivsqrt_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     wire signed [EXP_W-1:0] denorm_amt = result_sub ? (EXP_W'(1) - s_exp) : '0;
     wire huge_denorm = result_sub & ($signed(denorm_amt) >= $signed(EXP_W'(SUPER_SIG + 1)));
     wire [SH_W-1:0] dsh = huge_denorm ? SH_W'(SUPER_SIG) : SH_W'(denorm_amt);
-    wire [SUPER_SIG-1:0] below_gmsk = (dsh <= 1) ? '0 : ((SUPER_SIG'(1) << (dsh - 1)) - SUPER_SIG'(1));
+    wire [SUPER_SIG-1:0] below_gmsk;
+    for (genvar j = 0; j < SUPER_SIG; ++j) begin : g_guard_mask
+        assign below_gmsk[j] = (dsh > SH_W'(j + 1));
+    end
     wire [SUPER_SIG-1:0] sub_man = s_man >> dsh;
     wire sub_guard  = (dsh == 0) ? s_guard : huge_denorm ? 1'b0 : s_man[dsh - 1];
     wire sub_sticky = (dsh == 0) ? (s_round | s_sticky)
@@ -567,14 +570,15 @@ module VX_fdivsqrt_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
         .exact_zero_o           (exact_zero)
     );
 
+    wire round_increment = sub_man[0] ^ abs_rounded[0];
     wire sub_carry = abs_rounded[SUPER_MAN];
     wire norm_carry;
     if (HAS_D) begin : g_rcarry_d
-        wire rc_d = (abs_rounded == '0) & (sub_man != '0); // 53-bit wrap (F64)
-        wire rc_s = abs_rounded[24];                       // carry out of 24-bit man (F32)
+        wire rc_d = (&sub_man) & round_increment; // 53-bit wrap (F64)
+        wire rc_s = sub_man[24] ^ ((&sub_man[23:0]) & round_increment);
         assign norm_carry = act_d ? rc_d : rc_s;
     end else begin : g_rcarry_s
-        assign norm_carry = (abs_rounded == '0) & (sub_man != '0); // 24-bit wrap
+        assign norm_carry = (&sub_man) & round_increment; // 24-bit wrap
     end
     wire signed [EXP_W-1:0] fin_exp = result_sub ? (sub_carry ? EXP_W'(1) : '0)
                                                  : (s_exp + (norm_carry ? EXP_W'(1) : '0));

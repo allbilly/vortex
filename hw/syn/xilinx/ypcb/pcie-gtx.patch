@@ -1,0 +1,361 @@
+--- a/src/pipe_wrapper_gtx.v
++++ b/src/pipe_wrapper_gtx.v
+@@ -275,7 +275,10 @@
+     wire        [PCIE_LANE-1:0]     gt_txsyncout;           // GTH  
+     wire        [PCIE_LANE-1:0]     gt_txsyncdone;          // GTH                                                           
+     wire        [PCIE_LANE-1:0]     gt_rxsyncout;           // GTH     
+-    wire        [(PCIE_LANE*4)-1:0] gt_rxchariscomma;                      
++    wire        [63:0]              gt_rxdata;
++    wire        [7:0]               gt_rxcharisk;
++    assign PIPE_RXDATA = gt_rxdata[31:0];
++    assign PIPE_RXDATAK = gt_rxcharisk[3:0];
+     wire        [PCIE_LANE-1:0]     gt_rxbyteisaligned;                   
+     wire        [PCIE_LANE-1:0]     gt_rxbyterealign; 
+ 
+@@ -373,6 +376,7 @@
+ 
+     wire [PCIE_LANE-1:0]     drp_done_reg2;
+     wire [PCIE_LANE-1:0]     rxpmaresetdone_reg2;
++    wire [PCIE_LANE-1:0]     PIPE_RXPMARESETDONE;
+     wire                     plllock_reg2;
+     wire                     mmcm_lock_reg2;
+     wire [PCIE_LANE-1:0]     resetdone_reg2;
+@@ -410,7 +414,7 @@
+     wire gt_txratedone_reg3;
+     wire gt_rxratedone_reg3;
+     wire gt_txsyncdone_reg3;
+-    two_beats #(.BEATS(3), .RSTVAL(0)) rate_beats (.clk(PIPE_PCLK_IN), .rst(0), .sig(PIPE_RATE[0]), .out(pipe_rate_reg2));
++    two_beats #(.BEATS(3), .RSTVAL(0)) rate_beats (.clk(PIPE_PCLK_IN), .rst(1'b0), .sig(PIPE_RATE[0]), .out(pipe_rate_reg2));
+     two_beats #(.BEATS(3), .RSTVAL(0)) txratedone_beats (.clk(PIPE_PCLK_IN), .rst(rst_cpllreset), .sig(gt_txratedone[0]), .out(gt_txratedone_reg3));
+     two_beats #(.BEATS(3), .RSTVAL(0)) rxratedone_beats (.clk(PIPE_PCLK_IN), .rst(rst_cpllreset), .sig(gt_rxratedone[0]), .out(gt_rxratedone_reg3));
+     two_beats #(.BEATS(3), .RSTVAL(0)) txsyncdone_beats (.clk(PIPE_PCLK_IN), .rst(rst_cpllreset), .sig(gt_txsyncdone[0]), .out(gt_txsyncdone_reg3));
+@@ -561,9 +565,9 @@
+         end
+     end
+ 
+-    two_beats #(.BEATS(3), .RSTVAL(0)) dclk_rst_beats (.clk(PIPE_PCLK_IN), .rst(0), .sig(fsm == FSM_CFG_WAIT), .out(rst_dclk_reset));
++    two_beats #(.BEATS(3), .RSTVAL(0)) dclk_rst_beats (.clk(PIPE_PCLK_IN), .rst(1'b0), .sig(fsm == FSM_CFG_WAIT), .out(rst_dclk_reset));
+     wire rxusrclk_rst_reg;
+-    two_beats #(.BEATS(2), .RSTVAL(0)) drxusrclk_rst_beats (.clk(PIPE_RXUSRCLK_IN), .rst(0), .sig(rst_cpllreset), .out(rst_rxusrclk_reset));
++    two_beats #(.BEATS(2), .RSTVAL(0)) drxusrclk_rst_beats (.clk(PIPE_RXUSRCLK_IN), .rst(1'b0), .sig(rst_cpllreset), .out(rst_rxusrclk_reset));
+     assign rst_txsync_start = fsm == FSM_TXSYNC_START;
+     assign rst_idle = fsm == FSM_IDLE || PIPE_RATE[0]; // TODO: finer judgement
+     always @ (posedge PIPE_PCLK_IN) begin
+@@ -836,7 +840,7 @@
+         .TXDLY_CFG                      (16'h001F),
+         .TXDLY_LCFG                        ( 9'h030),
+         //RX Sync Attributes            
+-        .RXDFELPMRESET_TIME             (7'h0001111),
++        .RXDFELPMRESET_TIME             (7'b0001111),
+         .RXPH_CFG                       (24'd0),
+         .RXPH_MONITOR_SEL               ( 5'd0),
+         .RXPHDLY_CFG                    (24'h004020), // [19] : 1 = full range, 0 = half range
+@@ -936,7 +940,7 @@
+     )gtxe2_channel_i(
+ 		//Clock 
+         .GTGREFCLK                      (1'd0),
+-        .GTREFCLK0                      (PCIE_PLL_SEL == "QPLL" ? 0 : PIPE_CLK), // 100 MHz refclk to CPLL
++        .GTREFCLK0                      (PCIE_PLL_SEL == "QPLL" ? 1'b0 : PIPE_CLK), // 100 MHz refclk to CPLL
+         .GTREFCLK1                      (1'd0),
+         .GTNORTHREFCLK0                 (1'd0),
+         .GTNORTHREFCLK1                 (1'd0),
+@@ -976,7 +980,7 @@
+         .RXUSERRDY                      (rst_userrdy),
+         .CFGRESET                       (1'd0),
+         .GTRESETSEL                     (1'd0),
+-        .RESETOVRD                      (0),
++        .RESETOVRD                      (1'd0),
+         .GTTXRESET                      (rst_gtreset),
+         .GTRXRESET                      (rst_gtreset),
+                                                                                
+@@ -991,8 +995,8 @@
+ 		//RX Data 
+         .GTXRXP                         (PIPE_RXP[0]),
+         .GTXRXN                         (PIPE_RXN[0]),
+-        .RXDATA                         (PIPE_RXDATA[31:0]),
+-        .RXCHARISK                      (PIPE_RXDATAK[3:0]),
++        .RXDATA                         (gt_rxdata),
++        .RXCHARISK                      (gt_rxcharisk),
+         //Command                
+         .TXDETECTRX                     (PIPE_TXDETECTRX),
+         .TXPDELECIDLEMODE               ( 1'd0),
+@@ -1010,13 +1014,13 @@
+         .TXMARGIN                       (PIPE_TXMARGIN),
+         .TXSWING                        (PIPE_TXSWING),
+         .TXDEEMPH                       (PIPE_TXDEEMPH[0]),
+-        .TXINHIBIT                      (0),
++        .TXINHIBIT                      (1'd0),
+         .TXBUFDIFFCTRL                  (3'd4),
+         .TXDIFFCTRL                     (4'b1100), // Select 850mV 
+         .TXPRECURSOR                    (1'd0), // * if changed this, nextpnr will complain a lot (was 5'd0)
+         .TXPRECURSORINV                 (1'd0),
+         .TXMAINCURSOR                   (1'd0), // same, was 7'd0
+-        .TXPOSTCURSOR                   (0),
++        .TXPOSTCURSOR                   (5'd0),
+         .TXPOSTCURSORINV                (1'd0),
+         .RXLPMEN                        ((PCIE_LPM_DFE == "LPM") ? 1'd1 : 1'd0), // LPM for Gen1/Gen2
+         .RXDFEXYDEN                     (1'd0),
+@@ -1028,54 +1032,54 @@
+         .TXRATEDONE                     (gt_txratedone[0]),
+         .RXRATEDONE                     (gt_rxratedone[0]),
+         //DRP TODO: openxc7 doesn't support this yet, but no problem
+-        .DRPCLK                         (0),
+-        .DRPADDR                        (0),
+-        .DRPEN                          (0),
+-        .DRPDI                          (0),
++        .DRPCLK                         (1'd0),
++        .DRPADDR                        (9'd0),
++        .DRPEN                          (1'd0),
++        .DRPDI                          (16'd0),
+         .DRPWE                          (),
+                                                                                 
+         .DRPDO                          (),
+         .DRPRDY                         (),
+         //PMA 
+-        .TXPMARESET                     (0),
+-        .RXPMARESET                     (0),
++        .TXPMARESET                     (1'd0),
++        .RXPMARESET                     (1'd0),
+         .GTRSVD                         (16'd0),
+ 
+         //PCS 
+-        .TXPCSRESET                     (0),
+-        .RXPCSRESET                     (0),
++        .TXPCSRESET                     (1'd0),
++        .RXPCSRESET                     (1'd0),
+         .PCSRSVDIN                      (16'd0), // [0]: 1 = TXRATE async, [1]: 1 = RXRATE async    
+         
+         .PCSRSVDOUT                     (),
+         //CDR 
+-        .RXCDRRESET                     (0),
+-        .RXCDRFREQRESET                 (0),
++        .RXCDRRESET                     (1'd0),
++        .RXCDRFREQRESET                 (1'd0),
+         .RXCDRHOLD                      (1'b0),
+         .RXCDROVRDEN                    (1'd0),
+         //Eye Scan                
+-        .EYESCANRESET                   (0),
++        .EYESCANRESET                   (1'd0),
+         .EYESCANMODE                    (1'd0),
+         .EYESCANTRIGGER                 (1'b0),
+                                                                                 
+-        .EYESCANDATAERROR               (),
++        .EYESCANDATAERROR               (PIPE_EYESCANDATAERROR[0]),
+                                                                                 
+         //TX Buffer                
+         .TXBUFSTATUS                    (),
+                                                                                 
+         //RX Buffer                
+-        .RXBUFRESET                     (0),
++        .RXBUFRESET                     (1'd0),
+         
+         .RXBUFSTATUS                    (),
+                                                                                 
+         //TX Sync                
+-        .TXPHDLYRESET                   (0),
++        .TXPHDLYRESET                   (1'd0),
+         .TXPHDLYTSTCLK                  (1'd0),
+         .TXPHALIGN                      (sync_txphalign[0]),
+-        .TXPHALIGNEN                    (1),    //  enable!
++        .TXPHALIGNEN                    (1'd1),    //  enable!
+         .TXPHDLYPD                      (1'd0),
+         .TXPHINIT                       (sync_txphinit[0]),
+         .TXPHOVRDEN                     (1'd0),
+-        .TXDLYBYPASS                    (0),
++        .TXDLYBYPASS                    (1'd0),
+         .TXDLYSRESET                    (sync_txdlysreset[0]),
+         .TXDLYEN                        (sync_txdlyen[0]),
+         .TXDLYOVRDEN                    (1'd0),
+@@ -1089,16 +1093,16 @@
+         //RX Sync 
+         .RXPHDLYRESET                   (1'd0),
+         .RXPHALIGN                      (),    
+-        .RXPHALIGNEN                    (0),   
++        .RXPHALIGNEN                    (1'd0),   
+         .RXPHDLYPD                      (1'd0),
+         .RXPHOVRDEN                     (1'd0),
+-        .RXDLYBYPASS                    (1),
+-        .RXDLYSRESET                    (0),
+-        .RXDLYEN                        (0),
++        .RXDLYBYPASS                    (1'd1),
++        .RXDLYSRESET                    (1'd0),
++        .RXDLYEN                        (1'd0),
+         .RXDLYOVRDEN                    (1'd0),
+-        .RXDDIEN                        (0),
++        .RXDDIEN                        (1'd0),
+                                                                                 
+-        .RXPHALIGNDONE                  (gt_rxphaligndone),
++        .RXPHALIGNDONE                  (),
+         .RXPHMONITOR                    (),
+         .RXPHSLIPMONITOR                (),
+         .RXDLYSRESETDONE                (),
+@@ -1107,17 +1111,17 @@
+         .RXCOMMADETEN                   (1'd1),
+         .RXMCOMMAALIGNEN                (1'd1),
+         .RXPCOMMAALIGNEN                (1'd1),
+-        .RXSLIDE                        (0),
+-        .RXCOMMADET                     (PIPE_RXCOMMADET),
+-        .RXCHARISCOMMA                  (gt_rxchariscomma[3:0]),
++        .RXSLIDE                        (1'd0),
++        .RXCOMMADET                     (),
++        .RXCHARISCOMMA                  (),
+         .RXBYTEISALIGNED                (gt_rxbyteisaligned[0]),
+         .RXBYTEREALIGN                  (gt_rxbyterealign[0]),
+         //Channel Bonding 
+-        .RXCHBONDEN                     (0),
+-        .RXCHBONDI                      (0),
+-        .RXCHBONDLEVEL                  (0),
+-        .RXCHBONDMASTER                 (0),
+-        .RXCHBONDSLAVE                  (0),
++        .RXCHBONDEN                     (1'd0),
++        .RXCHBONDI                      (5'd0),
++        .RXCHBONDLEVEL                  (3'd0),
++        .RXCHBONDMASTER                 (1'd0),
++        .RXCHBONDSLAVE                  (1'd0),
+         .RXCHANBONDSEQ                  (), 
+         .RXCHANISALIGNED                (PIPE_RXCHANISALIGNED[0]),
+         .RXCHANREALIGN                  (),
+@@ -1142,11 +1146,11 @@
+         .RXHEADERVALID                  (),
+         .RXSTARTOFSEQ                   (),
+         //PRBS/Loopback 
+-        .TXPRBSSEL                      (0),
+-        .RXPRBSSEL                      (0),
+-        .TXPRBSFORCEERR                 (0),
+-        .RXPRBSCNTRESET                 (0),
+-        .LOOPBACK                       (0),
++        .TXPRBSSEL                      (3'd0),
++        .RXPRBSSEL                      (3'd0),
++        .TXPRBSFORCEERR                 (1'd0),
++        .RXPRBSCNTRESET                 (1'd0),
++        .LOOPBACK                       (3'd0),
+         .RXPRBSERR                      (), 
+         //OOB 
+         .TXCOMINIT                      (1'd0),
+--- a/src/pcie_7x.v
++++ b/src/pcie_7x.v
+@@ -782,7 +782,7 @@
+     .fc_nph                                     ( ),
+     .fc_pd                                      ( ),
+     .fc_ph                                      ( ),
+-    .fc_sel                                     ( 0 ),
++    .fc_sel                                     ( 3'd0 ),
+     .cfg_turnoff_ok                             ( cfg_turnoff_ok ),
+     .cfg_received_func_lvl_rst                  ( cfg_received_func_lvl_rst ),
+ 
+@@ -911,7 +911,7 @@
+     .cfg_mgmt_byte_en_n                         ( ~4'b0 ),
+     .cfg_mgmt_di                                ( 0 ),
+     .cfg_dsn                                    ( cfg_dsn ),
+-    .cfg_mgmt_dwaddr                            ( 0 ),
++    .cfg_mgmt_dwaddr                            ( 10'd0 ),
+     .cfg_err_acs_n                              ( 1'b1 ),
+     .cfg_err_cor_n                              ( ~1'b0 ),
+     .cfg_err_cpl_abort_n                        ( ~1'b0 ),
+@@ -937,9 +937,9 @@
+     .cfg_bus_number                             ( cfg_bus_number ),
+     .cfg_device_number                          ( cfg_device_number ),
+     .cfg_function_number                        ( cfg_function_number ),
+-    .cfg_ds_bus_number                          ( 0 ),
+-    .cfg_ds_device_number                       ( 0 ),
+-    .cfg_ds_function_number                     ( 0 ),
++    .cfg_ds_bus_number                          ( 8'd0 ),
++    .cfg_ds_device_number                       ( 5'd0 ),
++    .cfg_ds_function_number                     ( 3'd0 ),
+     .cfg_pm_send_pme_to_n                       ( 1'b1 ),
+     .cfg_pm_wake_n                              ( ~cfg_pm_wake ),
+     .cfg_pm_halt_aspm_l0s_n                     ( ~cfg_pm_halt_aspm_l0s ),
+@@ -1059,9 +1059,9 @@
+ ) pipe_clock_i (
+ 	.refclk_i                       ( PIPE_TXOUTCLK_OUT), // Reference clock from lane 0
+ 	.rst_n_i                        ( pipe_mmcm_rst_n ), // Allow system reset for error_recovery             
+-	.refclk_sel_i                   ( 0 ),
++	.refclk_sel_i                   ( 1'd0 ),
+ 	.pclk_sel_i                     ( pipe_tx_rate ),
+-    .pipeclk_en_i                   ( 1 ),
++    .pipeclk_en_i                   ( 1'd1 ),
+ 	.pclk_o                         ( PIPE_PCLK_IN ),
+ 	.dclk_o                         ( PIPE_DCLK_IN ),
+ 	.userclk_o                      ( PIPE_USERCLK1_IN ),
+@@ -1131,8 +1131,8 @@
+ 	.PIPE_RESET_N                    ( sys_rst_n ),
+ 	//.PIPE_PCLK                       ( pipe_clk ),
+ 	//---------- PIPE TX Data Ports ------------------
+-	.PIPE_TXDATA                    ( pipe_tx0_data ),
+-	.PIPE_TXDATAK                   ( pipe_tx0_char_is_k ),
++	.PIPE_TXDATA                    ( {16'd0, pipe_tx0_data} ),
++	.PIPE_TXDATAK                   ( {2'd0, pipe_tx0_char_is_k} ),
+ 
+ 	.PIPE_TXP                       ( pci_exp_txp[0:0] ),
+ 	.PIPE_TXN                       ( pci_exp_txn[0:0] ),
+@@ -1151,7 +1151,7 @@
+ 	.PIPE_RATE                      ( {1'b0,pipe_tx_rate} ),
+ 	//---------- PIPE Electrical Command Ports ------------------
+ 	.PIPE_TXMARGIN                  ( pipe_tx_margin[2:0] ),
+-	.PIPE_TXSWING                   ( 0 ),
++	.PIPE_TXSWING                   ( 1'd0 ),
+ 	.PIPE_TXDEEMPH                  ( {(LINK_CAP_MAX_LINK_WIDTH){pipe_tx_deemph}}),
+ 	//---------- PIPE Status Ports -------------------
+ 	.PIPE_RXVALID                   ( gt_rx_valid_wire[0:0] ),
+--- a/src/pcie_block.v
++++ b/src/pcie_block.v
+@@ -628,8 +628,6 @@
+   wire                 pipe_tx_reset;
+   wire                 pipe_tx_rcvr_det;
+   wire                 pipe_tx_rate;
+-  wire                 pipe_tx_deemph;
+-  wire [2:0]           pipe_tx_margin;
+   wire                 pipe_rx0_polarity;
+   wire                 pipe_tx0_compliance;
+   wire [1:0]           pipe_tx0_char_is_k;
+@@ -643,7 +641,6 @@
+   reg [7:0]            cfg_bus_number_d;
+   reg [4:0]            cfg_device_number_d;
+   reg [2:0]            cfg_function_number_d;
+-  wire                 cfg_turnoff_ok_w;
+ 
+   wire                 cfg_mgmt_rd_wr_done_n;
+   wire                 pl_phy_lnk_up_n;
+@@ -768,9 +765,9 @@
+     .trn_rsrc_rdy( trn_rsrc_rdy ),
+     .trn_rdst_rdy( trn_rdst_rdy ),
+     .trn_rsrc_dsc( trn_rsrc_dsc ),
+-    .trn_rrem( trn_rrem ),
++    .trn_rrem( trn_rrem[REM_WIDTH-1:0] ),
+     .trn_rerrfwd( trn_rerrfwd ),
+-    .trn_rbar_hit( trn_rbar_hit ),
++    .trn_rbar_hit( trn_rbar_hit[6:0] ),
+     .trn_recrc_err( trn_recrc_err ),
+ 
+     .user_clk( user_clk ),
+@@ -1301,7 +1298,7 @@
+     .CFGPMFORCESTATEENN                  (cfg_pm_force_state_en_n                    ),
+     .CFGPMFORCESTATE                     (cfg_pm_force_state                         ),
+     .CFGPMWAKEN                          (cfg_pm_wake_n                              ),
+-    .CFGPMTURNOFFOKN                     (cfg_turnoff_ok_w                        ),
++    .CFGPMTURNOFFOKN                     (~cfg_turnoff_ok                           ),
+     .CFGPMSENDPMETON                     (cfg_pm_send_pme_to_n                       ),
+     .CFGPCIECAPINTERRUPTMSGNUM           (cfg_pciecap_interrupt_msgnum               ),
+     .CFGTRNPENDINGN                      (~cfg_trn_pending                          ),
+@@ -1397,8 +1394,8 @@
+     .PIPETXRCVRDET                       (pipe_tx_rcvr_det_gt                           ),
+     .PIPETXRESET                         (pipe_tx_reset                              ),
+     .PIPETXRATE                          (pipe_tx_rate_gt                               ),
+-    .PIPETXDEEMPH                        (pipe_tx_deemph                             ),
+-    .PIPETXMARGIN                        (pipe_tx_margin                             ),
++    .PIPETXDEEMPH                        (pipe_tx_deemph_gt                          ),
++    .PIPETXMARGIN                        (pipe_tx_margin_gt                          ),
+     .PIPERX0POLARITY                     (pipe_rx0_polarity_gt                          ),
+     .PIPERX1POLARITY                     (                         ),
+     .PIPERX2POLARITY                     (                         ),
+--- a/src/xilinx_pcie_mmcm.v
++++ b/src/xilinx_pcie_mmcm.v
+@@ -153,7 +153,7 @@
+ 
+     //---------- Dynamic Reconfiguration -------------------
+     .DCLK                       (1'b0),
+-    .DADDR                      (0),
++    .DADDR                      (7'd0),
+     .DEN                        (1'b0),
+     .DWE                        (1'b0),
+     .DI                         (16'h0000),

@@ -23,6 +23,9 @@ xrt:
 aved:
 	$(MAKE) -C aved
 
+ypcb:
+	$(MAKE) -C ypcb
+
 clean:
 	$(MAKE) -C stub clean
 	$(MAKE) -C simx clean
@@ -31,4 +34,4 @@ clean:
 	$(MAKE) -C xrt clean
 	$(MAKE) -C aved clean
 
-.PHONY: all stub simx rtlsim opae xrt aved clean
+.PHONY: all stub simx rtlsim opae xrt aved ypcb clean

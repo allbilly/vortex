@@ -101,5 +101,13 @@ extern "C" int vx_dev_init(callbacks_t* callbacks) {
     return reinterpret_cast<vx_device*>(dev_ctx)->host_mem_push(cp_addr);
   };
 
+  callbacks->host_mem_device_range = [](void* dev_ctx, uint64_t* base,
+                                       uint64_t* size) -> int {
+    if (dev_ctx == nullptr || base == nullptr || size == nullptr) {
+      return -1;
+    }
+    return reinterpret_cast<vx_device*>(dev_ctx)->host_mem_device_range(base, size);
+  };
+
   return 0;
 }

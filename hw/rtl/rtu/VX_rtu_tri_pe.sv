@@ -130,7 +130,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     VX_fdiv_unit #(
         .LATENCY        (V),
         .FLEN           (32),
-        .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+        .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
         .SUBNORM_ENABLE (0),
         .EXCEPT_ENABLE  (1)
     ) fdiv_sz (
@@ -151,7 +151,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         for (genvar a = 0; a < 3; ++a) begin : g_ax
             VX_fma_unit #(
                 .LATENCY        (F),
-                .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+                .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
                 .SUBNORM_ENABLE (0),
                 .EXCEPT_ENABLE  (1)
             ) fsub_r (
@@ -201,7 +201,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     for (genvar a = 0; a < 2; ++a) begin : g_sxy
         VX_fma_unit #(
             .LATENCY        (F),
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
         ) fmul_s (
@@ -239,7 +239,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         for (genvar a = 0; a < 2; ++a) begin : g_ax
             VX_fma_unit #(
                 .LATENCY        (F),
-                .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+                .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
                 .SUBNORM_ENABLE (0),
                 .EXCEPT_ENABLE  (1)
             ) fma_p (
@@ -259,7 +259,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         end
         VX_fma_unit #(
             .LATENCY        (F),
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
         ) fmul_pz (
@@ -288,7 +288,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         for (genvar k = 0; k < 2; ++k) begin : g_prod
             VX_fma_unit #(
                 .LATENCY        (F),
-                .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+                .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
                 .SUBNORM_ENABLE (0),
                 .EXCEPT_ENABLE  (1)
             ) fmul_c (
@@ -308,7 +308,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         end
         VX_fma_unit #(
             .LATENCY        (F),
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
         ) fsub_w (
@@ -366,31 +366,31 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     );
 
     wire [31:0] det01, det_g, tp0, tp01, t_num;
-    VX_fma_unit #(.LATENCY (F), .USE_DSP (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fadd_det01 (
+    VX_fma_unit #(.LATENCY (F), .DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fadd_det01 (
         .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
         .op_type (INST_FPU_ADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
         .dataa (w_f[0]), .datab (w_f[1]), .datac ('0),
         .result (det01), `UNUSED_PIN (fflags)
     );
-    VX_fma_unit #(.LATENCY (F), .USE_DSP (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fadd_det (
+    VX_fma_unit #(.LATENCY (F), .DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fadd_det (
         .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
         .op_type (INST_FPU_ADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
         .dataa (det01), .datab (w_f1[2]), .datac ('0),
         .result (det_g), `UNUSED_PIN (fflags)
     );
-    VX_fma_unit #(.LATENCY (F), .USE_DSP (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fmul_tp0 (
+    VX_fma_unit #(.LATENCY (F), .DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fmul_tp0 (
         .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
         .op_type (INST_FPU_MUL), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
         .dataa (w_f[0]), .datab (pz_f[0]), .datac ('0),
         .result (tp0), `UNUSED_PIN (fflags)
     );
-    VX_fma_unit #(.LATENCY (F), .USE_DSP (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_tp01 (
+    VX_fma_unit #(.LATENCY (F), .DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_tp01 (
         .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
         .op_type (INST_FPU_MADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
         .dataa (w_f1[1]), .datab (pz_f1[1]), .datac (tp0),
         .result (tp01), `UNUSED_PIN (fflags)
     );
-    VX_fma_unit #(.LATENCY (F), .USE_DSP (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_t (
+    VX_fma_unit #(.LATENCY (F), .DSP_ENABLE (`VX_CFG_RTU_USE_DSP), .SUBNORM_ENABLE (0), .EXCEPT_ENABLE (1)) fma_t (
         .clk (clk), .reset (reset), .enable (enable), .mask (1'b1),
         .op_type (INST_FPU_MADD), .fmt (FMT_ADD), .frm (INST_FRM_RNE),
         .dataa (w2_f2), .datab (pz2_f2), .datac (tp01),
@@ -402,7 +402,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     VX_fdiv_unit #(
         .LATENCY        (V),
         .FLEN           (32),
-        .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+        .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
         .SUBNORM_ENABLE (0),
         .EXCEPT_ENABLE  (1)
     ) fdiv_rcp (
@@ -448,7 +448,7 @@ module VX_rtu_tri_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     for (genvar k = 0; k < 3; ++k) begin : g_scale
         VX_fma_unit #(
             .LATENCY        (F),
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
         ) fmul_tuv (

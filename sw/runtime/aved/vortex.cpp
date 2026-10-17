@@ -847,6 +847,12 @@ public:
     return 0;   // true host memory: coherent
   }
 
+  int host_mem_device_range(uint64_t* base, uint64_t* size) {
+    *base = 0;
+    *size = 0;
+    return 0;
+  }
+
 private:
 
 #ifdef CPP_API

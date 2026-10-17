@@ -141,6 +141,7 @@ public:
     // Make one region's host writes visible to the CP (see callbacks.h).
     // Called after filling a staging buffer, before submitting its command.
     virtual vx_result_t host_mem_push (uint64_t cp_addr) = 0;
+    virtual vx_result_t host_mem_device_range(uint64_t* base, uint64_t* size) = 0;
 };
 
 // ============================================================================
@@ -183,12 +184,14 @@ public:
         return r(cb_.host_mem_free(dev_ctx_, cp_addr));
     }
     vx_result_t host_mem_pull(uint64_t cp_addr) override {
-        if (!cb_.host_mem_pull) return VX_SUCCESS;  // older backend: coherent
         return r(cb_.host_mem_pull(dev_ctx_, cp_addr));
     }
     vx_result_t host_mem_push(uint64_t cp_addr) override {
-        if (!cb_.host_mem_push) return VX_SUCCESS;  // older backend: coherent
         return r(cb_.host_mem_push(dev_ctx_, cp_addr));
+    }
+
+    vx_result_t host_mem_device_range(uint64_t* base, uint64_t* size) override {
+        return r(cb_.host_mem_device_range(dev_ctx_, base, size));
     }
 
 private:
@@ -429,6 +432,7 @@ private:
     // global_mem_ covers the full user region. mem_alloc dispatches on
     // the VX_MEM_PHYS flag.
     vortex::MemoryAllocator        global_mem_;
+    uint64_t                       transport_base_ = 0;
     std::unique_ptr<vortex::MemoryAllocator> pinned_mem_;
     uint64_t                       pinned_size_ = 0;
     uint64_t                       pinned_base_ = 0;

@@ -146,7 +146,7 @@ module VX_rtu_box_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
         assign mx_a[a]   = raw ? raw_max[a] : q_scale(qmax[a], exp[a]);
         assign base_a[a] = raw ? 32'd0      : origin[a];
         VX_fma_unit #(
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .LATENCY        (F),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
@@ -182,7 +182,7 @@ module VX_rtu_box_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     wire [2:0][31:0] dmn, dmx;
     for (genvar a = 0; a < 3; ++a) begin : g_rel
         VX_fma_unit #(
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .LATENCY        (F),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
@@ -201,7 +201,7 @@ module VX_rtu_box_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
             `UNUSED_PIN (fflags)
         );
         VX_fma_unit #(
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .LATENCY        (F),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
@@ -238,7 +238,7 @@ module VX_rtu_box_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
     wire [2:0][31:0] t0, t1;
     for (genvar a = 0; a < 3; ++a) begin : g_slab
         VX_fma_unit #(
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .LATENCY        (F),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
@@ -257,7 +257,7 @@ module VX_rtu_box_pe import VX_gpu_pkg::*, VX_fpu_pkg::*, VX_rtu_pkg::*; #(
             `UNUSED_PIN (fflags)
         );
         VX_fma_unit #(
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .LATENCY        (F),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 // FMA backend selector. On a Xilinx (VIVADO) or Altera (QUARTUS) FPGA flow with
-// USE_DSP and flush-to-zero, the F32 path maps onto the hardened floating-point
+// DSP_ENABLE and flush-to-zero, the F32 path maps onto the hardened floating-point
 // operator IP, which is far smaller and faster than soft RTL on FPGA. Every other
 // case (generic FPGA, ASIC, simulation, F64, or any config needing subnormals)
 // uses the portable pure-RTL core VX_fma_unit_rtl. The vendor IP is flush-to-zero
@@ -26,7 +26,7 @@ module VX_fma_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     parameter EXP_BITS = 8,   // exponent bits: 8=F32, 11=F64
     // 1: use the FPGA DSP-optimized path — the vendor FP IP on Xilinx/Altera,
     //    else an inferred DSP48 mantissa multiply in the soft core. 0: ASIC soft.
-    parameter USE_DSP  = 0,
+    parameter DSP_ENABLE  = 0,
     // 1: full IEEE subnormal support (soft core only). 0: flush-to-zero; required
     //    to use the vendor IP, which has no subnormal support.
     parameter SUBNORM_ENABLE = 1,
@@ -50,7 +50,7 @@ module VX_fma_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     output wire [`FP_FLAGS_BITS-1:0]  fflags
 );
     // The vendor FP IP exists only on Xilinx/Altera FPGA flows, is F32-only here,
-    // and is flush-to-zero, so it is gated on USE_DSP and SUBNORM_ENABLE=0.
+    // and is flush-to-zero, so it is gated on DSP_ENABLE and SUBNORM_ENABLE=0.
 `ifdef VIVADO
     localparam VENDOR_OK = 1;
 `elsif QUARTUS
@@ -60,9 +60,9 @@ module VX_fma_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
 `endif
     // Vendor IP is selected only with SUBNORM_ENABLE=0 (it is flush-to-zero); any
     // config needing subnormals (SUBNORM_ENABLE=1) falls back to the IEEE soft core,
-    // so USE_DSP also keeps its soft meaning (DSP-inferred multiply) there.
+    // so DSP_ENABLE also keeps its soft meaning (DSP-inferred multiply) there.
     localparam IS_F32 = (MAN_BITS == 23) && (EXP_BITS == 8);
-    localparam USE_VENDOR_IP = (USE_DSP != 0) && (SUBNORM_ENABLE == 0) && IS_F32 && (VENDOR_OK != 0);
+    localparam USE_VENDOR_IP = (DSP_ENABLE != 0) && (SUBNORM_ENABLE == 0) && IS_F32 && (VENDOR_OK != 0);
 
     // The vendor IP latency is fixed by xilinx_ip_gen.tcl (C_Latency=16); the
     // surrounding pipeline assumes LATENCY cycles, so the two must agree.
@@ -135,7 +135,7 @@ module VX_fma_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
             .LATENCY        (LATENCY),
             .MAN_BITS       (MAN_BITS),
             .EXP_BITS       (EXP_BITS),
-            .USE_DSP        (USE_DSP),
+            .DSP_ENABLE        (DSP_ENABLE),
             .SUBNORM_ENABLE   (SUBNORM_ENABLE),
             .EXCEPT_ENABLE  (EXCEPT_ENABLE)
         ) core (

@@ -1,6 +1,7 @@
 include ../common.mk
 
 DESTDIR ?= $(CURDIR)
+override DESTDIR := $(abspath $(DESTDIR))
 
 CONFIG_FILE := $(DESTDIR)/xrtsim_config.stamp
 SRC_DIR := $(VORTEX_HOME)/sim/xrtsim

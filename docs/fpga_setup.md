@@ -1,5 +1,44 @@
 # FPGA Startup and Configuration Guide
 
+YPCB-00338-1P1 preparation and the remaining custom-platform work are tracked
+in [the YPCB port proposal](proposals/ypcb_port_proposal.md). The Alveo build
+instructions below do not produce a YPCB bitstream.
+
+The YPCB AXI and Wishbone crossing generators explicitly select LiteX's
+`vivado` toolchain when exporting RTL. `XilinxPlatform` defaults to ISE;
+its attribute translation omits Vivado's `ASYNC_REG`, `mr_ff`, and
+`ars_ff1`/`ars_ff2` metadata. The FIFO logic still simulates correctly, but
+Vivado can fail to preserve and place its synchronizers correctly.
+Regenerate both crossings and run the generated Makefile's `cdc-test` and
+`wb-cdc-test` targets when changing their exporter.
+
+Attributes and timing exceptions serve different purposes. Preserve the
+synchronizer attributes, and load constraints that bound Gray-pointer delay
+and skew while excluding the appropriate asynchronous reset checks. A broad
+asynchronous clock group overrides maximum-delay constraints, so it cannot
+replace bounded FIFO crossing constraints; see
+[AMD UG903](https://docs.amd.com/r/en-US/ug903-vivado-using-constraints/Constraining-Asynchronous-Signals).
+The YPCB [Vivado CDC constraints](../hw/syn/xilinx/ypcb/vivado_cdc.tcl)
+check the synthesized Gray-pointer drivers before applying their delay and
+skew budgets. DDR external I/O timing still needs its own board and memory
+delay budget.
+
+The PCIe PIPE clock mux uses BUFGCTRL's glitchless selection mode. The
+rate-change logic waits for PHY completion signals and its state machine;
+it permits variable clock switching latency. In this mode, missing setup or
+hold on an `S` input can delay switching without creating a short clock
+pulse; `CE` timing still matters. See
+[AMD UG953](https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/BUFGCTRL).
+The [PCIe clock constraint](../hw/syn/xilinx/ypcb/vivado_pcie_clock.tcl)
+checks constant enables, inactive IGNORE inputs, complementary selection
+from one register, and both clock periods before excluding the two selection
+pins. Requalify those checks if the clock wrapper changes.
+
+When running Vivado in a transient systemd unit, save the actual command exit
+code in its run directory before the wrapper exits. A successful unit can be
+unloaded before a dependent observes its result. Preserve its log and
+checkpoint; a missing unit alone cannot establish stage completion.
+
 ## Gaining Access to FPGA's with CRNCH
 If you are associated with Georgia Tech (or related workshops) you can use CRNCH's server to gain remote access to FPGA's. Otherwise, you can skip to the Xilinx or Intel (Altera) synthesis steps below.
 

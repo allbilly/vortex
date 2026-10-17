@@ -109,6 +109,20 @@ public:
     return 0;
   }
 
+  int host_mem_device_range(uint64_t* base, uint64_t* size) {
+    *base = 0;
+    *size = 0;
+    return 0;
+  }
+
+  int host_mem_pull(uint64_t) {
+    return 0;
+  }
+
+  int host_mem_push(uint64_t) {
+    return 0;
+  }
+
 private:
   // If `addr` falls in a registered host region, return it as a host
   // pointer (cp_addr == the pointer); otherwise nullptr → device memory.

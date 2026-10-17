@@ -206,7 +206,7 @@ module VX_fpu_std import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
                 .LATENCY  (`VX_CFG_FMA_LATENCY),
                 .MAN_BITS (23),
                 .EXP_BITS (8),
-                .USE_DSP  (`VX_CFG_FPU_USE_DSP)
+                .DSP_ENABLE  (`VX_CFG_FPU_USE_DSP)
             ) fma32 (
                 .clk     (clk),
                 .reset   (reset),
@@ -228,7 +228,7 @@ module VX_fpu_std import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
                     .LATENCY  (`VX_CFG_FMA_LATENCY),
                     .MAN_BITS (52),
                     .EXP_BITS (11),
-                    .USE_DSP  (`VX_CFG_FPU_USE_DSP)
+                    .DSP_ENABLE  (`VX_CFG_FPU_USE_DSP)
                 ) fma64 (
                     .clk     (clk),
                     .reset   (reset),

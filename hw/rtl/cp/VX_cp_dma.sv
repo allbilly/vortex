@@ -10,7 +10,7 @@
 // Command encoding:
 //   arg0 = dst address
 //   arg1 = src address
-//   arg2 = transfer size in bytes (rounded up to a 64-byte multiple)
+//   arg2 = transfer size in bytes
 //
 // Dual port: XRT pins each kernel AXI master to exactly one memory resource
 // (an HBM/DDR bank or HOST[0]), so the CP carries two masters — axi_host for
@@ -89,140 +89,50 @@ module VX_cp_dma
   state_e               state;
   logic [7:0]           op_r;             // latched opcode (host/dev routing)
   logic [63:0]          dst_r, src_r;
-  logic [63:0]          rem_beats;        // 64 B beats still to move
-  logic [BCNT_W-1:0]    chunk_beats;      // beats in the current chunk
+  logic [63:0]          rem_bytes;
+  logic [12:0]          chunk_bytes;
+  logic [BCNT_W-1:0]    read_beats, write_beats;
+  logic [5:0]           src_offset, dst_offset;
   logic [BIDX_W-1:0]    beat_idx;
   logic [CL_BITS-1:0]   buf_r [MAX_BURST];
 
-  // Beats from a 64 B-aligned address to the next 4 KB boundary. `cl_idx`
-  // is the cache-line index inside the 4 KB page (addr[11:6], 0..63).
-  function automatic logic [BCNT_W-1:0] beats_to_4k(input logic [5:0] cl_idx);
-    return BCNT_W'(MAX_BURST) - BCNT_W'({1'b0, cl_idx});
-  endfunction
-
-  // Next chunk length = min(rem_beats, src 4K span, dst 4K span).
-  //
-  // The span comparison is done on the cache-line indices rather than on the
-  // spans: since beats_to_4k is (MAX_BURST - cl_idx) and cl_idx is 6 bits so
-  // never underflows, min(MAX_BURST - s, MAX_BURST - d) == MAX_BURST -
-  // max(s, d). That is one 6-bit compare followed by one subtract, instead of
-  // two subtracts followed by a compare, and it shortens the src_r ->
-  // chunk_beats path that limits this design at 300 MHz.
-  logic [BCNT_W-1:0] next_chunk;
+  logic [12:0] next_chunk;
   always_comb begin
-    logic [5:0]        cl_max;
-    logic [BCNT_W-1:0] lim;
-    cl_max = (src_r[11:6] > dst_r[11:6]) ? src_r[11:6] : dst_r[11:6];
-    lim    = beats_to_4k(cl_max);
-    if (rem_beats < 64'({1'b0, lim}))
-      next_chunk = BCNT_W'(rem_beats);
-    else
-      next_chunk = lim;
+    logic [11:0] page_offset;
+    logic [12:0] limit_bytes;
+    page_offset = (src_r[11:0] > dst_r[11:0]) ? src_r[11:0] : dst_r[11:0];
+    limit_bytes = 13'd4096 - {1'b0, page_offset};
+    if (rem_bytes < 64'(limit_bytes)) begin
+      next_chunk = 13'(rem_bytes);
+    end else begin
+      next_chunk = limit_bytes;
+    end
   end
 
   // Read-source / write-destination port selection from the latched opcode.
   wire rd_from_host = (cp_opcode_e'(op_r) == CMD_MEM_WRITE);  // upload: read host
   wire wr_to_host   = (cp_opcode_e'(op_r) == CMD_MEM_READ);   // download: write host
 
-  // Last beat of the current chunk.
-  wire last_beat = (BCNT_W'({1'b0, beat_idx}) == (chunk_beats - BCNT_W'(1)));
+  wire last_read_beat = (BCNT_W'({1'b0, beat_idx}) == (read_beats - BCNT_W'(1)));
+  wire last_write_beat = (BCNT_W'({1'b0, beat_idx}) == (write_beats - BCNT_W'(1)));
 
-  // ---- FSM ----
-  always_ff @(posedge clk) begin
-    if (reset) begin
-      state       <= S_IDLE;
-      op_r        <= '0;
-      dst_r       <= '0;
-      src_r       <= '0;
-      rem_beats   <= '0;
-      chunk_beats <= '0;
-      beat_idx    <= '0;
-    end else begin
-      case (state)
-        S_IDLE: begin
-          if (grant) begin
-            op_r      <= cmd.hdr.opcode;
-            dst_r     <= cmd.arg0;
-            src_r     <= cmd.arg1;
-            // Round the byte count up to a whole cache line.
-            rem_beats <= (cmd.arg2 + 64'd63) >> 6;
-            state     <= S_SETUP;
-          end
-        end
-        S_SETUP: begin
-          if (rem_beats == 64'd0) begin
-            // Every host-direction chunk validated inline (S_WAIT_B ->
-            // S_FLUSH_*), so nothing is left to prove here.
-            state <= S_DONE;
-          end else begin
-            chunk_beats <= next_chunk;
-            beat_idx    <= '0;
-            state       <= S_REQ_AR;
-          end
-        end
-        S_REQ_AR: begin
-          if (rd_arvalid && rd_arready) begin
-            beat_idx <= '0;
-            state    <= S_READ;
-          end
-        end
-        S_READ: begin
-          if (rd_rvalid && rd_rready) begin
-            buf_r[beat_idx] <= rd_rdata;
-            if (last_beat) begin
-              beat_idx <= '0;
-              state    <= S_REQ_AW;
-            end else begin
-              beat_idx <= beat_idx + BIDX_W'(1);
-            end
-          end
-        end
-        S_REQ_AW: begin
-          if (wr_awvalid && wr_awready) begin
-            beat_idx <= '0;
-            state    <= S_WRITE;
-          end
-        end
-        S_WRITE: begin
-          if (wr_wvalid && wr_wready) begin
-            if (last_beat) begin
-              state <= S_WAIT_B;
-            end else begin
-              beat_idx <= beat_idx + BIDX_W'(1);
-            end
-          end
-        end
-        S_WAIT_B: begin
-          if (wr_bvalid && wr_bready) begin
-            src_r     <= src_r + (64'({1'b0, chunk_beats}) << 6);
-            dst_r     <= dst_r + (64'({1'b0, chunk_beats}) << 6);
-            rem_beats <= rem_beats - 64'({1'b0, chunk_beats});
-            // Host-direction: prove this chunk committed before moving on.
-            // (dst_r advances this cycle, so the flush address computed in
-            // S_FLUSH_AR, dst_r - 64, is this chunk's last line.)
-            state     <= wr_to_host ? S_FLUSH_AR : S_SETUP;
-          end
-        end
-        S_FLUSH_AR: begin
-          if (axi_host.arvalid && axi_host.arready) begin
-            state <= S_FLUSH_R;
-          end
-        end
-        S_FLUSH_R: begin
-          if (axi_host.rvalid && axi_host.rready) begin
-            // Validate: the read-back must equal the line still held in
-            // buf_r. Stale data means the write has not reached the memory
-            // controller yet -- re-issue the read until it has.
-            state <= (axi_host.rdata == buf_r[BIDX_W'(chunk_beats - BCNT_W'(1))])
-                       ? S_SETUP : S_FLUSH_AR;
-          end
-        end
-        S_DONE: begin
-          state <= S_IDLE;
-        end
-        default: state <= S_IDLE;
-      endcase
-    end
+  wire [12:0] source_byte = {1'b0, beat_idx, 6'b0} + 13'(src_offset) - 13'(dst_offset);
+  wire [BCNT_W-1:0] lower_index = {1'b0, source_byte[11:6]};
+  wire [BCNT_W-1:0] upper_index = source_byte[12] ? '0 : lower_index + BCNT_W'(1);
+  wire [CL_BITS-1:0] lower_data = (!source_byte[12] && lower_index < read_beats)
+      ? buf_r[BIDX_W'(lower_index)] : '0;
+  wire [CL_BITS-1:0] upper_data = (upper_index < read_beats)
+      ? buf_r[BIDX_W'(upper_index)] : '0;
+  wire [CL_BITS-1:0] write_data = CL_BITS'({upper_data, lower_data} >> {source_byte[5:0], 3'b0});
+  wire [CL_BYTES-1:0] write_strobe;
+  for (genvar lane = 0; lane < CL_BYTES; ++lane) begin : g_write_strobe
+    wire [12:0] byte_index = {1'b0, beat_idx, 6'b0} + 13'(lane);
+    assign write_strobe[lane] = byte_index >= 13'(dst_offset)
+                            && byte_index < (13'(dst_offset) + chunk_bytes);
+  end
+  wire [CL_BITS-1:0] flush_mask;
+  for (genvar lane = 0; lane < CL_BYTES; ++lane) begin : g_flush_mask
+    assign flush_mask[lane * 8 +: 8] = {8{write_strobe[lane]}};
   end
 
   // ---- Logical read channel ----
@@ -240,7 +150,114 @@ module VX_cp_dma
   wire               wr_wready  = wr_to_host ? axi_host.wready  : axi_dev.wready;
   wire               wr_bvalid  = wr_to_host ? axi_host.bvalid  : axi_dev.bvalid;
 
-  wire [7:0]         burst_len  = 8'({1'b0, chunk_beats - BCNT_W'(1)});
+  // ---- FSM ----
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      state       <= S_IDLE;
+      op_r        <= '0;
+      dst_r       <= '0;
+      src_r       <= '0;
+      rem_bytes   <= '0;
+      chunk_bytes <= '0;
+      read_beats  <= '0;
+      write_beats <= '0;
+      src_offset  <= '0;
+      dst_offset  <= '0;
+      beat_idx    <= '0;
+    end else begin
+      case (state)
+        S_IDLE: begin
+          if (grant) begin
+            op_r      <= cmd.hdr.opcode;
+            dst_r     <= cmd.arg0;
+            src_r     <= cmd.arg1;
+            rem_bytes <= cmd.arg2;
+            state     <= S_SETUP;
+          end
+        end
+        S_SETUP: begin
+          if (rem_bytes == 64'd0) begin
+            // Every host-direction chunk validated inline (S_WAIT_B ->
+            // S_FLUSH_*), so nothing is left to prove here.
+            state <= S_DONE;
+          end else begin
+            chunk_bytes <= next_chunk;
+            read_beats <= BCNT_W'((13'(src_r[5:0]) + next_chunk + 13'd63) >> 6);
+            write_beats <= BCNT_W'((13'(dst_r[5:0]) + next_chunk + 13'd63) >> 6);
+            src_offset <= src_r[5:0];
+            dst_offset <= dst_r[5:0];
+            beat_idx    <= '0;
+            state       <= S_REQ_AR;
+          end
+        end
+        S_REQ_AR: begin
+          if (rd_arvalid && rd_arready) begin
+            beat_idx <= '0;
+            state    <= S_READ;
+          end
+        end
+        S_READ: begin
+          if (rd_rvalid && rd_rready) begin
+            buf_r[beat_idx] <= rd_rdata;
+            if (last_read_beat) begin
+              beat_idx <= '0;
+              state    <= S_REQ_AW;
+            end else begin
+              beat_idx <= beat_idx + BIDX_W'(1);
+            end
+          end
+        end
+        S_REQ_AW: begin
+          if (wr_awvalid && wr_awready) begin
+            beat_idx <= '0;
+            state    <= S_WRITE;
+          end
+        end
+        S_WRITE: begin
+          if (wr_wvalid && wr_wready) begin
+            if (last_write_beat) begin
+              state <= S_WAIT_B;
+            end else begin
+              beat_idx <= beat_idx + BIDX_W'(1);
+            end
+          end
+        end
+        S_WAIT_B: begin
+          if (wr_bvalid && wr_bready) begin
+            src_r     <= src_r + 64'(chunk_bytes);
+            dst_r     <= dst_r + 64'(chunk_bytes);
+            rem_bytes <= rem_bytes - 64'(chunk_bytes);
+            // Host-direction: prove this chunk committed before moving on.
+            // The saved offsets keep the last write's data/mask stable after
+            // the logical byte addresses advance.
+            state     <= wr_to_host ? S_FLUSH_AR : S_SETUP;
+          end
+        end
+        S_FLUSH_AR: begin
+          if (axi_host.arvalid && axi_host.arready) begin
+            state <= S_FLUSH_R;
+          end
+        end
+        S_FLUSH_R: begin
+          if (axi_host.rvalid && axi_host.rready) begin
+            // Validate: the read-back must equal the line still held in
+            // buf_r. Stale data means the write has not reached the memory
+            // controller yet -- re-issue the read until it has.
+            state <= (((axi_host.rdata ^ write_data) & flush_mask) == '0)
+                       ? S_SETUP : S_FLUSH_AR;
+          end
+        end
+        S_DONE: begin
+          state <= S_IDLE;
+        end
+        default: state <= S_IDLE;
+      endcase
+    end
+  end
+
+  wire [7:0] read_burst_len = 8'(read_beats - BCNT_W'(1));
+  wire [7:0] write_burst_len = 8'(write_beats - BCNT_W'(1));
+  wire [63:0] flush_address = (dst_r - 64'd1) & ~64'd63;
 
   // The read-ready decode drives the clock enable of every bit of the stream
   // buffer feeding this engine -- 264 enables that the placer spreads well
@@ -255,44 +272,44 @@ module VX_cp_dma
   always_comb begin
     // ----- axi_host -----
     axi_host.arvalid = (rd_arvalid & rd_from_host) || (state == S_FLUSH_AR);
-    axi_host.araddr  = (state == S_FLUSH_AR) ? (dst_r - 64'd64) : src_r;
+    axi_host.araddr  = (state == S_FLUSH_AR) ? flush_address : {src_r[63:6], 6'b0};
     axi_host.arid    = TID_PREFIX;
-    axi_host.arlen   = (state == S_FLUSH_AR) ? 8'd0 : burst_len;
+    axi_host.arlen   = (state == S_FLUSH_AR) ? 8'd0 : read_burst_len;
     axi_host.arsize  = 3'd6;                 // 64 bytes per beat
     axi_host.arburst = 2'b01;                // INCR
     axi_host.rready  = host_rready;
 
     axi_host.awvalid = wr_awvalid &  wr_to_host;
-    axi_host.awaddr  = dst_r;
+    axi_host.awaddr  = {dst_r[63:6], 6'b0};
     axi_host.awid    = TID_PREFIX;
-    axi_host.awlen   = burst_len;
+    axi_host.awlen   = write_burst_len;
     axi_host.awsize  = 3'd6;
     axi_host.awburst = 2'b01;
     axi_host.wvalid  = wr_wvalid  &  wr_to_host;
-    axi_host.wdata   = buf_r[beat_idx];
-    axi_host.wstrb   = '1;
-    axi_host.wlast   = last_beat;
+    axi_host.wdata   = write_data;
+    axi_host.wstrb   = write_strobe;
+    axi_host.wlast   = last_write_beat;
     axi_host.bready  = wr_bready  &  wr_to_host;
 
     // ----- axi_dev -----
     axi_dev.arvalid  = rd_arvalid & ~rd_from_host;
-    axi_dev.araddr   = src_r;
+    axi_dev.araddr   = {src_r[63:6], 6'b0};
     axi_dev.arid     = TID_PREFIX;
-    axi_dev.arlen    = burst_len;
+    axi_dev.arlen    = read_burst_len;
     axi_dev.arsize   = 3'd6;
     axi_dev.arburst  = 2'b01;
     axi_dev.rready   = dev_rready;
 
     axi_dev.awvalid  = wr_awvalid & ~wr_to_host;
-    axi_dev.awaddr   = dst_r;
+    axi_dev.awaddr   = {dst_r[63:6], 6'b0};
     axi_dev.awid     = TID_PREFIX;
-    axi_dev.awlen    = burst_len;
+    axi_dev.awlen    = write_burst_len;
     axi_dev.awsize   = 3'd6;
     axi_dev.awburst  = 2'b01;
     axi_dev.wvalid   = wr_wvalid  & ~wr_to_host;
-    axi_dev.wdata    = buf_r[beat_idx];
-    axi_dev.wstrb    = '1;
-    axi_dev.wlast    = last_beat;
+    axi_dev.wdata    = write_data;
+    axi_dev.wstrb    = write_strobe;
+    axi_dev.wlast    = last_write_beat;
     axi_dev.bready   = wr_bready  & ~wr_to_host;
 
     done = (state == S_DONE);

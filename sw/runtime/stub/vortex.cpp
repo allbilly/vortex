@@ -74,7 +74,12 @@ vx_result_t dispatcher_get_callbacks(const callbacks_t** out) {
         return VX_ERR_DEVICE_LOST;
     }
 
-    if (init(&g_backend_cb) != 0) {
+    g_backend_cb = {};
+    if (init(&g_backend_cb) != 0 || !g_backend_cb.dev_open || !g_backend_cb.dev_close
+            || !g_backend_cb.cp_reg_read || !g_backend_cb.cp_reg_write
+            || !g_backend_cb.host_mem_alloc || !g_backend_cb.host_mem_free
+            || !g_backend_cb.host_mem_pull || !g_backend_cb.host_mem_push
+            || !g_backend_cb.host_mem_device_range) {
         std::cerr << "vortex: vx_dev_init failed in '" << lib << "'"
                   << std::endl;
         dlclose(h);

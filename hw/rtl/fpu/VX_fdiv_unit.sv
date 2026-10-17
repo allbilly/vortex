@@ -12,7 +12,7 @@
 // limitations under the License.
 
 // FDIV backend selector. On a Xilinx (VIVADO) / Altera (QUARTUS) FPGA flow with
-// USE_DSP and flush-to-zero, the F32 path maps onto the hardened floating-point
+// DSP_ENABLE and flush-to-zero, the F32 path maps onto the hardened floating-point
 // operator IP; otherwise it uses the portable pure-RTL core VX_fdiv_unit_rtl. The
 // vendor IP is flush-to-zero and round-to-nearest-even only (gated on SUBNORM_ENABLE=0).
 
@@ -22,7 +22,7 @@ module VX_fdiv_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     parameter LATENCY = 17,
     parameter FLEN    = 32,
     // 1: use the FPGA vendor FP IP on Xilinx/Altera (F32). 0: ASIC soft core.
-    parameter USE_DSP = 0,
+    parameter DSP_ENABLE = 0,
     // 1: full IEEE subnormals (soft core only). 0: flush-to-zero; required for IP.
     parameter SUBNORM_ENABLE = 1,
     // 1: produce IEEE special results + fflags. 0: assume finite, tie 0.
@@ -53,7 +53,7 @@ module VX_fdiv_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
     // Vendor IP is selected only with SUBNORM_ENABLE=0 (flush-to-zero); SUBNORM_ENABLE=1
     // falls back to the IEEE soft core.
     localparam IS_F32 = (FLEN == 32);
-    localparam USE_VENDOR_IP = (USE_DSP != 0) && (SUBNORM_ENABLE == 0) && IS_F32 && (VENDOR_OK != 0);
+    localparam USE_VENDOR_IP = (DSP_ENABLE != 0) && (SUBNORM_ENABLE == 0) && IS_F32 && (VENDOR_OK != 0);
 
     `STATIC_ASSERT(!USE_VENDOR_IP || (LATENCY == 28),
         ("vendor xil_fdiv latency is 28; set VX_CFG_FDIV_LATENCY=28"))
@@ -94,7 +94,7 @@ module VX_fdiv_unit import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
         VX_fdiv_unit_rtl #(
             .LATENCY       (LATENCY),
             .FLEN          (FLEN),
-            .USE_DSP       (USE_DSP),
+            .DSP_ENABLE       (DSP_ENABLE),
             .SUBNORM_ENABLE  (SUBNORM_ENABLE),
             .EXCEPT_ENABLE (EXCEPT_ENABLE)
         ) core (

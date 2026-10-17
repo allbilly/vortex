@@ -3,6 +3,7 @@ include ../common.mk
 TARGET ?= xrtsim
 
 DESTDIR ?= $(CURDIR)/..
+override DESTDIR := $(abspath $(DESTDIR))
 
 CONFIG_FILE := $(DESTDIR)/xrt_config.stamp
 SRC_DIR := $(VORTEX_HOME)/sw/runtime/xrt

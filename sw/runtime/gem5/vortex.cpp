@@ -110,6 +110,12 @@ public:
         return 0;
     }
 
+  int host_mem_device_range(uint64_t* base, uint64_t* size) {
+    *base = GEM5_HOST_BASE;
+    *size = GEM5_HOST_APERTURE;
+    return 0;
+  }
+
 private:
     std::mutex      host_mu_;
     MemoryAllocator host_mem_;   // CP-visible host-memory aperture

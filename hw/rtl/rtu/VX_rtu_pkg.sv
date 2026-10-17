@@ -74,7 +74,7 @@ package VX_rtu_pkg;
     localparam RTU_NODE_W      = (RTU_BVH_WIDTH == 0) ? 1 : RTU_BVH_WIDTH;
     // F32 FMA latency for the geometry PEs — tracks the ISA FPU through the shared
     // VX_CFG_FMA_LATENCY knob (16 for the Vivado vendor xil_fma, 8/12 for the soft
-    // core in sim/ASIC). The PE FMAs pass USE_DSP=VX_CFG_FPU_USE_DSP + SUBNORM=0, so
+    // core in sim/ASIC). The PE FMAs pass DSP_ENABLE=VX_CFG_FPU_USE_DSP + SUBNORM=0, so
     // on Vivado they select the SAME hardened xil_fma the FPU uses; that core's one-
     // cycle add+LZC accumulate was the 300 MHz limiter. The barrel scheduler hides
     // the added latency and the hardened IP costs less LUT. PE delay lines scale
@@ -90,7 +90,7 @@ package VX_rtu_pkg;
     localparam RTU_CHILD_BITS  = `CLOG2(RTU_NODE_W + 1);
     localparam RTU_STACK_BITS  = `CLOG2(RTU_STACK_DEPTH + 1);
 
-    // The reciprocals (1/det, inv_d) reuse VX_fdiv_unit through the same USE_DSP
+    // The reciprocals (1/det, inv_d) reuse VX_fdiv_unit through the same DSP_ENABLE
     // knob as the FMAs. Its latency is a FIXED property of the active backend, so
     // it uses the BACKEND-keyed VX_CFG_RTU_FDIV_LATENCY (vendor xil_fdiv 28 / altera
     // 15 / soft 17) — mirroring VX_CFG_FMA_LATENCY, NOT the FPU-type-keyed

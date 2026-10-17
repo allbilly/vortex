@@ -1,6 +1,7 @@
 include ../common.mk
 
 DESTDIR ?= $(CURDIR)
+override DESTDIR := $(abspath $(DESTDIR))
 USE_SST ?= 0
 USE_GEM5 ?= 0
 #SST_PKG ?= SST-14.1 # default SST package name
@@ -149,7 +150,7 @@ RVC_TEST          := $(DESTDIR)/rvc_decompress_test
 DEPS := $(OBJS:.o=.d) $(MAIN_OBJ:.o=.d) $(DXA_OOO_TEST_OBJ:.o=.d) $(RVC_TEST_OBJ:.o=.d)
 
 # generate .d files alongside .o files
-CXXFLAGS += -MMD -MP -MF $(@:.o=.d)
+DEPFLAGS = -MMD -MP -MF $(@:.o=.d)
 
 ifeq ($(USE_SST), 1)
 VORTEX_SST_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(VORTEX_SST_SRCS))
@@ -182,35 +183,35 @@ endif
 # build common object files
 $(OBJ_DIR)/common/%.o: $(SW_COMMON_DIR)/%.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # build sim-only common object files
 $(OBJ_DIR)/sim_common/%.o: $(SIM_COMMON_DIR)/%.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # build source object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # build SST-specific source object files
 $(VORTEX_SST_OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(SST_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(SST_CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # build main object file
 $(MAIN_OBJ): $(SRC_DIR)/main.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 $(DXA_OOO_TEST_OBJ): $(VORTEX_HOME)/tests/unittest/dxa_ooo/main.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 $(RVC_TEST_OBJ): $(VORTEX_HOME)/tests/unittest/rvc_decompress/main.cpp $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 # Main executable
 $(DESTDIR)/$(PROJECT): $(OBJS) $(MAIN_OBJ)

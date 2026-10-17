@@ -329,6 +329,12 @@ public:
     return 0;
   }
 
+  int host_mem_device_range(uint64_t* base, uint64_t* size) {
+    *base = 0;
+    *size = 0;
+    return 0;
+  }
+
 private:
 
   int write_register(uint32_t addr, uint32_t value) {

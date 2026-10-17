@@ -167,6 +167,9 @@ Device::~Device() {
     if (cp_ring_.cp_addr) host_free(cp_ring_.cp_addr);
     if (cp_head_.cp_addr) host_free(cp_head_.cp_addr);
     if (cp_cmpl_.cp_addr) host_free(cp_cmpl_.cp_addr);
+    if (transport_base_ != 0) {
+        global_mem_.release(transport_base_);
+    }
     // Queues / buffers are torn down by their own refcount path; this
     // just detaches the device backlinks.
     std::lock_guard<std::mutex> g(mu_);
@@ -256,6 +259,25 @@ private:
 };
 
 vx_result_t Device::cp_init() {
+    uint64_t transport_base = 0, transport_size = 0;
+    auto range_result = platform()->host_mem_device_range(&transport_base, &transport_size);
+    if (range_result != VX_SUCCESS) {
+        return range_result;
+    }
+    if (transport_size == 0) {
+        if (transport_base != 0) {
+            return VX_ERR_INVALID_VALUE;
+        }
+    } else {
+        if (transport_base < ALLOC_BASE_ADDR || transport_base >= GLOBAL_MEM_SIZE
+                || transport_size > GLOBAL_MEM_SIZE - transport_base
+                || !is_aligned(transport_base, RAM_PAGE_SIZE)
+                || !is_aligned(transport_size, RAM_PAGE_SIZE)
+                || global_mem_.reserve(transport_base, transport_size) != 0) {
+            return VX_ERR_INVALID_VALUE;
+        }
+        transport_base_ = transport_base;
+    }
     // Ring + head + completion live in CP-visible host memory: the runtime
     // appends commands straight through the ring's host pointer and the CP
     // fetches them over its m_axi_host master — no per-command DMA.

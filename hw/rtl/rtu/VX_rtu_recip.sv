@@ -149,10 +149,10 @@ module VX_rtu_recip import VX_gpu_pkg::*, VX_fpu_pkg::*; #(
         `UNUSED_PARAM (LATENCY)
     end else begin : g_lut_nr
         // portable baseline: 1.0 / x via the shared divide unit — vendor xil_fdiv
-        // on Vivado (USE_DSP=VX_CFG_RTU_USE_DSP, LATENCY 28), soft NR in sim (17).
+        // on Vivado (DSP_ENABLE=VX_CFG_RTU_USE_DSP, LATENCY 28), soft NR in sim (17).
         wire [31:0] quot;
         VX_fdiv_unit #(
-            .USE_DSP        (`VX_CFG_RTU_USE_DSP),
+            .DSP_ENABLE        (`VX_CFG_RTU_USE_DSP),
             .LATENCY        (LATENCY),
             .SUBNORM_ENABLE (0),
             .EXCEPT_ENABLE  (1)
