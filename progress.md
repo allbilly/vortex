@@ -49,8 +49,12 @@ and the lower-memory restart. The completed OpenTPU handover watcher stopped v4
 with SIGTERM. v5 was stopped during IP synthesis to correct a project/non-project
 command mismatch; v6 uses the documented non-project flow. All earlier logs/exit
 receipts remain preserved.
-Native GCC 16 raises a bundled fmt 9 dangling-reference diagnostic in SimX;
-no warning has been suppressed. A compatible native compiler is being checked.
+The pinned Ramulator fmt 9 header raised a dangling-reference diagnostic with
+native GCC 15 and 16. A hash-checked temporary dependency patch now keeps its
+mapper alive; the actual `dram_sim.cpp` syntax check passes under GCC 16 with
+the original warning flags. The uv environment includes CMake 3.31.10, and the
+native smoke wrapper builds Ramulator in a separate native directory. Full
+simulator rebuilds and workload checks remain queued after the FPGA build.
 
 # YPCB branch integration — October 18, 2026
 

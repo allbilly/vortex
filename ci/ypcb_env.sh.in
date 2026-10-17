@@ -47,7 +47,7 @@ case ${1:-help} in
         if [[ ! -x "$build_dir/.venv/bin/python" ]]; then
             uv venv --python python3 "$build_dir/.venv"
         fi
-        uv pip install --python "$build_dir/.venv/bin/python" pytest PyYAML packaging pyserial colorama requests
+        uv pip install --python "$build_dir/.venv/bin/python" pytest PyYAML packaging pyserial colorama requests 'cmake>=3.14,<4'
         native_exec git -C "$source_dir" submodule update --init --recursive
         ;;
     exec)
@@ -100,6 +100,10 @@ PINS
             CONFIGS=$(native_exec make --no-print-directory -s -C hw/syn/xilinx/ypcb print-configs)
         fi
         export CONFIGS STARTUP_ADDR=0x40000000
+        native_exec cmake -S "$source_dir/third_party/ramulator" -B "$build_dir/third_party/ramulator"
+        native_exec python3 "$source_dir/ci/patch_ramulator_fmt.py" \
+            "$source_dir/third_party/ramulator/ext/spdlog/include/spdlog/fmt/bundled/core.h"
+        native_exec cmake --build "$build_dir/third_party/ramulator" --parallel 1
         native_exec make -j1 -C "$source_dir/third_party"
         native_exec make -C sw/kernel clean
         native_exec make -j1 -C sw/kernel
