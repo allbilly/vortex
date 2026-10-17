@@ -1,3 +1,16 @@
+> Current user instruction: continue the offline Vortex build while saving RAM.
+> The fresh run is `build_ypcb_native32/ch1-jtag-pcie-20261018-v6/`, with both
+> Vivado thread limits set to one, allocator arenas limited to two, and no
+> concurrent simulation build. The completed OpenTPU stop watcher interrupted v4;
+> its records remain below. OpenTPU retains the board; this run accesses no hardware.
+
+> OpenTPU hardware priority: Vortex Codex and its new synthesis build were stopped
+> after c0182800 finished at 19:31 UTC on October 17 (03:31 HKT October 18).
+> No hardware programming operation was interrupted; the idle login shell remains
+> open. Stop evidence and preserved synthesis disposition are under
+> `build_ypcb_vivado32/openTPU-return-20261018/completion-disposition.json`.
+> No new GPU/DDR pass is implied by this handover. OpenTPU owns the next board task.
+
 # OpenTPU hardware return requested — October 18, 2026
 
 The user requires all Vortex work to stop when the combined-interface OpenTPU
@@ -14,7 +27,7 @@ The Vortex Podman container and its Ubuntu image were removed as requested.
 Host source/toolchain folders and all other containers were verified preserved;
 the deletion receipt is `build_ypcb_native32/podman-removal.json`.
 The wrapper now runs natively with a uv environment. `master` remains at
-upstream `7b67f0210`; the retained port is committed on `ypcb` as `6e0238af2`.
+upstream `7b67f0210`; the CH1/JTAG/PCIe design is committed on `ypcb` as `8509bc26a`.
 
 The new design uses only CH1's 2 GiB, an independent 125 MHz board-derived GPU
 clock, PCIe AXI-Lite clock crossing, and a JTAG AXI master. Its board register
@@ -29,10 +42,13 @@ Those prototypes used board ABI 1; ABI 2 still needs the final native shell
 rerun. No new image has been programmed or physically executed.
 
 The current build uses fresh output under
-`build_ypcb_native32/ch1-jtag-pcie-20261018-v4/`. Both Vivado thread limits
+`build_ypcb_native32/ch1-jtag-pcie-20261018-v6/`. Both Vivado thread limits
 are one; large simulation rebuilds wait until synthesis completes.
 Earlier v1 failed before IP creation, and v2/v3 were stopped for the ABI change
-and the lower-memory restart. Their logs/exit receipts remain preserved.
+and the lower-memory restart. The completed OpenTPU handover watcher stopped v4
+with SIGTERM. v5 was stopped during IP synthesis to correct a project/non-project
+command mismatch; v6 uses the documented non-project flow. All earlier logs/exit
+receipts remain preserved.
 Native GCC 16 raises a bundled fmt 9 dangling-reference diagnostic in SimX;
 no warning has been suppressed. A compatible native compiler is being checked.
 

@@ -11,7 +11,7 @@ set part xc7k480tffg1156-2
 set_param general.maxThreads 1
 set_param synth.maxThreads 1
 if {$stage eq "synthesize"} {
-    create_project ypcb [file join $output_dir project] -part $part
+    set_part $part
     file mkdir [file join $output_dir ip]
     create_ip -name jtag_axi -vendor xilinx.com -library ip -version 1.2 \
         -module_name ypcb_jtag_axi -dir [file join $output_dir ip]

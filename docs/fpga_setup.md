@@ -39,6 +39,11 @@ to the chosen worker count. They are independent limits; changing only the
 general setting can leave synthesis using several worker processes. Run large
 simulation compilations and implementation stages sequentially.
 
+Use `synth_ip` only in the non-project flow, initialized with `set_part`.
+A disk-backed `create_project` requires `create_ip_run` and `launch_runs`;
+mixing these flows produces a critical warning even if synthesis continues.
+See [AMD UG896](https://docs.amd.com/r/2025.1-English/ug896-vivado-ip/Scripting-Examples).
+
 When running Vivado in a transient systemd unit, save the actual command exit
 code in its run directory before the wrapper exits. A successful unit can be
 unloaded before a dependent observes its result. Preserve its log and
