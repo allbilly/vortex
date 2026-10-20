@@ -80,11 +80,19 @@ regression cases failed before that change and passed afterward; receipts are
 in `model-dependency-validation-20261021-v1/`. The v4 integration runner
 rebuilds both interfaces and checks for the new DMA registers in the compiled
 model before numerical testing. Its receipts are in
-`integration-build-20261021-v4/`. Those tests passed and fresh synthesis is
-active under `vortex-tcu-integration-build-20261021-v4.service`, image directory
+`integration-build-20261021-v4/`. Those tests passed. Fresh synthesis then
+exited zero, uninterrupted, in 1,167.989 seconds (19 min 28 s), with no errors
+or critical warnings. The new checkpoint SHA-256 is
+`50dd9a220c396f6a78711b4597411664d65038f88c1bd96fdd38d7a85c4babb7`.
+Synthesis estimates 149,180 LUTs (49.96%), 105,839 registers (17.72%),
+194 block-RAM tiles (20.31%) and 144 DSPs (7.50%). These are synthesis
+figures; routed timing is still unqualified. Evidence:
+`build_ypcb_tcu32/synthesis-observation-20261021-v2.json`.
+Implementation is now active under
+`vortex-tcu-integration-build-20261021-v4.service`, image directory
 `tcu-ch1-jtag-pcie-20261021-v2/`. All 811 frozen inputs match; its preprocessed
 DMA RTL contains the validated data/strobe reference and both tensor formats
-remain selected. Then require all report/CRC gates and physical memory/ECC,
+remain selected. Require all report/CRC gates and physical memory/ECC,
 scalar and FP16/INT8 tests. The unchanged DDR block still needs qualification
 in the newly routed tensor image.
 Prepared build-local launchers are `run-hardware-preparation-20261021-v2.py`
