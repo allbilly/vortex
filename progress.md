@@ -205,6 +205,14 @@ the original warning flags. The uv environment includes CMake 3.31.10, and the
 native smoke wrapper builds Ramulator in a separate native directory. Full
 simulator rebuilds and workload checks remain queued after the FPGA build.
 
+October 20 native dependency update: the complete Ramulator library now builds
+and passes `ldd -r` under native GCC 16. The full compile found yaml-cpp 0.7's
+missing `<cstdint>` include. `ci/patch_ramulator_deps.py` now applies both pinned
+dependency fixes, with pristine-input, idempotence and unknown-input rejection
+checks passed. The wrapper uses the renamed helper. The library build/link
+receipt is `build_ypcb_native32/native-ramulator-20261020-v2/manifest.json`;
+simulator workload execution remains separate from this dependency check.
+
 The final ABI 2 DDR host test passed natively: 4,224 read-window cases plus
 CH1 training, both data edges, nine lanes, ECC, handoff and negative/timeout
 cases. Its log is `build_ypcb_native32/native-ddr-host-abi2.log`; the CSR/data

@@ -39,10 +39,12 @@ The native Linux wrapper uses a uv environment and runs an immutable copy of
 itself during reconfiguration. Install a C++ compiler, make, ccache, uv,
 pkg-config and UUID development headers/libraries before setup.
 The uv environment pins CMake below 4 for Ramulator's declared policy support.
-Native smoke builds use a separate Ramulator build directory and a hash-checked
-fmt 9 patch that keeps its argument mapper alive, retaining `-Werror` on modern
-GCC. This is a temporary dependency patch; replace it by updating Ramulator's
-spdlog/fmt pin and qualifying the rebuilt library. The upstream diagnostic is
+Native smoke builds use a separate Ramulator build directory and hash-checked
+patches for its pinned dependencies. The fmt 9 patch keeps its argument mapper
+alive, retaining `-Werror` on modern GCC; yaml-cpp 0.7 explicitly includes the
+integer-type header it uses. These are temporary dependency patches; replace
+them by updating Ramulator's spdlog/fmt and yaml-cpp pins and qualifying the
+rebuilt library. The upstream fmt diagnostic is
 tracked in [fmt issue 3415](https://github.com/fmtlib/fmt/issues/3415).
 `open-setup` stages pinned Migen, LiteX, LiteDRAM and PCIe generator references;
 it does not run the archived nextpnr implementation flow.
