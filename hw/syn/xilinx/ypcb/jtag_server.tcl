@@ -1,10 +1,14 @@
-if {$argc != 2} {error "Usage: jtag_server.tcl hw_server_url listen_port"}
-lassign $argv server_url listen_port
+if {$argc < 2 || $argc > 3} {error "Usage: jtag_server.tcl hw_server_url listen_port ?tck_hz?"}
+lassign $argv server_url listen_port tck_hz
+if {$tck_hz eq ""} {set tck_hz 3000000}
+if {$tck_hz ni {3000000 6000000}} {error "Unsupported JTAG frequency"}
 open_hw_manager
 connect_hw_server -url $server_url
 set targets [get_hw_targets]
 if {[llength $targets] != 1} {error "Expected exactly one JTAG target"}
-open_hw_target [lindex $targets 0]
+current_hw_target [lindex $targets 0]
+set_property PARAM.FREQUENCY $tck_hz [current_hw_target]
+open_hw_target
 set devices [get_hw_devices -filter {PART =~ xc7k480t*}]
 if {[llength $devices] != 1} {error "Expected one XC7K480T"}
 current_hw_device [lindex $devices 0]
@@ -50,7 +54,7 @@ proc consume {channel} {
         if {$op eq "W"} {scan $data %x value}
         set result [access_word [expr {$op eq "W"}] $address $value]
         set status [access_word 0 0x3008 0]
-        if {$status & 0x7800} {error "AXI transport error"}
+        if {$status & 0x7800} {error [format "AXI transport error status=0x%08x" $status]}
         puts $channel [format "OK %08x" $result]
     } diagnostic]} {
         puts $channel "ERR $diagnostic"
@@ -70,4 +74,5 @@ proc accept {channel address port} {
 }
 set listener [socket -server accept -myaddr 127.0.0.1 $listen_port]
 puts "YPCB_JTAG_MMIO_READY port=$listen_port"
+flush stdout
 vwait forever

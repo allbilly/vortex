@@ -54,6 +54,16 @@ v13 configures and connects the debug hub before optimization and saves an
 optimized checkpoint before placement. No RTL or device clock was changed.
 Final routed gates and physical tests remain pending.
 
+Hardware-run preparation is now in `ci/ypcb_run_fpga.py` and
+`hw/syn/xilinx/ypcb/program_sram.tcl`. It binds the exact routed image and input
+hashes, checks CRC, holds the shared JTAG lease through the native programming/
+bridge/workload session, and records each child exit status. The probe stage
+measures JTAG before DDR training. The kernel stage requires the actual memory,
+demo and SGEMM checks, positive GPU counters and enabled/clean CH1 ECC using
+the controller-matched CSR metadata. Three rejection tests passed before any
+hardware lease or native child was opened; Tcl syntax checks passed. Actual
+programming, bridge operation and GPU examples remain untested.
+
 Before host-driven DDR training, measure actual JTAG MMIO transaction latency
 against the 6,942-probe training workload. If it prevents bounded initialization,
 adapt the reference FPGA-side calibration design to CH1's PHY and CSR map;

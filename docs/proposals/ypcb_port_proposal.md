@@ -103,3 +103,11 @@ DDR reset output standards and the configuration-bank electrical profile.
 After implementation, check routed timing, DRC, report coverage and bitstream
 integrity. Physical qualification then requires CH1 training, address/data
 patterns and kernel runs with observable results.
+
+The generated `ci/ypcb_run_fpga.py` runner requires the exact image run,
+configured build, Vivado binary directory, CRC checker and shared hardware lease.
+`--stage probe` loads SRAM and measures the native JTAG MMIO path;
+`--stage kernels` additionally runs the memory-map test, `demo -n64` and
+`sgemm -n16`, requiring verified results, nonzero GPU instruction/cycle counters
+and clean CH1 ECC. It retains logs and artifact hashes and reaps its owned
+process groups before releasing the lease. It contains no flash-write operation.
