@@ -38,7 +38,7 @@ foreach {pin period} {CLKIN1 10.0 CLKOUT0 10.0 CLKOUT1 2.5 CLKOUT2 10.0 CLKOUT3 
     if {abs([get_property PERIOD $clock] - $period) > 0.000001} {error "CH1 clock period mismatch: $pin"}
 }
 set wl_lock_net [ypcb_wl_one [get_nets -hier -filter {NAME =~ ddr_1/*wl_locked_sys}] "Synchronized CH1 lock"]
-set wl_lock_q [ypcb_wl_one [get_pins -leaf -of_objects [get_nets -segments -of_objects $wl_lock_net] -filter {DIRECTION == OUT}] "Lock second stage"]
+set wl_lock_q [ypcb_wl_one [get_pins -leaf -of_objects $wl_lock_net -filter {DIRECTION == OUT}] "Lock second stage"]
 set wl_second [ypcb_wl_one [get_cells -of_objects $wl_lock_q] "Lock second register"]
 set wl_first_q [ypcb_wl_driver [ypcb_wl_pin $wl_second D]]
 set wl_first [ypcb_wl_one [get_cells -of_objects $wl_first_q] "Lock first register"]

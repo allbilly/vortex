@@ -178,10 +178,14 @@ def main():
             raise ValueError('Bitstream integrity check did not pass')
         state['crc'] = crc
         if args.stage == 'kernels':
+            basic_ops = ('simple_add', 'elementwise', 'gemm', 'conv', 'pooling')
             artifacts = ['sw/runtime/libvortex.so', 'sw/runtime/libvortex-ypcb.so',
                          'tests/ypcb/memory_map/memory_map', 'tests/regression/demo/demo',
                          'tests/regression/demo/kernel.vxbin', 'tests/regression/sgemm/sgemm',
-                         'tests/regression/sgemm/kernel.vxbin', 'config.mk', 'sw/VX_types.h']
+                         'tests/regression/sgemm/kernel.vxbin', 'config.mk', 'sw/VX_types.h',
+                         'examples/common.py']
+            for name in basic_ops:
+                artifacts += [f'examples/{name}.py', f'examples/kernels/{name}/kernel.vxbin']
             state['runtime_artifacts'] = {name: digest(build / name) for name in artifacts}
             host = output / 'host'
             for name, expected in state['runtime_artifacts'].items():
@@ -302,7 +306,18 @@ def main():
                     if counters is None or min(map(int, counters.groups())) <= 0:
                         raise ValueError(name + ' has no retired-instruction/cycle evidence')
                     state[name + '_counters'] = dict(zip(('instructions', 'cycles'), map(int, counters.groups())))
-            state['status'] = 'FPGA_MEMORY_DEMO_AND_SGEMM_PASS'
+            for name in basic_ops:
+                log = step('example-' + name,
+                           ['python3', host / f'examples/{name}.py', '--build', host, '--driver', 'ypcb'],
+                           host, timeout=1200, environment=environment)
+                if not re.search(r'^PASS ' + re.escape(name) + r'.*driver=ypcb', log, re.M):
+                    raise ValueError(name + ' did not verify its GPU output through the YPCB driver')
+                ecc, _ = read_words(ecc_offsets)
+                state['example_' + name + '_ecc'] = dict(zip(ecc_names, ecc))
+                save()
+                if ecc != [1, 0, 0]:
+                    raise ValueError(name + ' did not retain enabled, clean CH1 ECC')
+            state['status'] = 'FPGA_MEMORY_DEMO_SGEMM_AND_BASIC_EXAMPLES_PASS'
     except BaseException as error:
         state.update(status='FAIL', error=repr(error), interrupted=interrupted)
         if bridge_ready and bridge is not None and bridge.poll() is None:

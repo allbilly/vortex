@@ -181,6 +181,12 @@ private:
                  unsigned(calibrated), calibration.firmware_id, calibration.error, calibration.phase_steps,
                  calibration.phase_window, calibration.phase_points, calibration.cycles_low32);
     if (calibrated != WlCalibrationResult::success) {
+      for (unsigned lane = 0; lane < calibration.read_windows.size(); ++lane) {
+        std::fprintf(stderr, "[VXDRV] CH1 lane%u read_window=%08x phase_pass=%08x,%08x,%08x,%08x\n",
+                     lane, calibration.read_windows[lane], calibration.phase_pass_maps[lane * 4],
+                     calibration.phase_pass_maps[lane * 4 + 1], calibration.phase_pass_maps[lane * 4 + 2],
+                     calibration.phase_pass_maps[lane * 4 + 3]);
+      }
       return -1;
     }
     for (unsigned lane = 0; lane < calibration.read_windows.size(); ++lane) {
