@@ -17,6 +17,7 @@ import statistics
 import subprocess
 import tempfile
 import time
+import ypcb_firmware
 
 interrupted = 0
 
@@ -66,11 +67,17 @@ def main():
     parser.add_argument('--vivado-bin', type=Path, required=True)
     parser.add_argument('--hardware-lease', type=Path, required=True)
     parser.add_argument('--crc-checker', type=Path, required=True)
-    parser.add_argument('--stage', choices=('probe', 'kernels'), default='probe')
+    parser.add_argument('--stage', choices=('probe', 'calibration', 'kernels'), default='probe')
+    parser.add_argument('--calibration-ddr', type=Path)
+    parser.add_argument('--calibration-proof', type=Path)
+    parser.add_argument('--calibration-reader', type=Path)
     parser.add_argument('--tck-hz', type=int, choices=(3000000, 6000000), default=3000000)
     parser.add_argument('--server-port', type=int, default=3122)
     parser.add_argument('--jtag-port', type=int, default=3124)
     args = parser.parse_args()
+    if args.stage == 'calibration' and not all((args.calibration_ddr, args.calibration_proof,
+                                               args.calibration_reader)):
+        parser.error('Calibration diagnostics require a DDR export, native proof and report reader')
     if (not 0 < args.server_port < 65536 or not 0 < args.jtag_port < 65536
             or args.server_port == args.jtag_port):
         parser.error('Hardware server and JTAG MMIO ports must be distinct valid TCP ports')
@@ -82,6 +89,7 @@ def main():
              'image_run': str(image), 'tck_hz': args.tck_hz, 'steps': {}}
     children = []
     lease = None
+    runtime_lease = None
     bridge = None
     bridge_ready = False
 
@@ -173,6 +181,17 @@ def main():
         if crc['status'] != 'ALL_PRESENT_CRC_CHECKPOINTS_MATCH' or crc['known_answer_vectors'] != 4:
             raise ValueError('Bitstream integrity check did not pass')
         state['crc'] = crc
+        if args.stage == 'calibration':
+            overlay, payload = ypcb_firmware.prepare_overlay(image, args.calibration_ddr.resolve(),
+                                                             args.calibration_proof.resolve())
+            state['firmware_overlay'] = overlay
+            overlay_directory = output / 'firmware-overlay'
+            overlay_directory.mkdir()
+            (overlay_directory / 'firmware.bin').write_bytes(payload)
+            reader = overlay_directory / 'read-report'
+            shutil.copy2(args.calibration_reader.resolve(), reader)
+            state['calibration_reader_sha256'] = digest(reader)
+            state['firmware_overlay_tool_sha256'] = digest(Path(ypcb_firmware.__file__))
         if args.stage == 'kernels':
             artifacts = ['sw/runtime/libvortex.so', 'sw/runtime/libvortex-ypcb.so',
                          'tests/ypcb/memory_map/memory_map', 'tests/regression/demo/demo',
@@ -205,6 +224,9 @@ def main():
         args.hardware_lease.parent.mkdir(parents=True, exist_ok=True)
         lease = args.hardware_lease.open('a+')
         fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if args.stage == 'calibration':
+            runtime_lease = Path(f'/tmp/vortex-ypcb-{os.getuid()}.lock').open('a+')
+            fcntl.flock(runtime_lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
         for name in ('hw_server', 'cs_server', 'openFPGALoader', 'xsdb', 'fxload'):
             if subprocess.run(['pgrep', '-x', name], stdout=subprocess.DEVNULL).returncode != 1:
                 raise RuntimeError('Existing hardware owner: ' + name)
@@ -274,6 +296,48 @@ def main():
                                      'scope': 'PIO register data window only; no DDR command issued by this probe'}
         state['status'] = 'SRAM_AND_JTAG_MMIO_PASS_DDR_KERNELS_NOT_TESTED'
         save()
+        if args.stage == 'calibration':
+            class DiagnosticMmio:
+                def __init__(self):
+                    self.connection = socket.create_connection(('127.0.0.1', args.jtag_port), timeout=30)
+                    self.stream = self.connection.makefile('rb')
+
+                def exchange(self, command):
+                    self.connection.sendall(command.encode())
+                    line = self.stream.readline(64)
+                    if not re.fullmatch(rb'OK [0-9a-fA-F]{8}\n', line):
+                        raise RuntimeError('Calibration MMIO response: ' + repr(line))
+                    return int(line[3:11], 16)
+
+                def read(self, address):
+                    return self.exchange(f'R {address:04x}\n')
+
+                def write(self, address, value):
+                    self.exchange(f'W {address:04x} {value:08x}\n')
+
+                def close(self):
+                    self.stream.close()
+                    self.connection.close()
+
+            def upload_progress(report):
+                state['firmware_upload'] = report
+                save()
+
+            mmio = DiagnosticMmio()
+            state['status'] = 'UPLOADING_VERIFIED_DIAGNOSTIC_FIRMWARE'
+            save()
+            try:
+                state['calibration_capture'] = ypcb_firmware.upload_and_capture(
+                    mmio, payload, overlay['firmware_id'], overlay['offsets'],
+                    cancelled=lambda: bool(interrupted), progress=upload_progress)
+            finally:
+                mmio.close()
+            parsed = json.loads(step('calibration-report', [reader, str(args.jtag_port)], output, timeout=120))
+            if parsed['firmware_id'] != overlay['firmware_id']:
+                raise ValueError('Native report reader does not match the uploaded diagnostic firmware')
+            state['native_calibration_report'] = parsed
+            state['status'] = 'DIAGNOSTIC_FIRMWARE_AND_DDR_RESULT_CAPTURED_GPU_RUNTIME_UNQUALIFIED'
+            save()
         if args.stage == 'kernels':
             environment = dict(os.environ, VORTEX_DRIVER='ypcb', VORTEX_YPCB_INTERFACE='jtag',
                                VORTEX_YPCB_JTAG_PORT=str(args.jtag_port), VORTEX_CP_POLL_TIMEOUT_S='120',
@@ -313,6 +377,8 @@ def main():
         state['owned_children_exit_codes'] = [stop(child) for child in reversed(children)]
         if lease is not None:
             lease.close()
+        if runtime_lease is not None:
+            runtime_lease.close()
         save()
     print(json.dumps(state, indent=2))
 

@@ -9,7 +9,10 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <vector>
 
 using namespace ypcb_test;
 
@@ -101,6 +104,34 @@ public:
     for (unsigned i = 0; i < 8; ++i) tick();
   }
 
+  void upload(const std::vector<uint8_t>& image) {
+    require((dut.status & 1) && !image.empty() && image.size() <= 16384,
+            "Firmware upload requires a held CPU and bounded image");
+    auto word = [&](unsigned index) {
+      uint32_t value = 0;
+      for (unsigned byte = 0; byte < 4; ++byte) {
+        if (index * 4 + byte < image.size()) {
+          value |= uint32_t(image[index * 4 + byte]) << (byte * 8);
+        }
+      }
+      return value;
+    };
+    for (unsigned index = 0; index < 4096; ++index) {
+      dut.mem_adr = index;
+      dut.mem_dat = word(index);
+      dut.mem_we = 1;
+      tick();
+      dut.mem_we = 0;
+      tick();
+    }
+    for (unsigned index = 0; index < 4096; ++index) {
+      dut.mem_adr = index;
+      tick();
+      tick();
+      require(dut.mem_rdat == word(index), "Complete firmware BRAM readback differs");
+    }
+  }
+
   void run(bool pause) {
     dut.hold = 0;
     bool paused = false;
@@ -128,6 +159,10 @@ private:
 
 int main(int argc, char** argv) {
   Verilated::commandArgs(argc, argv);
+  require(argc == 2, "Expected replacement firmware image");
+  std::ifstream file(argv[1], std::ios::binary);
+  require(file.good(), "Replacement firmware could not be read");
+  std::vector<uint8_t> image((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   auto sim = std::make_unique<Simulation>();
   sim->dut.mem_adr = 4095;
   sim->dut.mem_dat = 0xa53cc35a;
@@ -137,10 +172,12 @@ int main(int argc, char** argv) {
   sim->tick();
   sim->tick();
   require(sim->dut.mem_rdat == 0xa53cc35a, "Held CPU BRAM upload/readback differs");
+  sim->upload(image);
   sim->run(true);
   require(sim->state == YPCB_CAL_READY && sim->mailbox(YPCB_CAL_MB_STATE) == YPCB_CAL_READY,
           "CPU firmware did not pass known PHY responses");
   require(sim->mailbox(YPCB_CAL_MB_MAGIC) == YPCB_CAL_MAGIC
+          && sim->mailbox(YPCB_CAL_MB_FIRMWARE) == cfg::calibration_firmware_id
           && sim->mailbox(YPCB_CAL_MB_PROBES) == 6942
           && sim->mailbox(YPCB_CAL_MB_FAILED_LANE) == 9,
           "CPU firmware result mailbox differs");
@@ -156,6 +193,7 @@ int main(int argc, char** argv) {
               static_cast<unsigned long long>(sim->cycles), sim->serviced, max_row);
 
   sim = std::make_unique<Simulation>();
+  sim->upload(image);
   sim->oracle.broken_lane = 0;
   sim->run(false);
   require(sim->state == YPCB_CAL_FAILED && sim->mailbox(YPCB_CAL_MB_ERROR) == 2
@@ -167,6 +205,7 @@ int main(int argc, char** argv) {
           "CPU published memory readiness after failure");
 
   sim = std::make_unique<Simulation>();
+  sim->upload(image);
   sim->oracle.read_bit_offset[8][5] = 2;
   sim->run(false);
   require(sim->state == YPCB_CAL_FAILED && sim->mailbox(YPCB_CAL_MB_FAILED_LANE) == 8
@@ -194,6 +233,7 @@ int main(int argc, char** argv) {
               static_cast<unsigned long long>(sim->cycles));
 
   sim = std::make_unique<Simulation>();
+  sim->upload(image);
   sim->inject_error = true;
   sim->dut.hold = 0;
   for (unsigned i = 0; i < 30000 && !(sim->dut.status & 32); ++i) sim->tick();

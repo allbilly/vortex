@@ -1,20 +1,32 @@
 # Current Vortex status — October 20, 2026
 
-JTAG is released at the user's request. No Vortex hardware process remains;
-reacquisition is disabled. Another session has hardware priority. Continue
-**offline only** until the user authorizes hardware access again. The last
-release check found both locks free; this is an observation, not ownership.
-Release evidence: `build_ypcb_native32/jtag-release-20261020-v3.json`.
+JTAG access was explicitly reauthorized by the user: “jag lock is release and
+can be used for vortex”. Temporary SRAM and runtime tests may continue; permanent
+flash is outside this authorization. The diagnostic job finished successfully
+and its owned hardware processes exited; both leases were observed free afterward.
 
-**GPU examples have not run on the FPGA.** The ABI 3 v18 trial loaded SRAM,
-reported INIT=1/DONE=1 and IDCODE `0x23751093`, and passed eight queued 64-byte
-JTAG PIO-window write/read pairs. Its local DDR firmware trained data lanes 0–7
-but found no read eye on ECC lane 8. Calibration stopped after 6,936 probes;
-`memory` failed during device initialization, before any memory workload,
-`demo` or SGEMM. This is a DDR calibration finding; no GPU failure is established.
-Physical evidence: `build_ypcb_native32/fpga-kernels-20261020-v1/manifest.json`.
-Permanent flash was not written. Current FPGA contents belong to whichever
-session next programs it and must not be inferred from this saved result.
+**GPU examples have not run on the FPGA.** The latest physical test loaded the
+qualified ABI 3 v18 image, verified INIT=1/DONE=1 and IDCODE `0x23751093`, and
+passed eight queued 64-byte JTAG PIO-window write/read pairs. It held the local
+calibration CPU, uploaded and read-verified all 4,096 firmware BRAM words, then
+ran diagnostic firmware `78dc1fa8`. CH1 data lanes 0–7 trained, but ECC lane 8 had
+no individual-bit read eyes: valid bits `0x00`, error OR/AND `0xff`, zero passing
+taps across all 256 read settings. Calibration stopped after 6,936 probes;
+maximum open-row span was 687 controller cycles. This does not identify a GPU
+failure or qualify DDR traffic. No GPU kernel or permanent flash write occurred.
+Evidence: `build_ypcb_native32/ddr-bit-diagnostics-20261020-v1/manifest.json`.
+
+The result does not support a read-framing-only explanation for lane 8. The
+next diagnostic is write-side alignment, which the present calibration leaves
+at reset. OpenTPU's proven design searches write alignment as well as clock
+phase and individual-bit read framing. Its working TinyStories record is
+`~/openTPU/build/hardware/tinystories-c0182600-20261018-v1/manifest.json`
+(28,909,056 verified bytes and exact tokens); that qualification belongs to
+OpenTPU and does not transfer to Vortex. The copied controller under
+`hw/syn/xilinx/ypcb/opentpu/` currently elaborates only, with its CPU parked;
+it is explicitly ineligible for synthesis or hardware until calibration and
+board integration are complete. ECC remains enabled on CH1's nine physical
+lanes; using CH1 alone does not remove its ECC byte lane.
 
 ## Basic-operation examples verified on SimX
 
