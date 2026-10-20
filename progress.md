@@ -1,13 +1,22 @@
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> v15 is running native implementation in
-> `build_ypcb_native32/ch1-jtag-pcie-20261020-v15/`, reusing the successful v14
-> synthesis after verifying all 674 hardware inputs and the exact checkpoint hash.
+> v15 routing and the corrected complete report gates passed in
+> `build_ypcb_native32/ch1-jtag-pcie-20261020-v15/`. Its exact routed checkpoint
+> is preserved for fresh bitstream finalization.
 > The refined status-fanout review passed native positive and bypass-rejection checks.
 > v13 is retired; the old checkpoint cannot be reused across this HDL change.
 > Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
 > tests. No new image has yet been programmed.
+
+Latest October 20 result: v15 routing passed setup/hold at +0.068/+0.031 ns,
+with 143,162 fully routed nets, no routing errors and zero unclocked or
+unconstrained internal endpoints. Its old report verifier then stopped because
+it counted 26 bus-skew constraints against the 14 design buses. Inspection found
+the 14 expected design groups plus eight JTAG and four debug-hub IP constraints;
+all have positive slack, worst +7.255 ns. The corrected verifier requires these
+groups separately and cross-checks their detailed results. The exact routed
+checkpoint is saved for fresh finalization; no new image has been programmed.
 
 > OpenTPU hardware priority: Vortex Codex and its new synthesis build were stopped
 > after c0182800 finished at 19:31 UTC on October 17 (03:31 HKT October 18).
@@ -26,7 +35,7 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — synthesis passed, v15 implementation running
+# Native CH1/JTAG/PCIe build — routed signoff passed, bitstream finalization next
 
 October 20 status-crossing audit: `shell/pcie/error_status` is registered on
 `pcie_clk` but fed the board-clock startup read-data register directly. v13
@@ -68,10 +77,14 @@ checks, then the post-optimization PCIe glitchless clock-mode review. Its
 optimized checkpoint is written. Placement and post-placement optimization
 completed; routing is running. Final routed timing,
 integrity and hardware qualification are still open.
-The first routed result has setup slack -0.051 ns and hold slack +0.031 ns.
-Its connectivity verification passed. The configured post-route physical
-optimization/re-routing loop is active; this result has not passed timing
-and has not produced a qualified bitstream for programming.
+The first routed result had setup slack -0.051 ns and hold slack +0.031 ns.
+The post-route loop subsequently closed timing at +0.068/+0.031 ns. The report
+gate now requires ten AXI and four CSR Gray buses, eight JTAG IP constraints
+and four debug-hub constraints, with complete matching detail sections.
+Twenty report-gate/reuse/hardware-preflight regression cases passed. The
+`finalize_vivado.py` tool verifies every frozen input and the current routed
+reports, copies the exact checkpoint and frozen tools into a fresh directory,
+then regenerates native reports before bitstream creation.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
 differed only in LiteX's two timestamp comments. The reuse runner now verifies

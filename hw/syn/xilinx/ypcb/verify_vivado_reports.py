@@ -7,6 +7,65 @@ import re
 import sys
 
 
+def bus_skew_summary(text):
+    section = re.split(r'(?m)^1\. Bus Skew Report Summary\n-+\n', text, maxsplit=1)[1]
+    sections = re.split(r'(?m)^2\. Bus Skew Report Per Constraint\n-+\n', section, maxsplit=1)
+    if len(sections) != 2:
+        raise ValueError('Missing detailed bus skew report')
+    section, details = sections
+    rows = []
+    for match in re.finditer(r'(?ms)^(\d+)\s+(\d+)\s+(.*?)(?=^\d+\s+\d+\s+|\Z)', section):
+        metrics = re.search(r'(Slow|Fast)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*$', match[3])
+        selectors = re.findall(r'\[get_cells \[list (.*?)\]\]', match[3], re.S)
+        if metrics is None or len(selectors) != 2:
+            raise ValueError('Incomplete bus skew constraint: ' + match[1])
+        sources, destinations = [re.findall(r'\{([^{}]+)\}', selector) for selector in selectors]
+        if not sources or not destinations:
+            raise ValueError('Missing bus skew endpoints: ' + match[1])
+        kind = 'unknown'
+        source_group = destination_group = None
+        if all(name.startswith(('axi_crossing_1/', 'csr_crossing_1/')) for name in sources + destinations):
+            source_bits = [re.fullmatch(r'((?:axi|csr)_crossing_1/.*cdc_graycounter\d+_q_reg)\[([0-2])\]', name)
+                           for name in sources]
+            target_bits = [re.fullmatch(r'((?:axi|csr)_crossing_1/xilinxmultiregimpl\d+_regs0_reg)\[([0-2])\]', name)
+                           for name in destinations]
+            if (len(source_bits) == len(target_bits) == 3 and all(source_bits) and all(target_bits)
+                    and {bit[2] for bit in source_bits} == {'0', '1', '2'}
+                    and {bit[2] for bit in target_bits} == {'0', '1', '2'}
+                    and len({bit[1] for bit in source_bits}) == len({bit[1] for bit in target_bits}) == 1):
+                source_group, destination_group = source_bits[0][1], target_bits[0][1]
+                if source_group.split('/')[0] == destination_group.split('/')[0]:
+                    kind = 'design_gray'
+        elif all(name.startswith('jtag/') for name in sources + destinations):
+            kind = 'jtag_ip'
+        elif all(name.startswith('dbg_hub/') for name in sources + destinations):
+            kind = 'debug_hub_ip'
+        requirement, actual, slack = map(float, metrics.groups()[1:])
+        rows.append({'id': int(match[1]), 'position': int(match[2]), 'kind': kind,
+                     'source_group': source_group, 'destination_group': destination_group,
+                     'endpoints': len(destinations),
+                     'requirement_ns': requirement, 'actual_ns': actual, 'slack_ns': slack,
+                     'passes': requirement > 0 and actual >= 0 and not metrics[4].startswith('-')
+                               and abs(requirement - actual - slack) <= 0.002})
+    if not rows or [row['id'] for row in rows] != list(range(1, len(rows) + 1)):
+        raise ValueError('Incomplete or duplicate bus skew constraint IDs')
+    if len({row['position'] for row in rows}) != len(rows):
+        raise ValueError('Duplicate bus skew constraint positions')
+    detailed_rows = list(re.finditer(r'(?ms)^Id:\s*(\d+)\s*\n(.*?)(?=^Id:|\Z)', details))
+    if [int(row[1]) for row in detailed_rows] != [row['id'] for row in rows]:
+        raise ValueError('Missing detailed bus skew constraints')
+    for row, detailed in zip(rows, detailed_rows):
+        slack = re.findall(r'(?m)^Slack \((?:MET|VIOLATED)\)\s*:\s*([-\d.]+)ns', detailed[2])
+        requirement = re.findall(r'(?m)^Requirement:\s*([-\d.]+)ns', detailed[2])
+        endpoints = re.findall(r'(?m)^Endpoints:\s*(\d+)', detailed[2])
+        if (len(slack) != 1 or len(requirement) != 1 or len(endpoints) != 1
+                or abs(float(slack[0]) - row['slack_ns']) > 0.001
+                or abs(float(requirement[0]) - row['requirement_ns']) > 0.001
+                or int(endpoints[0]) != row['endpoints']):
+            raise ValueError('Incomplete or inconsistent bus skew detail: ' + str(row['id']))
+    return rows
+
+
 def evaluate(directory, expected_gray_buses=14):
     directory = Path(directory)
     timing = (directory / 'timing-summary.rpt').read_text()
@@ -29,10 +88,18 @@ def evaluate(directory, expected_gray_buses=14):
               'wpws_ns', 'tpws_ns', 'pulse_failing_endpoints', 'pulse_total_endpoints']
     values = {field: float(value) if field.endswith('_ns') else int(value)
               for field, value in zip(fields, row)}
-    bus = re.split(r'(?m)^1\. Bus Skew Report Summary\n-+\n',
-                   (directory / 'bus-skew.rpt').read_text(), maxsplit=1)[1]
-    bus = re.split(r'(?m)^2\. Bus Skew Report Per Constraint\n-+\n', bus, maxsplit=1)[0]
-    skews = re.findall(r'^\s*(?:Slow|Fast)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*$', bus, re.M)
+    skews = bus_skew_summary((directory / 'bus-skew.rpt').read_text())
+    design_skews = [item for item in skews if item['kind'] == 'design_gray']
+    skew_groups = {name: sum(item['kind'] == name for item in skews)
+                   for name in ('jtag_ip', 'debug_hub_ip')}
+    design_groups = {name: sum(item['source_group'].startswith(name + '/') for item in design_skews)
+                     for name in ('axi_crossing_1', 'csr_crossing_1')}
+    skew_coverage = (len(design_skews) == expected_gray_buses
+                     and len({item['source_group'] for item in design_skews}) == expected_gray_buses
+                     and len({item['destination_group'] for item in design_skews}) == expected_gray_buses
+                     and design_groups == {'axi_crossing_1': 10, 'csr_crossing_1': 4}
+                     and skew_groups == {'jtag_ip': 8, 'debug_hub_ip': 4}
+                     and all(item['kind'] != 'unknown' for item in skews))
     route = (directory / 'route-status.rpt').read_text()
 
     def route_count(label):
@@ -57,7 +124,7 @@ def evaluate(directory, expected_gray_buses=14):
                 and values['hold_failing_endpoints'] == 0,
         'pulse': not row[8].startswith('-') and values['tpws_ns'] == 0
                  and values['pulse_failing_endpoints'] == 0,
-        'gray_skew': len(skews) == expected_gray_buses and all(not item[2].startswith('-') for item in skews),
+        'gray_skew': skew_coverage and all(item['passes'] for item in skews),
         'route': routable > 0 and routed == routable and route_errors == 0,
         'internal_coverage': all(value == 0 for value in internal_coverage.values()),
         'drc': not drc_errors,
@@ -66,8 +133,14 @@ def evaluate(directory, expected_gray_buses=14):
         'status': 'INTERNAL_TIMING_ROUTE_AND_GRAY_SKEW_PASS' if all(checks.values()) else 'REPORT_GATES_FAILED',
         'checks': checks,
         'timing': values,
-        'gray_buses': len(skews),
-        'worst_gray_skew_slack_ns': min((float(item[2]) for item in skews), default=None),
+        'gray_buses': len(design_skews),
+        'total_skew_constraints': len(skews),
+        'vendor_skew_constraints': sum(item['kind'] in ('jtag_ip', 'debug_hub_ip') for item in skews),
+        'design_skew_groups': design_groups,
+        'vendor_skew_groups': skew_groups,
+        'worst_gray_skew_slack_ns': min((item['slack_ns'] for item in design_skews), default=None),
+        'worst_all_skew_slack_ns': min((item['slack_ns'] for item in skews), default=None),
+        'skew_constraints': skews,
         'routed_nets': routed,
         'routing_errors': route_errors,
         'internal_coverage': internal_coverage,

@@ -32,6 +32,13 @@ are excluded; settling paths between stages retain ordinary timing.
 The sticky source bit may also feed its own input logic. Follow that logic to
 the capture registers and compare their clocks when checking for a bypass.
 
+The routed YPCB bus-skew report has 14 design Gray buses (ten AXI and four CSR),
+eight JTAG AXI IP constraints and four debug-hub IP constraints. The report gate
+checks each group separately, verifies the three-bit design endpoint sets and
+unique pointer groups, and requires passing results for all vendor constraints.
+Summary and detailed IDs, endpoint counts, requirements and slack must agree;
+truncated or unknown groups fail qualification.
+
 The PCIe PIPE clock mux uses BUFGCTRL's glitchless selection mode. The
 rate-change logic waits for PHY completion signals and its state machine;
 it permits variable clock switching latency. In this mode, missing setup or

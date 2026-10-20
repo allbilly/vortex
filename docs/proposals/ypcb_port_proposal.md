@@ -60,6 +60,18 @@ receipt, verifies the frozen inputs, and rejects changes to HDL, pin constraints
 source order, defines or synthesis Tcl before copying the checkpoint. Only the
 implementation stages then run.
 
+For a completed routed checkpoint whose reports pass the current verifier,
+finalization can resume in a fresh directory without repeating placement:
+
+```sh
+./ci/ypcb_env.sh exec python3 ../hw/syn/xilinx/ypcb/finalize_vivado.py \
+  --run previous_run --output fresh_finalization_run --vivado vivado
+```
+
+This verifies every frozen input, checks the existing reports, copies and hashes
+the exact routed checkpoint, freezes the finalization tools and reruns native
+report gates before writing a bitstream. It performs no hardware programming.
+
 The OpenTPU YPCB reference informed the mailbox constraint review: resolve
 hierarchical registers, verify synchronizer attributes and direct stage wiring,
 and time every held-payload receiver, including the write discriminator. The
