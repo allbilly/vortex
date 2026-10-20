@@ -1,9 +1,9 @@
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> v14 passed fresh native synthesis with the repaired PCIe error-status crossing.
-> Its checkpoint is preserved in `build_ypcb_native32/ch1-jtag-pcie-20261020-v14/`.
-> The refined status-fanout review passed native positive and bypass-rejection checks;
-> implementation can reuse this synthesis in a fresh output directory.
+> v15 is running native implementation in
+> `build_ypcb_native32/ch1-jtag-pcie-20261020-v15/`, reusing the successful v14
+> synthesis after verifying all 674 hardware inputs and the exact checkpoint hash.
+> The refined status-fanout review passed native positive and bypass-rejection checks.
 > v13 is retired; the old checkpoint cannot be reused across this HDL change.
 > Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
@@ -26,7 +26,7 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — fresh synthesis and status CDC contract passed
+# Native CH1/JTAG/PCIe build — synthesis passed, v15 implementation running
 
 October 20 status-crossing audit: `shell/pcie/error_status` is registered on
 `pcie_clk` but fed the board-clock startup read-data register directly. v13
@@ -59,6 +59,14 @@ rejects a register's Q pin there. The native positive check passed for all four
 chains and rejected an injected source-to-board-register bypass. Evidence is
 `build_ypcb_native32/pcie-status-cdc-contract-20261020-v2/manifest.json`.
 Only the constraint review changed; the verified v14 synthesis can be reused.
+v15 accepted that reuse and is running implementation. The prepared
+`build_ypcb_native32/resume-implementation.sh` now selects v14's checkpoint,
+defaults to a fresh v16 directory and rejects an already-active Vortex build.
+Its duplicate guard was verified without starting another CAD worker.
+v15 passed the actual Gray/reset, four PCIe status-chain and mailbox payload
+checks, then the post-optimization PCIe glitchless clock-mode review. Its
+optimized checkpoint is written and placement is running. Final routed timing,
+integrity and hardware qualification are still open.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
 differed only in LiteX's two timestamp comments. The reuse runner now verifies
