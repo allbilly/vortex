@@ -69,8 +69,10 @@ The first unit attempt stopped on a missing TCU trace-package dependency;
 the DMA unit file list now supplies it under the TCU profile.
 
 Fresh synthesis is required after the DMA RTL change; the prepared
-synthesis-reuse retry is superseded. Next: rebuild both board-model interfaces,
-run fresh synthesis/routing and all report/CRC gates, then physical memory/ECC,
+synthesis-reuse retry is superseded. Both board-model interfaces are rebuilding
+under `vortex-tcu-integration-build-20261021-v3.service`, with receipts in
+`integration-build-20261021-v3/`. After those tests pass, the job runs fresh
+synthesis/routing in `tcu-ch1-jtag-pcie-20261021-v2/`. Then require all report/CRC gates and physical memory/ECC,
 scalar and FP16/INT8 tests. The unchanged DDR block still needs qualification
 in the newly routed tensor image.
 Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
