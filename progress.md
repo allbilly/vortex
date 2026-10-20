@@ -37,11 +37,21 @@ Evidence: `build_ypcb_tcu32/integration-build-20261021-v2/manifest.json`, field
 `board_integration_status=FP16_INT8_SCALAR_MEMORY_PCIE_AND_JTAG_RTL_PASS`.
 DDR/PHY responses in these board tests remain oracles.
 
-Fresh Vivado synthesis is active under
-`vortex-tcu-integration-build-20261021-v2.service`, image directory
-`build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. The same job continues through
-implementation after successful synthesis. It has not produced a qualified
-bitstream yet. Pending: synthesis/routing and report/CRC gates, then authorized
+Fresh synthesis passed in 1,274.334 seconds, with actual exit zero and no
+critical warnings/errors. The checkpoint SHA-256 is
+`4c72ed096933710c2cf1206026ab676e238d16bfbd3901b4916dd949cf8cc902`.
+Synthesis estimates 149,205 LUTs (49.97%), 194 block-RAM tiles (20.31%) and
+144 DSPs (7.50%); these are not final routed figures. Observation:
+`build_ypcb_tcu32/synthesis-observation-20261021-v1.json`.
+
+Implementation is active under `vortex-tcu-integration-build-20261021-v2.service`,
+image directory `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Initial native
+clock/reset/CDC checks passed, including all 179 connected serializer resets,
+nine unused DM serializers and two preserved lock synchronizer stages. All
+811 frozen input hashes matched; the DDR RTL, firmware, CSR map and phase
+constraints are byte-identical to the qualified scalar image's DDR block.
+New physical DDR and GPU tests remain required. It has not produced a qualified
+bitstream yet. Pending: placement/routing and report/CRC gates, then authorized
 SRAM, DDR/ECC, scalar and tensor hardware tests.
 Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
 (requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
