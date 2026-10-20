@@ -1,3 +1,13 @@
+> Current hardware disposition: JTAG released at the user's request. All Vortex
+> programmer/runtime processes exited. Another project now owns the shared
+> lease and USB cable; do not disturb it or reacquire hardware without a new
+> user instruction. Continue offline work only. Release evidence:
+> `build_ypcb_native32/jtag-release-20261020-v2.json`.
+>
+> The ABI 3 physical trial loaded SRAM and passed JTAG transfers. Calibration
+> found windows for eight data lanes but none for ECC lane 8, so memory and GPU
+> tests did not run. This is a DDR calibration finding, not a GPU failure.
+>
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
 > v16 bitstream finalization passed in
