@@ -98,13 +98,15 @@ write_checkpoint -force [file join $output_dir optimized.dcp]
 place_design -directive Explore
 phys_opt_design -directive AggressiveExplore
 route_design -directive Explore
+write_checkpoint -force [file join $output_dir routed-initial.dcp]
+# Post-route physical optimization maintains routing; rerouting can undo its gains.
 for {set iteration 0} {$iteration < 3} {incr iteration} {
     set setup [get_timing_paths -delay_type max -max_paths 1]
     set hold [get_timing_paths -delay_type min -max_paths 1]
     if {[llength $setup] != 1 || [llength $hold] != 1} {error "Missing timing paths"}
     if {[get_property SLACK $setup] >= 0 && [get_property SLACK $hold] >= 0} {break}
     phys_opt_design -directive AggressiveExplore
-    route_design -directive Explore
+    write_checkpoint -force [file join $output_dir [format "routed-phys-opt-%02d.dcp" $iteration]]
 }
 set setup [get_timing_paths -delay_type max -max_paths 1]
 set hold [get_timing_paths -delay_type min -max_paths 1]

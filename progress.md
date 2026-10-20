@@ -64,6 +64,13 @@ Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
 (requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
 and `audit-fpga-completion-20261021-v1.py`. Capture the hardware service's owned
 process identities during the physical run for the cleanup audit.
+The source flow now checkpoints initial routing and each post-route optimization
+pass, preserving the optimizer's routed result instead of rerunning the full
+router after every pass. This follows
+[AMD UG904](https://docs.amd.com/r/en-US/ug904-vivado-implementation/Physical-Optimization).
+Tcl syntax and all four synthesis-reuse checks passed; the synthesis Tcl prefix
+and all 811 frozen inputs of the live run are unchanged. That run still uses its
+original frozen script. The revised flow has not yet been exercised in Vivado.
 Vortex uses one heavy stage at a time and an 8 GiB service limit. It has
 not acquired JTAG for this tensor work, and permanent flash remains untouched.
 

@@ -97,6 +97,12 @@ of its AXI and Wishbone CDC exports, verifies every remaining byte, and retains
 the exact compiled files. Both regenerated and retained hashes are recorded.
 HDL, attributes, pins, source order, defines and synthesis Tcl remain strict gates.
 
+Consecutive post-route `phys_opt_design` passes maintain routing. Avoid a full
+`route_design` after every pass, which can undo timing improvements. Save a
+checkpoint after initial routing and each repair pass. The final candidate must
+still pass all timing, route, DRC and CDC gates. See
+[AMD UG904](https://docs.amd.com/r/en-US/ug904-vivado-implementation/Physical-Optimization).
+
 When running Vivado in a transient systemd unit, save the actual command exit
 code in its run directory before the wrapper exits. A successful unit can be
 unloaded before a dependent observes its result. Preserve its log and
