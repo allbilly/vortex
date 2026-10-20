@@ -34,7 +34,7 @@ StartupResult Startup::initialize(StartupReport* report) {
     return StartupResult::io_error;
   }
   report->initial_status = report->final_status = status;
-  if (signature != 0x56595043 || version != 3 || (status & status_errors) != 0
+  if (signature != 0x56595043 || version != 4 || (status & status_errors) != 0
       || (status & required_status) != required_status) {
     return StartupResult::unsafe_state;
   }

@@ -6,14 +6,14 @@ include ../common.mk
 SRC_DIR := $(VORTEX_HOME)/sw/runtime/ypcb
 DESTDIR ?= $(CURDIR)/..
 override DESTDIR := $(abspath $(DESTDIR))
-CONFIG_HEADER := $(ROOT_DIR)/sw/ypcb/ypcb_ddr_config.h
+CONFIG_HEADER := $(ROOT_DIR)/sw/ypcb/ypcb_wl_config.h
 
 CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -Werror -fPIC -DNDEBUG
 CXXFLAGS += -I$(INC_DIR) -I$(RT_COMMON_DIR) -I$(SW_COMMON_DIR) -I$(ROOT_DIR)/sw
 CXXFLAGS += -I$(ROOT_DIR)/sw/ypcb
 LDFLAGS += -shared -pthread -Wl,-z,defs
 SRCS := $(SRC_DIR)/vortex.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp \
-        $(SW_COMMON_DIR)/ypcb_calibration.cpp $(SW_COMMON_DIR)/ypcb_startup.cpp \
+        $(SW_COMMON_DIR)/ypcb_wl_calibration.cpp $(SW_COMMON_DIR)/ypcb_startup.cpp \
         $(SW_COMMON_DIR)/ypcb_host_memory.cpp $(SW_COMMON_DIR)/ypcb_jtag.cpp
 HEADERS := $(wildcard $(SW_COMMON_DIR)/ypcb*.h) $(SW_COMMON_DIR)/mem_alloc.h \
            $(RT_COMMON_DIR)/callbacks.h $(RT_COMMON_DIR)/callbacks.inc $(CONFIG_HEADER)

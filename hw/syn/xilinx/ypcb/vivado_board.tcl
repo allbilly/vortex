@@ -86,11 +86,13 @@ if {$stage eq "synthesize"} {
 }
 open_checkpoint [file join $output_dir synth.dcp]
 source [file join $board_dir vivado_cdc.tcl]
+source [file join $board_dir vivado_wl_clock.tcl]
 set hub [get_debug_cores -quiet dbg_hub]
 if {[llength $hub] != 1} {error "JTAG AXI debug hub is absent"}
 set_property C_CLK_INPUT_FREQ_HZ 125000000 $hub
 connect_debug_port dbg_hub/clk [get_nets bus_clk]
 opt_design
+source [file join $board_dir vivado_wl_clock.tcl]
 source [file join $board_dir vivado_pcie_clock.tcl]
 write_checkpoint -force [file join $output_dir optimized.dcp]
 place_design -directive Explore

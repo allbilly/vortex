@@ -15,7 +15,7 @@ IVERILOG ?= iverilog
 VVP ?= vvp
 LITEDRAM_PYTHONPATH ?= $(ROOT_DIR)/open-reference/migen:$(ROOT_DIR)/open-reference/litex:$(ROOT_DIR)/open-reference/litedram:$(ROOT_DIR)/open-python-deps
 DDR_OUT_DIR ?= $(CURDIR)/ddr
-DDR_CONFIG_HEADER := $(ROOT_DIR)/sw/ypcb/ypcb_ddr_config.h
+DDR_CONFIG_HEADER := $(ROOT_DIR)/sw/ypcb/ypcb_wl_config.h
 MEMORY_NUM_INPUTS ?= 4
 SLANG_PLUGIN ?= $(ROOT_DIR)/tools-build/sv-elab/slang.so
 SCRUB_TEST_DIR ?= $(CURDIR)/scrub-test
@@ -106,13 +106,13 @@ open-slang-synth: open-slang-import
 	$(YOSYS) -l $(OUT_DIR)/yosys-slang-synth.log -p 'read_rtlil $(OUT_DIR)/vortex_afu_slang.il; synth_xilinx -family xc7 -top $(TOP) -flatten -noiopad -noclkbuf -run begin:map_luts; write_rtlil $(OUT_DIR)/vortex_afu_slang_pre_luts.il; synth_xilinx -family xc7 -top $(TOP) -noiopad -noclkbuf -run map_luts:; delete t:$$scopeinfo; check -assert; select -assert-none $(TOP)/t:$$*; stat; write_json $(OUT_DIR)/vortex_afu_slang.json'
 
 ddr-sources:
-	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/gen_ddr.py --config $(SRC_DIR)/litedram.yml --output $(DDR_OUT_DIR) --cc $(CALIBRATION_CC)
+	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/opentpu/gen_core.py --output $(DDR_OUT_DIR) --cc $(CALIBRATION_CC)
 
 ddr-host-config:
-	python3 $(VORTEX_HOME)/ci/ypcb_ddr_config.py --ddr $(DDR_OUT_DIR) --output $(DDR_CONFIG_HEADER)
+	python3 $(VORTEX_HOME)/ci/ypcb_wl_config.py --ddr $(DDR_OUT_DIR) --output $(DDR_CONFIG_HEADER)
 
 ddr-host-test: ddr-host-config
-	$(MAKE) -C $(ROOT_DIR)/tests/ypcb/ddr run
+	$(MAKE) -C $(ROOT_DIR)/tests/ypcb/wl_selfcal run DDR_DIR=$(DDR_OUT_DIR)
 
 cdc-sources:
 	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/gen_cdc.py --output $(CURDIR)/cdc/ypcb_axi_cdc.v

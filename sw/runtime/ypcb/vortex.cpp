@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 #include <common.h>
-#include <ypcb_calibration.h>
+#include <ypcb_wl_calibration.h>
 #include <ypcb_startup.h>
 #include <ypcb_host_memory.h>
 #include <ypcb_jtag.h>
@@ -170,46 +170,28 @@ private:
     }
     uint32_t signature, version, status;
     if (read32(0x3000, &signature) != 0 || signature != 0x56595043
-        || read32(0x3004, &version) != 0 || version != 3
+        || read32(0x3004, &version) != 0 || version != 4
         || read32(0x3008, &status) != 0 || status == 0xffffffff) {
       std::fprintf(stderr, "[VXDRV] YPCB startup signature/version is unavailable\n");
       return -1;
     }
-    CalibrationReport calibration;
-    const auto calibrated = wait_calibration(*this, &calibration);
-    if (calibrated != CalibrationResult::success) {
-      std::fprintf(stderr, "[VXDRV] Local DDR1 calibration failed: result=%u error=%u lane=%u\n",
-                   unsigned(calibrated), calibration.error, calibration.failed_lane);
-      std::fprintf(stderr, "[VXDRV] DDR1 firmware=%08x state=%u probes=%u max_row=%u cycles=%llu\n",
-                   calibration.firmware_id, calibration.state, calibration.probes, calibration.max_row_cycles,
-                   static_cast<unsigned long long>(calibration.cycles));
-      for (unsigned lane = 0; lane < calibration.lanes.size(); ++lane) {
-        std::fprintf(stderr, "[VXDRV] DDR1 lane%u window=%08x scans=", lane, calibration.lanes[lane]);
-        for (unsigned slip = 0; slip < 8; ++slip) {
-          std::fprintf(stderr, "%s%08x", slip ? "," : "", calibration.scans[lane * 8 + slip]);
-        }
-        std::fputc('\n', stderr);
-      }
-      if (calibration.has_bit_diagnostics) {
-        std::fprintf(stderr, "[VXDRV] DDR1 lane%u bit-eyes=%02x error_or=%02x error_and=%02x scan_taps=%u\n",
-                     calibration.diagnostic_lane, calibration.diagnostic_valid_bits,
-                     calibration.diagnostic_error_or, calibration.diagnostic_error_and,
-                     calibration.diagnostic_taps);
-        for (unsigned bit = 0; bit < 8; ++bit) {
-          std::fprintf(stderr, "[VXDRV] DDR1 lane%u bit%u valid=%u window=%08x mask=%08x pass_taps=%u\n",
-                       calibration.diagnostic_lane, bit, (calibration.diagnostic_valid_bits >> bit) & 1,
-                       calibration.bit_windows[bit], calibration.bit_masks[bit], calibration.bit_counts[bit]);
-        }
-      }
+    WlCalibrationReport calibration;
+    const auto calibrated = wait_wl_calibration(*this, &calibration);
+    std::fprintf(stderr, "[VXDRV] CH1 calibration result=%u firmware=%08x error=%u phase=%d window=%u scan_points=%u cycles_low32=%u\n",
+                 unsigned(calibrated), calibration.firmware_id, calibration.error, calibration.phase_steps,
+                 calibration.phase_window, calibration.phase_points, calibration.cycles_low32);
+    if (calibrated != WlCalibrationResult::success) {
       return -1;
     }
-    std::fprintf(stderr, "[VXDRV] Local DDR1 firmware=%08x probes=%u max_row=%u cycles=%llu\n",
-                 calibration.firmware_id, calibration.probes, calibration.max_row_cycles,
-                 static_cast<unsigned long long>(calibration.cycles));
-    for (unsigned lane = 0; lane < calibration.lanes.size(); ++lane) {
-      const auto value = calibration.lanes[lane];
-      std::fprintf(stderr, "[VXDRV] DDR1 lane%u slip=%u taps=%u..%u center=%u\n",
-                   lane, value & 255, (value >> 8) & 255, (value >> 16) & 255, value >> 24);
+    for (unsigned lane = 0; lane < calibration.read_windows.size(); ++lane) {
+      const auto value = calibration.read_windows[lane];
+      std::fprintf(stderr, "[VXDRV] CH1 lane%u write_slip=%u read_slip=%u taps=%u..%u center=%u bit_offsets=",
+                   lane, unsigned((calibration.write_slips >> (lane * 4)) & 15), (value >> 8) & 255,
+                   (value >> 16) & 255, ((value >> 16) & 255) + (value & 255) - 1, value >> 24);
+      for (unsigned bit = 0; bit < 8; ++bit) {
+        std::fprintf(stderr, "%s%d", bit ? "," : "", int(calibration.bit_offsets[lane * 8 + bit]));
+      }
+      std::fputc('\n', stderr);
     }
     Startup startup(*this);
     StartupReport report;

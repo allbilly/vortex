@@ -1,6 +1,7 @@
 # Clock/PHY helpers from OpenTPU tools/litedram/ld_test.py.
 # See provenance.json and LICENSE.litedram in this directory.
 from migen import *
+from migen.genlib.cdc import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen import LiteXModule
 from litex.soc.cores.clock import S7MMCM, S7PLL, S7IDELAYCTRL
@@ -101,6 +102,9 @@ class WriteClocks(LiteXModule):
         self.drp_write = CSR()
         self.drp_drdy = CSRStatus(1)
         self.locked = Signal()
+        locked_sys = Signal(name="wl_locked_sys")
+        locked_sys.attr.add("keep")
+        self.specials += MultiReg(self.locked, locked_sys, odomain="sys", n=2)
         self.ps_ready = Signal()
         self.psen, self.psincdec, self.psdone = Signal(), Signal(), Signal()
         self.group1_deg, self.f, self.name_of = group1_deg, f, f"ldmmcm{c}"
@@ -114,8 +118,8 @@ class WriteClocks(LiteXModule):
         ]
         rst = Signal()
         self.comb += [rst.eq(ResetSignal("sys") | self.mmcm_reset.storage),
-                      self.mmcm_locked.status.eq(self.locked),
-                      self.ps_ready.eq(self.locked & ~self.mmcm_reset.storage)]
+                      self.mmcm_locked.status.eq(locked_sys),
+                      self.ps_ready.eq(locked_sys & ~self.mmcm_reset.storage)]
         fb, fb_buf = Signal(), Signal()
         outs = [Signal() for _ in self.OUTS]
         phase = {"sys4x_w0_dqs": 90.0, "sys4x_w1": group1_deg, "sys4x_w1_dqs": group1_deg + 90.0}

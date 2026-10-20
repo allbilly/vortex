@@ -28,7 +28,7 @@ module ypcb_top (
     output wire  ddr1_reset_n,
     output wire  ddr1_we_n
 );
-    wire clock_50, clock_200, clock_200_raw, clock_feedback, clock_feedback_raw;
+    wire clock_50, clock_50_raw, clock_feedback, clock_feedback_raw;
     wire board_locked, pcie_refclk, bus_clk, pcie_clk, pcie_reset, link_up, shell_busy;
     wire clock_125_raw, pcie_link_up;
     (* ASYNC_REG = "TRUE" *) reg [1:0] link_sync;
@@ -56,15 +56,12 @@ module ypcb_top (
 
     IBUF board_clock (
         .I (SYS_CLK),
-        .O (clock_50)
+        .O (clock_50_raw)
     );
+    BUFG board_clock_50 (.I(clock_50_raw), .O(clock_50));
     BUFG board_feedback (
         .I (clock_feedback_raw),
         .O (clock_feedback)
-    );
-    BUFG board_clock_200 (
-        .I (clock_200_raw),
-        .O (clock_200)
     );
     BUFG board_clock_125 (.I(clock_125_raw), .O(bus_clk));
     PLLE2_BASE #(
@@ -77,7 +74,7 @@ module ypcb_top (
         .CLKIN1   (clock_50),
         .CLKFBIN  (clock_feedback),
         .CLKFBOUT (clock_feedback_raw),
-        .CLKOUT0  (clock_200_raw),
+        .CLKOUT0  (),
         .CLKOUT1  (clock_125_raw),
         .CLKOUT2  (),
         .CLKOUT3  (),
@@ -593,7 +590,7 @@ module ypcb_top (
     );
 
     ypcb_ddr3 ddr_1 (
-        .clk                     (clock_200),
+        .clk                     (clock_50),
         .ddram_a                 (ddr1_a),
         .ddram_ba                (ddr1_ba),
         .ddram_cas_n             (ddr1_cas_n),

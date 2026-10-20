@@ -18,6 +18,37 @@ import time
 interrupted = 0
 
 
+def wl_controller(directory):
+    export = json.loads((directory / 'selfcal-export.json').read_text())
+    profile = export['profile']
+    expected = {'board_abi': 4, 'input_clock_hz': 50000000, 'controller_clock_hz': 100000000,
+                'ddr_data_rate': 800000000, 'physical_lanes': 9, 'payload_bytes': 2147483648,
+                'ecc': True, 'phase_uncertainty_ns': 1.3, 'eligible_for_synthesis': True}
+    if (export['board_abi'] != 4 or export['controller'] != 'WL7DDRPHY'
+            or any(profile.get(k) != v for k, v in expected.items())):
+        raise ValueError('Unexpected ABI4 CH1 WL controller profile')
+    files = {'gateware/ypcb_ddr3.v': export['standalone_verilog_sha256'],
+             'phase-constraints.tcl': export['phase_constraints_sha256']}
+    firmware = json.loads((directory / 'selfcal_fw/manifest.json').read_text())
+    payload = (directory / 'selfcal_fw/firmware.bin').read_bytes()
+    if (firmware['memory_bytes'] != 16384 or firmware['bytes'] != len(payload)
+            or not payload or len(payload) > 16384 or len(payload) % 4
+            or not 0 < firmware['firmware_id'] < 2**32):
+        raise ValueError('Invalid WL firmware bounds or identity')
+    files['selfcal_fw/firmware.bin'] = firmware['sha256']
+    for name, expected_hash in files.items():
+        if hashlib.sha256((directory / name).read_bytes()).hexdigest() != expected_hash:
+            raise ValueError('WL controller input changed: ' + name)
+    for name, expected_hash in firmware['inputs'].items():
+        if hashlib.sha256(Path(name).read_bytes()).hexdigest() != expected_hash:
+            raise ValueError('WL calibration source changed: ' + name)
+    for name, expected_hash in profile['source_sha256'].items():
+        if hashlib.sha256(Path(name).read_bytes()).hexdigest() != expected_hash:
+            raise ValueError('WL controller source changed after export: ' + name)
+    return {'board_abi': 4, 'controller': 'WL7DDRPHY', 'firmware_id': firmware['firmware_id'],
+            'firmware_sha256': firmware['sha256'], 'profile': profile}
+
+
 def interrupt(signum, frame):
     global interrupted
     interrupted = signum
@@ -132,8 +163,10 @@ def main():
     root = Path(__file__).resolve().parents[4]
     if output.exists():
         raise ValueError('Output must be a fresh directory')
-    if not (build / 'config.mk').is_file() or 'MEMORY_SIZE ?= 2147483648' not in (build / 'config.mk').read_text():
+    if (not (build / 'config.mk').is_file() or 'MEMORY_SIZE ?= 2147483648' not in (build / 'config.mk').read_text()
+            or 'XLEN ?= 32' not in (build / 'config.mk').read_text()):
         raise ValueError('Configure an RV32 build with --memory-size=2147483648 first')
+    controller = wl_controller(args.ddr.resolve())
     output.mkdir(parents=True)
     board = root / 'hw/syn/xilinx/ypcb'
     run(['make', '-C', build / 'hw/syn/xilinx/ypcb', 'sources', 'board-pcie',
@@ -154,7 +187,7 @@ def main():
         shutil.copytree(root / relative, snapshot / relative)
     shutil.copytree(build / 'hw', snapshot / 'build/hw', ignore=shutil.ignore_patterns('syn', 'unittest'))
     shutil.copytree(args.ddr.resolve() / 'gateware', output / 'ddr/gateware')
-    for name in ('csr.json', 'csr.csv', 'selfcal-export.json'):
+    for name in ('csr.json', 'csr.csv', 'selfcal-export.json', 'phase-constraints.tcl', 'prototype.json'):
         shutil.copy2(args.ddr.resolve() / name, output / 'ddr' / name)
     shutil.copytree(args.ddr.resolve() / 'selfcal_fw', output / 'ddr/selfcal_fw')
     shutil.copytree(args.ddr.resolve() / 'software/include/generated', output / 'ddr/software/include/generated')
@@ -167,7 +200,8 @@ def main():
                 'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
                 'source_diff': subprocess.check_output(['git', 'diff', 'HEAD'], cwd=root, text=True),
                 'inputs': {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
-                'scope': 'CH1 2 GiB, independent 125 MHz GPU clock, JTAG AXI and PCIe'}
+                'scope': 'ABI4 CH1 2 GiB ECC, WL calibration, independent 125 MHz GPU clock, JTAG AXI and PCIe',
+                'controller': controller}
     if args.reuse_synthesis:
         manifest['reused_synthesis'] = reuse_synthesis(args.reuse_synthesis, output, manifest)
     save(output / 'inputs.json', manifest)

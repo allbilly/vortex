@@ -168,7 +168,7 @@ module startup_tb;
     initial begin
         board_reset();
         read_register(12'h000, 32'h56595043, '1, 0);
-        read_register(12'h004, 32'd3, '1, 0);
+        read_register(12'h004, 32'd4, '1, 0);
         read_register(12'h003, 0, '1, 3);
         read_register(12'h100, 0, '1, 3);
         write_register(12'h000, 0, 15, 2);

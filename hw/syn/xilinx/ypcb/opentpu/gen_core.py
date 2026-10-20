@@ -4,6 +4,7 @@
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 from pathlib import Path
 import sys
@@ -23,7 +24,7 @@ from litedram.gen import (LiteDRAMCoreControl, get_common_ios, get_dram_ios,
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gen_ddr import standalone
-from selfcal import CalibrationCpu, MEM_BYTES
+from selfcal import CalibrationCpu
 from bist import BIST
 from clocks import DQSPhase, MT41K256M8_tRFC160, WLCRG, WriteClocks
 from dfii_q import registered_injector
@@ -107,6 +108,8 @@ def main():
     output = args.output.resolve()
     if output.exists():
         raise ValueError('Prototype export requires a fresh output directory')
+    if importlib.metadata.version('pythondata-cpu-vexriscv') != '1.0.1.post407':
+        raise ValueError('Unexpected calibration CPU RTL package version')
     platform = XilinxPlatform('xc7k480tffg1156-2', io=[], toolchain='vivado')
     soc = Ch1Core(platform)
     builder = CalibrationBuilder(soc, output, args.cc.resolve())
@@ -119,14 +122,19 @@ def main():
              Path(__file__).with_name('bist.py'),
              Path(__file__).with_name('firmware.py'),
              Path(__file__).with_name('provenance.json')]
-    metadata = {'status': 'CALIBRATION_FIRMWARE_EXPORTED_NOT_FUNCTIONALLY_OR_PHYSICALLY_QUALIFIED',
-                'eligible_for_synthesis_or_hardware': False, 'hardware_accessed': False,
+    metadata = {'status': 'WL_CALIBRATION_CONTROLLER_EXPORTED_PHYSICAL_QUALIFICATION_PENDING',
+                'eligible_for_synthesis': True, 'hardware_qualified': False, 'hardware_accessed': False,
+                'board_abi': 4,
                 'input_clock_hz': 50000000, 'controller_clock_hz': 100000000,
                 'ddr_data_rate': 800000000, 'physical_lanes': 9, 'payload_bytes': 2147483648,
                 'ecc': True, 'phase_uncertainty_ns': 1.3,
                 'source_sha256': {str(p): digest(p) for p in files}, 'export': export}
     (output / 'prototype.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    print('YPCB_OPENTPU_CH1_PROTOTYPE_ELABORATED_NO_CALIBRATION_OR_HARDWARE_QUALIFICATION')
+    export.update(cpu_rtl_package='pythondata-cpu-vexriscv==1.0.1.post407', board_abi=4,
+                  controller='WL7DDRPHY', profile={k: v for k, v in metadata.items() if k != 'export'},
+                  phase_constraints_sha256=digest(constraints))
+    (output / 'selfcal-export.json').write_text(json.dumps(export, indent=2) + '\n')
+    print('YPCB_WL_CH1_CONTROLLER_EXPORTED_PHYSICAL_QUALIFICATION_PENDING')
 
 
 if __name__ == '__main__':

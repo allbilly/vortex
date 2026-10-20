@@ -21,13 +21,14 @@ python3 ../hw/syn/xilinx/ypcb/opentpu/gen_core.py --output ch1-wl-prototype \
   --cc "$TOOLDIR/riscv32-gnu-toolchain/bin/riscv32-unknown-elf-gcc"
 ```
 
-**This integration prototype remains ineligible for hardware.** Its CPU now
+**Physical qualification remains pending.** Its CPU now
 runs the complete calibration algorithm: clock phase, write latency, per-bit
 read framing and native traffic tests. Host response-oracle cases and an actual
 RV32I CPU run passed; the latter exercised per-bit corrections including ECC
 lane 8, bus stalls and failure admission. These are simulation results.
-`prototype.json` records the export's unqualified status. Board integration,
-native traffic-checker verification and routed timing/CDC review remain open.
+`prototype.json` records the export's unqualified status. The native traffic checker and runtime reader passed standalone tests. Board
+clock/ABI4 integration is implemented; full GPU and routed timing/CDC checks
+remain required.
 The existing production generator and qualified v18 image remain separate.
 
 The clock input is **50 MHz**, while the existing Vortex controller receives

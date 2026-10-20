@@ -22,7 +22,8 @@ proc ypcb_cdc_budget {source destination} {
     return [expr {min($source_period, $destination_period)}]
 }
 
-set ypcb_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE}] 42 "Gray-pointer first stages"]
+set ypcb_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE && (NAME =~ axi_crossing_1/* || NAME =~ csr_crossing_1/*)}] 42 "Gray-pointer first stages"]
+set ypcb_non_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE && NAME !~ axi_crossing_1/* && NAME !~ csr_crossing_1/*}] 1 "CH1 lock first stage"]
 set ypcb_gray_groups [dict create]
 foreach destination $ypcb_gray_first {
     set data_pin [ypcb_cdc_pin $destination D]
