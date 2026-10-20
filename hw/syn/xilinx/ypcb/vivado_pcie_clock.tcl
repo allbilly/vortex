@@ -47,6 +47,7 @@ set ypcb_pcie_select_register [ypcb_pcie_mux_one [get_cells -of_objects $ypcb_pc
 if {[ypcb_pcie_mux_driver $ypcb_pcie_select0] ne $ypcb_pcie_select_driver
     || [get_property REF_NAME $ypcb_pcie_select_register] ne "FDRE"
     || [get_property REF_PIN_NAME $ypcb_pcie_select_driver] ne "Q"
+    || [get_property INIT $ypcb_pcie_select_register] ne "1'b0"
     || ![ypcb_pcie_mux_inverted $ypcb_pcie_mux S0]
     || [ypcb_pcie_mux_inverted $ypcb_pcie_mux S1]} {
     error "PCIe clock selects are not complementary outputs of the expected register"

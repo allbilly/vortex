@@ -58,6 +58,17 @@ receipt, verifies the frozen inputs, and rejects changes to HDL, pin constraints
 source order, defines or synthesis Tcl before copying the checkpoint. Only the
 implementation stages then run.
 
+The OpenTPU YPCB reference informed the mailbox constraint review: resolve
+hierarchical registers, verify synchronizer attributes and direct stage wiring,
+and time every held-payload receiver, including the write discriminator. The
+Vortex bounds use its own clock periods and two-stage handshake.
+
+OpenTPU also provides a 16 KiB VexRiscv calibration firmware design. It is a
+useful reference if measured JTAG transaction latency prevents host-driven DDR
+training; the current host algorithm performs 6,942 probes. Any adaptation must
+retain CH1-only 2 GiB operation and use Vortex's actual PHY/CSR map. DDR readback
+and ECC checks must precede interpretation of a failed kernel as a GPU defect.
+
 The Linux backend uses an unbound `10ee:0480` endpoint with a 64 KiB BAR0.
 Select it with `VORTEX_DRIVER=ypcb VORTEX_YPCB_BDF=0000:bb:dd.f`.
 Its DDR shadow command arena must remain reserved in the generic allocator.

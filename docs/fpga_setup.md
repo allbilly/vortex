@@ -33,6 +33,10 @@ The [PCIe clock constraint](../hw/syn/xilinx/ypcb/vivado_pcie_clock.tcl)
 checks constant enables, inactive IGNORE inputs, complementary selection
 from one register, and both clock periods before excluding the two selection
 pins. Requalify those checks if the clock wrapper changes.
+Run this review after `opt_design`: Vivado absorbs an external inverter into
+the primitive's programmable inversion attribute during optimization. The
+unoptimized synthesized netlist can therefore have a LUT1 at S0 while the
+optimized netlist has one shared selector register and inverted S0 polarity.
 
 For a low-memory run, set both `general.maxThreads` and `synth.maxThreads`
 to the chosen worker count. They are independent limits; changing only the
@@ -43,6 +47,12 @@ Use `synth_ip` only in the non-project flow, initialized with `set_part`.
 A disk-backed `create_project` requires `create_ip_run` and `launch_runs`;
 mixing these flows produces a critical warning even if synthesis continues.
 See [AMD UG896](https://docs.amd.com/r/2025.1-English/ug896-vivado-ip/Scripting-Examples).
+
+LiteX's standalone CDC exports include wall-clock banner timestamps. The YPCB
+checkpoint-reuse check permits differences only in those two known comment lines
+of its AXI and Wishbone CDC exports, verifies every remaining byte, and retains
+the exact compiled files. Both regenerated and retained hashes are recorded.
+HDL, attributes, pins, source order, defines and synthesis Tcl remain strict gates.
 
 When running Vivado in a transient systemd unit, save the actual command exit
 code in its run directory before the wrapper exits. A successful unit can be

@@ -1,8 +1,10 @@
-> The low-memory v6 synthesis passed and its full checkpoint is preserved.
-> Implementation stopped at the CH1 status-register constraint selection.
-> A new active OpenTPU exclusion watcher then terminated the diagnostic Vivado
-> probe. The conflicting project-priority question is pending; no native FPGA
-> build is currently running. OpenTPU retains the board.
+> Current goal, October 20: continue until GPU examples run on the FPGA.
+> The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
+> Native implementation is running in
+> `build_ypcb_native32/ch1-jtag-pcie-20261020-v13/`, reusing the successful v6
+> synthesis with one worker and allocator arenas limited to two. Hardware use
+> will acquire the shared exclusive JTAG lease before SRAM loading and runtime
+> tests. No new image has yet been programmed.
 
 > OpenTPU hardware priority: Vortex Codex and its new synthesis build were stopped
 > after c0182800 finished at 19:31 UTC on October 17 (03:31 HKT October 18).
@@ -21,7 +23,41 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — synthesis passed, implementation pending
+# Native CH1/JTAG/PCIe build — synthesis passed, implementation running
+
+October 20 update: fresh v7 export was rejected because the generated CDC files
+differed only in LiteX's two timestamp comments. The reuse runner now verifies
+that exact comment-only difference, records both hashes, and retains the original
+compiled source. Four regression cases pass, including rejection of logic,
+attribute and unrelated-file changes. Fresh v8 verified all 674 HDL/pin inputs
+and started implementation without repeating synthesis. Earlier stop/retry
+records below remain preserved; the prior active exclusion is no longer running.
+
+The requested OpenTPU design review found reusable mailbox topology/endpoint
+checks and its 16 KiB VexRiscv DDR calibration CPU. The mailbox checks are adapted
+to Vortex's own two-stage handshake and clocks. Native v10 validation passed:
+14 Gray buses/42 first-stage bits; request payload 51 sources/54 receivers;
+response payload 34 sources/36 receivers; both payload bounds are 8 ns. The
+write discriminator is covered, and local response-valid flags retain ordinary
+timing. The CH1 status bits 1/3/5 and direct synchronizer wiring were verified
+against the actual synthesis checkpoint. Source hashes and findings are in
+`build_ypcb_native32/opentpu-design-review-20261020.json`.
+
+v8 stopped on a non-hierarchical regexp query; v9 stopped on an overly broad
+response-register query. v10 then exposed the PCIe review stage mismatch: the
+pre-optimization netlist still has a LUT1 inverter, while Vivado absorbs it into
+BUFGCTRL polarity during `opt_design`. v11 was stopped to correct that ordering.
+v12 passed the original strict mux-mode review after optimization, adding an
+explicit zero-initialized selector check. Placement then rejected debug-hub
+settings modified after optimization because the core needed regeneration.
+v13 configures and connects the debug hub before optimization and saves an
+optimized checkpoint before placement. No RTL or device clock was changed.
+Final routed gates and physical tests remain pending.
+
+Before host-driven DDR training, measure actual JTAG MMIO transaction latency
+against the 6,942-probe training workload. If it prevents bounded initialization,
+adapt the reference FPGA-side calibration design to CH1's PHY and CSR map;
+do not hide the bottleneck by extending timeouts without that measurement.
 
 The Vortex Podman container and its Ubuntu image were removed as requested.
 Host source/toolchain folders and all other containers were verified preserved;

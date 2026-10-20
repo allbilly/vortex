@@ -103,19 +103,45 @@ set link_first [ypcb_cdc_require [get_cells -regexp {^link_sync_reg\[0\]$}] 1 "P
 set_false_path -to [ypcb_cdc_pin $link_first D]
 set mailbox shell/pcie_control_crossing
 foreach direction {request response} {
-    set first [ypcb_cdc_require [get_cells -regexp [format {^%s/%s_sync_reg\[0\]$} $mailbox $direction]] 1 "$direction first stage"]
+    set first [ypcb_cdc_require [get_cells -hier -regexp [format {^%s/%s_sync_reg\[0\]$} $mailbox $direction]] 1 "$direction first stage"]
+    set second [ypcb_cdc_require [get_cells -hier -regexp [format {^%s/%s_sync_reg\[1\]$} $mailbox $direction]] 1 "$direction second stage"]
+    if {![get_property ASYNC_REG $first] || ![get_property ASYNC_REG $second]} {
+        error "Missing mailbox synchronizer attributes: $direction"
+    }
+    set drivers [get_pins -leaf -of_objects [get_nets -segments -of_objects [ypcb_cdc_pin $second D]] -filter {DIRECTION == OUT}]
+    if {[llength $drivers] != 1 || $drivers ne [ypcb_cdc_pin $first Q]} {
+        error "Mailbox synchronizer stages are not directly connected: $direction"
+    }
+    if {[ypcb_cdc_clock [ypcb_cdc_pin $first C]] ne [ypcb_cdc_clock [ypcb_cdc_pin $second C]]} {
+        error "Mailbox synchronizer receiver clocks differ: $direction"
+    }
     set_false_path -to [ypcb_cdc_pin $first D]
 }
-set source_payload [get_cells $mailbox/request_data_reg*]
-if {![llength $source_payload]} {error "Mailbox request payload is absent"}
-set target_payload [get_cells $mailbox/m_*_reg*]
-set_max_delay -datapath_only 8 -from $source_payload -to $target_payload
-set response_payload [get_cells $mailbox/response_data_reg*]
-if {![llength $response_payload]} {error "Mailbox response payload is absent"}
-set source_response [get_cells $mailbox/s_*_reg*]
-set_max_delay -datapath_only 8 -from $response_payload -to $source_response
+proc ypcb_mailbox_payload {name sources targets} {
+    if {![llength $sources] || ![llength $targets]} {error "Mailbox $name payload is absent"}
+    set source_clock [ypcb_cdc_clock [get_pins -of_objects $sources -filter {REF_PIN_NAME == C}]]
+    set target_clock [ypcb_cdc_clock [get_pins -of_objects $targets -filter {REF_PIN_NAME == C}]]
+    if {$source_clock eq $target_clock} {error "Mailbox $name payload unexpectedly uses one clock"}
+    set budget [ypcb_cdc_budget $source_clock $target_clock]
+    set_max_delay -datapath_only $budget -from $sources -to $targets
+    # Payload stays held until the response handshake crosses both synchronizers.
+    set_false_path -hold -from $sources -to $targets
+    foreach target $targets {
+        if {[llength [get_timing_paths -from $sources -to $target -max_paths 1]] != 1} {
+            error "Mailbox $name payload setup path missing or cut: $target"
+        }
+    }
+    puts "YPCB_MAILBOX_PAYLOAD name=$name sources=[llength $sources] targets=[llength $targets] budget_ns=$budget"
+}
+set source_payload [get_cells -hier -filter "NAME =~ $mailbox/request_data_reg*"]
+set target_payload [get_cells -hier -filter "NAME =~ $mailbox/m_*_reg*"]
+set is_write [ypcb_cdc_require [get_cells -hier -filter "NAME == $mailbox/is_write_reg"] 1 "Mailbox write discriminator"]
+ypcb_mailbox_payload request $source_payload [concat $target_payload $is_write]
+set response_payload [get_cells -hier -filter "NAME =~ $mailbox/response_data_reg*"]
+set source_response [get_cells -hier -filter "NAME =~ $mailbox/s_rdata_reg* || NAME =~ $mailbox/s_rresp_reg* || NAME =~ $mailbox/s_bresp_reg*"]
+ypcb_mailbox_payload response $response_payload $source_response
 
 set tx_error_first [ypcb_cdc_require [get_cells -regexp {^tx_error_sync_reg\[0\]$}] 1 "PCIe error first stage"]
 set_false_path -to [ypcb_cdc_pin $tx_error_first D]
-set source_reset_stages [ypcb_cdc_require [get_cells $mailbox/source_reset_sync_reg*] 2 "PCIe source reset stages"]
+set source_reset_stages [ypcb_cdc_require [get_cells -hier -filter "NAME =~ $mailbox/source_reset_sync_reg*"] 2 "PCIe source reset stages"]
 set_false_path -to [get_pins -of_objects $source_reset_stages -filter {REF_PIN_NAME == PRE}]
