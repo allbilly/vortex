@@ -154,11 +154,15 @@ def main():
         shutil.copytree(root / relative, snapshot / relative)
     shutil.copytree(build / 'hw', snapshot / 'build/hw', ignore=shutil.ignore_patterns('syn', 'unittest'))
     shutil.copytree(args.ddr.resolve() / 'gateware', output / 'ddr/gateware')
+    for name in ('csr.json', 'csr.csv', 'selfcal-export.json'):
+        shutil.copy2(args.ddr.resolve() / name, output / 'ddr' / name)
+    shutil.copytree(args.ddr.resolve() / 'selfcal_fw', output / 'ddr/selfcal_fw')
+    shutil.copytree(args.ddr.resolve() / 'software/include/generated', output / 'ddr/software/include/generated')
     filelist = output / 'afu/sources.txt'
     text = filelist.read_text().replace(str(build / 'hw'), str(snapshot / 'build/hw'))
     text = text.replace(str(root / 'hw'), str(snapshot / 'hw'))
     filelist.write_text(text)
-    files = [p for p in output.rglob('*') if p.is_file() and p.suffix not in ('.log', '.json')]
+    files = [p for p in output.rglob('*') if p.is_file() and p.suffix != '.log' and p.name != 'progress.json']
     manifest = {'created_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
                 'source_diff': subprocess.check_output(['git', 'diff', 'HEAD'], cwd=root, text=True),

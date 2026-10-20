@@ -10,7 +10,7 @@ CXXFLAGS += -I$(SW_COMMON_DIR) -I$(CONFIG_DIR)
 .PHONY: all run clean
 all: $(PROJECT)
 
-$(PROJECT): $(SRC_DIR)/main.cpp $(SW_COMMON_DIR)/ypcb_ddr.cpp $(SW_COMMON_DIR)/ypcb_ddr.h $(SW_COMMON_DIR)/ypcb_transport.h $(CONFIG_DIR)/ypcb_ddr_config.h
+$(PROJECT): $(SRC_DIR)/main.cpp $(SRC_DIR)/oracle.h $(SW_COMMON_DIR)/ypcb_ddr.cpp $(SW_COMMON_DIR)/ypcb_ddr.h $(SW_COMMON_DIR)/ypcb_transport.h $(CONFIG_DIR)/ypcb_ddr_config.h
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/main.cpp $(SW_COMMON_DIR)/ypcb_ddr.cpp -o $@
 
 run: $(PROJECT)

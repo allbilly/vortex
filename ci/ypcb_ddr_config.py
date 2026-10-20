@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 
-def generate(ddr, output):
+def generate(ddr, output, c_header=False):
     csr_file = ddr / "csr.json"
     phy_file = ddr / "software/include/generated/sdram_phy.h"
     csr = json.loads(csr_file.read_text())
@@ -97,10 +97,36 @@ def generate(ddr, output):
                  ("command", "command_issue", "address", "baddress", "wrdata", "rddata")]
         lines.append("  {" + ", ".join(names) + "},")
     lines += ["}};", "}", ""]
+    firmware_file = ddr / 'selfcal_fw/manifest.json'
+    if not c_header and firmware_file.exists():
+        firmware = json.loads(firmware_file.read_text())
+        identifier = firmware['firmware_id']
+        if not isinstance(identifier, int) or not 0 < identifier < 2**32:
+            raise ValueError('Invalid calibration firmware identity')
+        lines.insert(-2, f'inline constexpr uint32_t calibration_firmware_id = 0x{identifier:08x}u;')
+    if c_header:
+        lines = ["// Copyright © 2019-2026", "// Licensed under the Apache License, Version 2.0.",
+                 "", "#pragma once", "#include <stdint.h>", ""]
+        for name, reg in sorted(registers.items()):
+            lines.append(f"#define cfg_{name} 0x{reg['addr']:x}u")
+        for name, value in sorted(defines.items()):
+            lines.append(f"#define cfg_{name.lower()} {value}u")
+        lines += [f"#define cfg_sys_clock_hz {constants['config_clock_frequency']}u",
+                  "enum { CFG_WRITE, CFG_WAIT };",
+                  "struct cfg_operation { uint32_t kind, offset, value; };",
+                  "static const struct cfg_operation cfg_initialization[] = {"]
+        lines.extend(f"  {{CFG_{kind.upper()}, 0x{offset:x}u, {value}u}}," for kind, offset, value in operations)
+        lines += ["};", "struct cfg_phase { uint32_t command, issue, address, bank, wrdata, rddata; };",
+                  "static const struct cfg_phase cfg_phases[4] = {"]
+        for phase in range(4):
+            names = [f"cfg_sdram_dfii_pi{phase}_{suffix}" for suffix in
+                     ("command", "command_issue", "address", "baddress", "wrdata", "rddata")]
+            lines.append("  {" + ", ".join(names) + "},")
+        lines += ["};", ""]
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(lines))
     manifest = {"inputs": {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest()
-                           for p in (csr_file, phy_file)},
+                           for p in ([csr_file, phy_file] + ([firmware_file] if not c_header and firmware_file.exists() else []))},
                 "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
                 "geometry": expected, "initialization_operations": operations}
     output.with_suffix(".json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -110,8 +136,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ddr", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--c-header", action="store_true")
     args = parser.parse_args()
-    generate(args.ddr, args.output)
+    generate(args.ddr, args.output, args.c_header)
 
 
 if __name__ == "__main__":

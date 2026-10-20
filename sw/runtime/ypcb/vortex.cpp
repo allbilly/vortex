@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 #include <common.h>
-#include <ypcb_ddr.h>
+#include <ypcb_calibration.h>
 #include <ypcb_startup.h>
 #include <ypcb_host_memory.h>
 #include <ypcb_jtag.h>
@@ -164,41 +164,25 @@ private:
     }
     uint32_t signature, version, status;
     if (read32(0x3000, &signature) != 0 || signature != 0x56595043
-        || read32(0x3004, &version) != 0 || version != 2
+        || read32(0x3004, &version) != 0 || version != 3
         || read32(0x3008, &status) != 0 || status == 0xffffffff) {
       std::fprintf(stderr, "[VXDRV] YPCB startup signature/version is unavailable\n");
       return -1;
     }
-    if (((status >> 16) & 7) == 0) {
-      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-      while ((status & 3) != 2) {
-        if ((status & 0x7870) || std::chrono::steady_clock::now() >= deadline
-            || read32(0x3008, &status) != 0) {
-          std::fprintf(stderr, "[VXDRV] YPCB DDR PLLs did not become ready\n");
-          return -1;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      }
-      for (unsigned bank = 1; bank < 2; ++bank) {
-        if (!(status & (4u << bank))) {
-          Ddr ddr(*this, bank);
-          DdrReport report;
-          const DdrResult result = ddr.initialize(&report);
-          if (result != DdrResult::success) {
-            std::fprintf(stderr, "[VXDRV] YPCB DDR%u training failed: result=%u lane=%u cleanup=%u\n",
-                bank, unsigned(result), report.failed_lane, unsigned(report.cleanup_complete));
-            return -1;
-          }
-          for (unsigned lane = 0; lane < report.lanes.size(); ++lane) {
-            const auto& window = report.lanes[lane];
-            std::fprintf(stderr, "[VXDRV] DDR%u lane%u slip=%u taps=%u..%u center=%u\n",
-                bank, lane, window.bitslip, window.first, window.last, window.center);
-          }
-          if (read32(0x3008, &status) != 0) {
-            return -1;
-          }
-        }
-      }
+    CalibrationReport calibration;
+    const auto calibrated = wait_calibration(*this, &calibration);
+    if (calibrated != CalibrationResult::success) {
+      std::fprintf(stderr, "[VXDRV] Local DDR1 calibration failed: result=%u error=%u lane=%u\n",
+                   unsigned(calibrated), calibration.error, calibration.failed_lane);
+      return -1;
+    }
+    std::fprintf(stderr, "[VXDRV] Local DDR1 firmware=%08x probes=%u max_row=%u cycles=%llu\n",
+                 calibration.firmware_id, calibration.probes, calibration.max_row_cycles,
+                 static_cast<unsigned long long>(calibration.cycles));
+    for (unsigned lane = 0; lane < calibration.lanes.size(); ++lane) {
+      const auto value = calibration.lanes[lane];
+      std::fprintf(stderr, "[VXDRV] DDR1 lane%u slip=%u taps=%u..%u center=%u\n",
+                   lane, value & 255, (value >> 8) & 255, (value >> 16) & 255, value >> 24);
     }
     Startup startup(*this);
     StartupReport report;

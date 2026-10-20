@@ -160,7 +160,7 @@ module VX_ypcb_startup (
                 s_rresp <= 0;
                 case (s_araddr)
                     12'h000: s_rdata <= 32'h56595043;
-                    12'h004: s_rdata <= 32'd2;
+                    12'h004: s_rdata <= 32'd3;
                     12'h008: s_rdata <= status;
                     12'h010: s_rdata <= 0;
                     default: s_rresp <= 2'b11;

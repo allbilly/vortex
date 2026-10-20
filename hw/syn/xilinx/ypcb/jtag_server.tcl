@@ -33,7 +33,7 @@ proc access_word {write address value} {
     if {$write} {return 0}
     return [expr "0x[get_property DATA [get_hw_axi_txns $name]]"]
 }
-if {[access_word 0 0x3000 0] != 0x56595043 || [access_word 0 0x3004 0] != 2} {
+if {[access_word 0 0x3000 0] != 0x56595043 || [access_word 0 0x3004 0] != 3} {
     error "JTAG AXI does not expose the CH1 YPCB register ABI"
 }
 proc consume {channel} {

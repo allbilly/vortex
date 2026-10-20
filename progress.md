@@ -1,13 +1,53 @@
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> v15 routing and the corrected complete report gates passed in
-> `build_ypcb_native32/ch1-jtag-pcie-20261020-v15/`. Its exact routed checkpoint
-> is preserved for fresh bitstream finalization.
+> v16 bitstream finalization passed in
+> `build_ypcb_native32/ch1-jtag-pcie-20261020-v16-finalize/`, with 727 frozen inputs.
 > The refined status-fanout review passed native positive and bypass-rejection checks.
 > v13 is retired; the old checkpoint cannot be reused across this HDL change.
 > Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
-> tests. No new image has yet been programmed.
+> tests. The v16 image has now been programmed into SRAM and passed JTAG MMIO;
+> DDR and GPU kernels are not yet tested. Local FPGA-side calibration is next.
+
+## Local DDR calibration CPU — October 20
+
+The new CH1 controller exports a 16 KiB RV32I calibration CPU and immutable
+firmware without removing the external Wishbone control interface. Its CSRs
+fit inside the existing `ddrctrl` group; all four original CSR blocks retain
+their addresses. Firmware is 6,824 bytes plus 456 bytes BSS, with over 9 KiB
+remaining for stack. It has no unresolved external symbols. CPU RTL comes
+from the pinned `pythondata-cpu-vexriscv==1.0.1.post407` package.
+
+Native firmware checks pass 4,224 read-window cases, all nine lanes, 6,942
+probes, ECC/readback, failure cleanup, timeout and open-row timing. Runtime
+checks require ABI 3 and the exact generated firmware identity, read the local
+result, and reject ABI 2, held/faulted CPUs, bad firmware, excessive row time,
+disabled ECC, calibration failure and timeout. No host training fallback runs.
+
+Actual VexRiscv RTL with BRAM and delayed Wishbone responses passed in
+`build_ypcb_native32/selfcal-rtl-20261020-v1/`: 112,466,979 cycles, 424,243 MMIO
+accesses, all 6,942 probes and nine lanes. Its longest conservative row span
+was 801 cycles versus the 3,510-cycle limit at 100 MHz. BRAM upload/readback,
+hold/drain/restart, bus faults and failed-lane cleanup also passed. This is
+simulation evidence; physical CH1 training, memory/ECC and GPU workloads remain
+open. A fresh synthesis is required; do not reuse the ABI 2 checkpoint.
+
+## Physical ABI 2 JTAG probe — October 20
+
+`build_ypcb_native32/fpga-probe-20261020-v1/manifest.json` records successful
+SRAM programming, INIT=1, DONE=1, physical IDCODE `0x23751093`, stable signature
+`0x56595043` and ABI 2. The exact image SHA-256 is
+`3cab81128e26e4bb33d22e21296e19c9ed1245266f8d3d95cf6ca31822276269`.
+Both CRC checkpoints, four checker vectors and 727 frozen input hashes passed.
+The hardware server and bridge exited and the shared lease was released.
+Permanent flash was not written; the new Vortex image remains in volatile SRAM.
+
+The 32 physical MMIO samples were 12.65–27.37 ms, median 17.76 ms. Initial board
+status was `2`: CH1 PLL locked, memory not initialized. Host-driven training
+cannot meet the DDR row timing at this latency and was not attempted. This is
+an initialization-transport limitation, not an observed GPU execution failure.
+The next design uses a local calibration CPU, described in
+[the proposal](docs/proposals/ypcb_local_ddr_calibration_proposal.md).
 
 Latest October 20 result: v15 routing passed setup/hold at +0.068/+0.031 ns,
 with 143,162 fully routed nets, no routing errors and zero unclocked or
@@ -16,7 +56,7 @@ it counted 26 bus-skew constraints against the 14 design buses. Inspection found
 the 14 expected design groups plus eight JTAG and four debug-hub IP constraints;
 all have positive slack, worst +7.255 ns. The corrected verifier requires these
 groups separately and cross-checks their detailed results. The exact routed
-checkpoint is saved for fresh finalization; no new image has been programmed.
+checkpoint was finalized as v16 and programmed for the JTAG-only probe above.
 
 > OpenTPU hardware priority: Vortex Codex and its new synthesis build were stopped
 > after c0182800 finished at 19:31 UTC on October 17 (03:31 HKT October 18).

@@ -235,8 +235,8 @@ def main():
             time.sleep(0.2)
         bridge_ready = True
         values, durations = read_words([0x3000, 0x3004, 0x3008] + [0x3000] * 32)
-        if values[0] != 0x56595043 or values[1] != 2 or any(value != 0x56595043 for value in values[3:]):
-            raise ValueError('FPGA does not consistently expose the CH1 ABI 2 image')
+        if values[0] != 0x56595043 or values[1] != 3 or any(value != 0x56595043 for value in values[3:]):
+            raise ValueError('FPGA does not consistently expose the CH1 ABI 3 image')
         state['initial_status'] = values[2]
         samples = durations[3:]
         state['mmio_probe'] = {'reads': len(samples), 'median_seconds': statistics.median(samples),

@@ -10,6 +10,7 @@ RTL_DIR := $(VORTEX_HOME)/hw/rtl
 OUT_DIR := $(CURDIR)/afu
 VIVADO ?= vivado
 LITEDRAM_PYTHON ?= python3
+CALIBRATION_CC ?= $(TOOLDIR)/riscv32-gnu-toolchain/bin/riscv32-unknown-elf-gcc
 IVERILOG ?= iverilog
 VVP ?= vvp
 LITEDRAM_PYTHONPATH ?= $(ROOT_DIR)/open-reference/migen:$(ROOT_DIR)/open-reference/litex:$(ROOT_DIR)/open-reference/litedram:$(ROOT_DIR)/open-python-deps
@@ -105,7 +106,7 @@ open-slang-synth: open-slang-import
 	$(YOSYS) -l $(OUT_DIR)/yosys-slang-synth.log -p 'read_rtlil $(OUT_DIR)/vortex_afu_slang.il; synth_xilinx -family xc7 -top $(TOP) -flatten -noiopad -noclkbuf -run begin:map_luts; write_rtlil $(OUT_DIR)/vortex_afu_slang_pre_luts.il; synth_xilinx -family xc7 -top $(TOP) -noiopad -noclkbuf -run map_luts:; delete t:$$scopeinfo; check -assert; select -assert-none $(TOP)/t:$$*; stat; write_json $(OUT_DIR)/vortex_afu_slang.json'
 
 ddr-sources:
-	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) -m litedram.gen $(SRC_DIR)/litedram.yml --name=ypcb_ddr3 --no-compile-software --no-compile-gateware --output-dir=$(DDR_OUT_DIR)
+	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/gen_ddr.py --config $(SRC_DIR)/litedram.yml --output $(DDR_OUT_DIR) --cc $(CALIBRATION_CC)
 
 ddr-host-config:
 	python3 $(VORTEX_HOME)/ci/ypcb_ddr_config.py --ddr $(DDR_OUT_DIR) --output $(DDR_CONFIG_HEADER)

@@ -47,7 +47,7 @@ case ${1:-help} in
         if [[ ! -x "$build_dir/.venv/bin/python" ]]; then
             uv venv --python python3 "$build_dir/.venv"
         fi
-        uv pip install --python "$build_dir/.venv/bin/python" pytest PyYAML packaging pyserial colorama requests 'cmake>=3.14,<4'
+        uv pip install --python "$build_dir/.venv/bin/python" pytest PyYAML packaging pyserial colorama requests 'cmake>=3.14,<4' 'pythondata-cpu-vexriscv==1.0.1.post407'
         native_exec git -C "$source_dir" submodule update --init --recursive
         ;;
     exec)

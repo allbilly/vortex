@@ -16,7 +16,13 @@ if {$stage eq "synthesize"} {
     create_ip -name jtag_axi -vendor xilinx.com -library ip -version 1.2 \
         -module_name ypcb_jtag_axi -dir [file join $output_dir ip]
     set_property -dict [list CONFIG.PROTOCOL {2} CONFIG.M_AXI_ADDR_WIDTH {32} \
-        CONFIG.M_AXI_DATA_WIDTH {32}] [get_ips ypcb_jtag_axi]
+        CONFIG.M_AXI_DATA_WIDTH {32} CONFIG.RD_TXN_QUEUE_LENGTH {16} \
+        CONFIG.WR_TXN_QUEUE_LENGTH {16}] [get_ips ypcb_jtag_axi]
+    foreach property {RD_TXN_QUEUE_LENGTH WR_TXN_QUEUE_LENGTH} {
+        if {[get_property CONFIG.$property [get_ips ypcb_jtag_axi]] != 16} {
+            error "JTAG register batches require a 16-entry $property"
+        }
+    }
     generate_target all [get_ips ypcb_jtag_axi]
     synth_ip [get_ips ypcb_jtag_axi]
     set stream [open [file join $output_dir afu sources.txt] r]
