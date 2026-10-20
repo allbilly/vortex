@@ -306,7 +306,7 @@ class WL7DDRPHY(Module, AutoCSR):
         framed off); at 2.0 ns ldtest3e (-0.308) and the fused image (-0.514, 0 LUT levels,
         1.88 ns of route) missed it by placement alone, and ldtest3e calibrated and passed BIST on
         both channels."""
-        src = "[get_cells -hierarchical -filter {NAME =~ *wlrst*}]"
+        src = "[get_cells -hierarchical -filter {NAME =~ *wlrst* && REF_NAME == FDRE}]"
         dst = ("[get_pins -of_objects [get_cells -hierarchical -filter "
                "{REF_NAME == OSERDESE2 || REF_NAME == ISERDESE2}] -filter {REF_PIN_NAME == RST}]")
         return [f"set_max_delay {ns:.3f} -from {src} -to {dst}"]

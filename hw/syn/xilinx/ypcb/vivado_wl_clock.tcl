@@ -40,6 +40,14 @@ foreach {pin period} {CLKIN1 10.0 CLKOUT0 10.0 CLKOUT1 2.5 CLKOUT2 10.0 CLKOUT3 
 set wl_lock_net [ypcb_wl_one [get_nets -hier -filter {NAME =~ ddr_1/*wl_locked_sys}] "Synchronized CH1 lock"]
 set wl_lock_q [ypcb_wl_one [get_pins -leaf -of_objects $wl_lock_net -filter {DIRECTION == OUT}] "Lock second stage"]
 set wl_second [ypcb_wl_one [get_cells -of_objects $wl_lock_q] "Lock second register"]
+if {[get_property REF_NAME $wl_second] eq "LUT1"} {
+    # KEEP on the status wire can retain an identity LUT after the synchronizer.
+    if {![regexp {^2'[hH]0*2$} [get_property INIT $wl_second]]} {
+        error "CH1 lock wire is not driven by an identity buffer"
+    }
+    set wl_lock_q [ypcb_wl_driver [ypcb_wl_pin $wl_second I0]]
+    set wl_second [ypcb_wl_one [get_cells -of_objects $wl_lock_q] "Buffered lock second register"]
+}
 set wl_first_q [ypcb_wl_driver [ypcb_wl_pin $wl_second D]]
 set wl_first [ypcb_wl_one [get_cells -of_objects $wl_first_q] "Lock first register"]
 foreach cell [list $wl_first $wl_second] {
@@ -53,7 +61,10 @@ foreach cell [list $wl_first $wl_second] {
 if {[ypcb_wl_driver [ypcb_wl_pin $wl_first D]] ne [ypcb_wl_pin $wl_mmcm LOCKED]} {
     error "CH1 lock synchronizer has an unexpected source"
 }
-set_false_path -from [ypcb_wl_pin $wl_mmcm LOCKED] -to [ypcb_wl_pin $wl_first D]
+set_false_path -to [ypcb_wl_pin $wl_first D]
+if {[llength [get_timing_paths -from $wl_first -to $wl_second -max_paths 1]] != 1} {
+    error "CH1 lock synchronizer settling path is missing or cut"
+}
 
 set wl_pll_reset_first [ypcb_wl_one [get_cells ddr_1/FDCE_8] "IDELAY PLL reset first stage"]
 set wl_pll_reset_second [ypcb_wl_one [get_cells ddr_1/FDCE_9] "IDELAY PLL reset second stage"]
@@ -67,7 +78,36 @@ foreach cell [list $wl_pll_reset_first $wl_pll_reset_second] {
 }
 set_false_path -to [ypcb_wl_pin $wl_pll_reset_first D]
 
-set wl_serdes [get_cells -hier -filter {NAME =~ ddr_1/* && (REF_NAME == OSERDESE2 || REF_NAME == ISERDESE2)}]
+set wl_stream [open [file join $ddr_dir gateware ypcb_ddr3.v] r]
+set wl_rtl [read $wl_stream]
+close $wl_stream
+set wl_dm_cells [dict create]
+set wl_dm_bits [dict create]
+foreach {match name bit} [regexp -all -inline {OSERDESE2\s+#\([^;]+\)\s+(\w+)\s*\([^;]*\.OQ\s*\(ddram_dm\[([0-8])\]\)[^;]*\);} $wl_rtl] {
+    if {[dict exists $wl_dm_cells ddr_1/$name] || [dict exists $wl_dm_bits $bit]} {
+        error "Duplicate compiled data-mask serializer"
+    }
+    dict set wl_dm_cells ddr_1/$name $bit
+    dict set wl_dm_bits $bit 1
+}
+if {[dict size $wl_dm_cells] != 9} {error "Compiled data-mask serializer map is incomplete"}
+set wl_serdes {}
+set wl_unused_dm 0
+foreach cell [get_cells -hier -filter {NAME =~ ddr_1/* && (REF_NAME == OSERDESE2 || REF_NAME == ISERDESE2)}] {
+    if {[get_property REF_NAME $cell] eq "OSERDESE2"} {
+        set net [ypcb_wl_one [get_nets -of_objects [ypcb_wl_pin $cell OQ]] "Serializer output"]
+        # Synthesis renames the unconnected DM nets; bind their cells to compiled RTL.
+        if {[dict exists $wl_dm_cells [get_property NAME $cell]]} {
+            if {[llength [get_pins -quiet -leaf -of_objects $net -filter {DIRECTION == IN}]]} {
+                error "YPCB data-mask output unexpectedly has a load"
+            }
+            incr wl_unused_dm
+            continue
+        }
+    }
+    lappend wl_serdes $cell
+}
+if {$wl_unused_dm > 9} {error "Unexpected unconnected data-mask serializer count"}
 set wl_targets [get_pins -of_objects $wl_serdes -filter {REF_PIN_NAME == RST}]
 if {[llength $wl_targets] != 179} {error "Incomplete CH1 SERDES reset coverage (72 inputs, 107 outputs; DM is unconnected)"}
 set wl_sources [get_cells -hier -filter {NAME =~ ddr_1/*wlrst* && REF_NAME == FDRE}]
@@ -84,4 +124,4 @@ foreach target $wl_targets {
     if {$source_clock ne $target_clock} {error "SERDES reset is registered in the wrong clock domain"}
 }
 source [file join $ddr_dir phase-constraints.tcl]
-puts "YPCB_WL_CLOCK_CONTRACT_PASS phase_bound_ns=1.3 serdes_resets=[llength $wl_targets] lock_sync_stages=2"
+puts "YPCB_WL_CLOCK_CONTRACT_PASS phase_bound_ns=1.3 serdes_resets=[llength $wl_targets] unused_dm=$wl_unused_dm lock_sync_stages=2"

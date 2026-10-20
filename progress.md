@@ -97,6 +97,46 @@ full GPU/AFU checks, fresh single-worker synthesis/routing/report/CRC gates,
 then authorized SRAM, DDR/ECC and GPU tests. No new bitstream or physical GPU
 pass is claimed from these standalone results.
 
+## ABI4 board integration and implementation
+
+The board now connects buffered 50 MHz to the WL controller; the GPU stays at
+125 MHz. Runtime, startup hardware and JTAG identity checks require ABI4. The
+runtime uses the validated phase/per-bit result reader before requesting ECC
+scrub. DDR MMCM lock status now crosses two preserved synchronizer stages.
+Both Vivado worker settings remain one, with an 8 GiB service memory limit.
+
+ABI4 startup/scrub RTL and host tests passed. All 61 integration Python checks
+passed. The complete actual-GPU shell passed memory, demo and SGEMM via both
+modeled PCIe and modeled JTAG, with source/DDR responses still simulated:
+`build_ypcb_wl32/shell-abi4-20261020-v1/manifest.json`.
+The production runtime and all five basic-operation GPU kernels build. Their
+frozen package paths/help were checked without accessing hardware. Physical
+qualification now includes all five example scripts after memory/demo/SGEMM,
+with enabled and clean ECC required after each application.
+
+Fresh synthesis succeeded in 990.125 seconds, peak Vivado allocation 4,865.719 MiB.
+Checkpoint SHA-256:
+`95b1add2be39a4867a3b53e206f1ac4e9023f107e2816c2606376dd23723dee8`.
+Receipt: `build_ypcb_wl32/wl-ch1-jtag-pcie-20261020-v1/synthesize-exit.json`.
+Implementation stopped before placement on clock-check Tcl queries. The native
+netlist confirms both preserved lock synchronizer registers and an identity LUT
+on the retained status-wire name. The checks now verify that LUT explicitly,
+keep the second-stage settling path timed, and distinguish unused data-mask
+serializers from physical outputs. Native positive and four altered-netlist checks passed in the recorded
+interactive session `clock-inspect-20261020-v1/`: all 179 connected serializer
+resets, both lock synchronizer stages and their settling path were verified.
+The reset-constraint exporter now selects FDRE sources, excluding inferred LUTs
+that caused invalid-startpoint warnings. The regenerated controller was compared
+after only the known hierarchy/date comments; identical hardware logic was
+proved and the exact compiled RTL retained in `wl-controller-20261020-v3/`.
+
+The first resumed implementation also stopped during those checks; its synthesis
+reuse verified all 674 hardware inputs and retained the exact compiled CDC RTL.
+Neither run reached routing or produced a new bitstream. A fresh `wl-ch1-jtag-pcie-20261020-v3/` will resume from the verified
+synthesis checkpoint after the successful native clock checks;
+keep all original run directories. JTAG remains released while offline work
+continues, and physical GPU execution is still unverified.
+
 ## Basic-operation examples verified on SimX
 
 The requested [examples folder](examples/README.md) now has flat Python entry

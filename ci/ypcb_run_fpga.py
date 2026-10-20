@@ -182,16 +182,19 @@ def main():
             artifacts = ['sw/runtime/libvortex.so', 'sw/runtime/libvortex-ypcb.so',
                          'tests/ypcb/memory_map/memory_map', 'tests/regression/demo/demo',
                          'tests/regression/demo/kernel.vxbin', 'tests/regression/sgemm/sgemm',
-                         'tests/regression/sgemm/kernel.vxbin', 'config.mk', 'sw/VX_types.h',
-                         'examples/common.py']
+                         'tests/regression/sgemm/kernel.vxbin', 'config.mk', 'sw/VX_types.h']
             for name in basic_ops:
-                artifacts += [f'examples/{name}.py', f'examples/kernels/{name}/kernel.vxbin']
-            state['runtime_artifacts'] = {name: digest(build / name) for name in artifacts}
+                artifacts.append(f'examples/kernels/{name}/kernel.vxbin')
+            artifact_sources = {name: build / name for name in artifacts}
+            for name in ('common', *basic_ops):
+                relative = f'examples/{name}.py'
+                artifact_sources[relative] = root / relative
+            state['runtime_artifacts'] = {name: digest(source) for name, source in artifact_sources.items()}
             host = output / 'host'
             for name, expected in state['runtime_artifacts'].items():
                 target = host / name
                 target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(build / name, target)
+                shutil.copy2(artifact_sources[name], target)
                 if digest(target) != expected:
                     raise ValueError('Runtime artifact changed while snapshotting: ' + name)
             header = build / 'sw/ypcb/ypcb_wl_config.h'
