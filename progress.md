@@ -6,7 +6,7 @@ flash is outside this authorization. The earlier per-bit diagnostic finished
 and released its processes and leases. The write-alignment diagnostic also
 finished; its owned processes exited and both leases were observed free.
 
-**GPU examples have not run on the FPGA.** The latest physical test loaded the
+**GPU examples have not run on the FPGA.** The per-bit physical test loaded the
 qualified ABI 3 v18 image, verified INIT=1/DONE=1 and IDCODE `0x23751093`, and
 passed eight queued 64-byte JTAG PIO-window write/read pairs. It held the local
 calibration CPU, uploaded and read-verified all 4,096 firmware BRAM words, then
@@ -17,16 +17,13 @@ maximum open-row span was 687 controller cycles. This does not identify a GPU
 failure or qualify DDR traffic. No GPU kernel or permanent flash write occurred.
 Evidence: `build_ypcb_native32/ddr-bit-diagnostics-20261020-v1/manifest.json`.
 
-The result does not support a read-framing-only explanation for lane 8. The
-next diagnostic is write-side alignment, which the present calibration leaves
-at reset. OpenTPU's proven design searches write alignment as well as clock
+The result does not support a read-framing-only explanation for lane 8. Write-side alignment was also tested and did not fix lane 8, as recorded below. OpenTPU's proven design searches write alignment as well as clock
 phase and individual-bit read framing. Its working TinyStories record is
 `~/openTPU/build/hardware/tinystories-c0182600-20261018-v1/manifest.json`
 (28,909,056 verified bytes and exact tokens); that qualification belongs to
 OpenTPU and does not transfer to Vortex. The copied controller under
-`hw/syn/xilinx/ypcb/opentpu/` currently elaborates only, with its CPU parked;
-it is explicitly ineligible for synthesis or hardware until calibration and
-board integration are complete. ECC remains enabled on CH1's nine physical
+`hw/syn/xilinx/ypcb/opentpu/` now includes the full calibration firmware and passes standalone tests;
+board integration and physical qualification remain incomplete. ECC remains enabled on CH1's nine physical
 lanes; using CH1 alone does not remove its ECC byte lane.
 
 ## Write alignment candidate
@@ -60,6 +57,45 @@ The next repair is the OpenTPU-derived PHY/clock/calibration integration, follow
 by fresh synthesis, routing and physical memory/kernel checks. An exact BRAM-only
 patch plan for v18 was prepared in `firmware-bram-map-20261020-v1/`, but was not
 applied or turned into a bitstream because write alignment alone did not fix DDR.
+
+## Full OpenTPU-derived CH1 calibration port
+
+The candidate now runs the full clock-phase sweep, write-latency search,
+per-bit read alignment and 64 MiB native DDR traffic checks per phase. It keeps
+CH1-only 2 GiB with ECC and the 512-bit AXI/external Wishbone interfaces.
+Logical mailbox channel 0 identifies physical CH1; the CPU retains its 128-word
+mailbox and 16 KiB BRAM. Terminal success is deferred until ECC/controller
+handoff. The donor's cycle report remains a low-32-bit counter.
+
+Firmware `a77fc8fe` is 8,956 bytes, SHA-256
+`19a6e26aad635f3eb3ba09d079a2a5bafdb3707c52cf4ff6b46bd90a8d44c73c`.
+BSS is 3,416 bytes, leaving 4,012 bytes for stack. The image has only RV32I
+instructions and no unresolved symbols. The installed GPU compiler's libgcc
+has a floating-point ABI, so matching multiply/remainder helpers are compiled
+with the firmware. Their 100,056 boundary/random cases passed.
+
+The actual VexRiscv CPU passed a complete per-bit phase calibration, including
+ECC lane8 corrections: 381,939,895 cycles, 8,826,959 MMIO operations, maximum
+open-row interval 470 cycles (limit 3,510). All 4,096 firmware words were
+uploaded/read-verified in the CPU RTL test, with variable bus stalls. Native
+clock-error cleanup passed too. Host tests additionally passed normal, no-phase,
+unsupported framing-span and ECC-enable readback failures. The controller
+export passed Yosys hierarchy/proc/check elaboration.
+
+The native traffic checker passed 24 functional simulations: both data patterns,
+independent command/data/response stalls, lengths 1/31/128, injected data-lane0
+and ECC-lane8 errors, and counter reset. The proposed ABI4 runtime reader passed
+an actual firmware-generated mailbox and 36 admission checks. It is not yet
+connected to the production runtime or board startup.
+
+Evidence: `build_ypcb_wl32/standalone-validation-20261020-v2/manifest.json`.
+CPU proof: `build_ypcb_native32/wl-selfcal-cpu-proof-20261020-v2/manifest.json`.
+The new variant has its own `build_ypcb_wl32/` directory, sharing only the pinned
+Python environment and reference dependencies. Remaining work: buffered50MHz
+board connection, reviewed phase/SERDES constraints, ABI4 runtime/startup,
+full GPU/AFU checks, fresh single-worker synthesis/routing/report/CRC gates,
+then authorized SRAM, DDR/ECC and GPU tests. No new bitstream or physical GPU
+pass is claimed from these standalone results.
 
 ## Basic-operation examples verified on SimX
 

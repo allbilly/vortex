@@ -1,0 +1,60 @@
+{
+  "reference": "OpenTPU CH1 DDR800 WL PHY family",
+  "source_files": {
+    "tools/litedram/wl7ddrphy.py": "542d96c107d8c62c96f5873a21637e19e9b75c7ada844771da2ebc38a4838b62",
+    "tools/litedram/ld_test.py": "1969d2fd1155048c5b97e1d25e548875ea33e2c42ff4bccae9c46c6c3c4c7620",
+    "tools/litedram/dfii_q.py": "0029f02dc9b64faa1db9b2e1e8e026488d7f976b877e8406e8089c25f398dbbc"
+  },
+  "extracted_class_sha256": {
+    "MT41K256M8_tRFC160": "7f5dda812d2db140cda4bdf0bf7d87be2dcd3a48c4d7bea94953b879a0450576",
+    "WLCRG": "9583ad15610722b2729ecdf0a27df53a70ca469b5dec6d13efb1c280b271e33a",
+    "DQSPhase": "4cc4853b4ab106449f9a8dbefd8e8eeaf9d2b2f27ba4497ce29e67b114943595",
+    "WriteClocks": "2eacb8060b38439e506d6cf6e9498e4d5ba9feaa8fe7a66b9bd7aa5d50f67c11",
+    "BIST": "7e898969bdd89926cb7c9400cd258820656fadf949bd4823f0d3c9120434f57c"
+  },
+  "physical_reference": {
+    "record": "build/hardware/tinystories-c0182600-20261018-v1/manifest.json",
+    "record_sha256": "f97535e0cb0d808a31e8edd83437df7c4897beeecca6eab5cbddb0463f94f15b",
+    "bitstream_sha256": "52ac73cc9e791661d3d2cb3a1c65ffaf872647031c5857c8e43541b848561f6b",
+    "verified_image_bytes": 28909056,
+    "actual_token_ids": [
+      29892,
+      727,
+      471,
+      263,
+      2217,
+      7826,
+      4257,
+      365
+    ],
+    "expected_token_ids": [
+      29892,
+      727,
+      471,
+      263,
+      2217,
+      7826,
+      4257,
+      365
+    ],
+    "ch1_state": 2,
+    "ch1_error": 0,
+    "ch1_ecc_lane8_read_result": 100663821
+  },
+  "scope": "Copied source family is a Vortex integration candidate. Physical qualification is not transferred to the newly elaborated Vortex design.",
+  "hardware_accessed_for_this_work": false,
+  "extracted_helper_sha256": {
+    "reduce_or8": "45b41c1c294af7677c21010b4385fab84bdfaa123a538c0d92285bc3f87c17b0"
+  },
+  "firmware_source_sha256": {
+    "tools/litedram/selfcal_fw/cal.c": "95e737e6c1a30346f45844544a347ee6f3d1049cfe833c791225d92166b4bf22",
+    "tools/litedram/selfcal_fw/cal.h": "5b33911451cfc0b316adffd72ef90d11e7c9d721143e33713aef7462c8db0b4e",
+    "tools/litedram/selfcal_fw/hw.h": "e458d8c22623c2f10278b19d8f05e199059c1ecdea4ffc0bf296ac6e8bc7c770",
+    "tools/litedram/selfcal_fw/host.c": "3137a4142a229044330fa826a30ed72decba0c18b8018d9cacc17a3fa6f76c93"
+  },
+  "firmware_adaptations": [
+    "Clear128 mailbox words for the single-channel Vortex CPU",
+    "Return channel state and defer ST_DONE until the Vortex ECC/controller handoff",
+    "Bind logical channel0 to physical CH1 through its generated CSR map"
+  ]
+}

@@ -134,3 +134,25 @@ provides a byte-wide eye, the per-bit failure diagnostics describe write setting
 zero; all four byte-wide scans have still been tested. ECC and startup admission
 remain unchanged. Host and actual CPU tests exercise each whole-clock setting,
 per-bit failures, unsupported alignment, restart, stalls and error cleanup.
+
+## Full WL controller candidate
+
+Write alignment alone did not repair the physical A7 PHY integration: all four
+settings failed on ECC lane 8 after 27,672 probes. The replacement candidate
+under `hw/syn/xilinx/ypcb/opentpu/` therefore brings the complete OpenTPU-derived
+PHY, clock controls, registered command injector and native traffic checker.
+It retains the GPU's 512-bit AXI interface, external Wishbone access and
+read-modify-write for partial writes on the board without DM wiring.
+
+Its calibration CPU runs the full phase sweep with per-bit read correction,
+write alignment and native 64 MiB traffic tests at each phase. Logical mailbox
+channel 0 maps to physical CH1; only 128 mailbox words are cleared or accessed.
+Terminal publication follows Vortex's ECC enable and controller handoff. The
+firmware remains RV32I in 16 KiB, with matching integer arithmetic helpers.
+
+Standalone host, actual CPU and native traffic-checker tests passed, including
+ECC lane8 corrections and injected errors. These do not qualify physical DDR.
+The candidate's runtime metadata and reader target board ABI4; production board
+startup and runtime integration remain pending. The clock input must change
+from 200 MHz to buffered 50 MHz, with reviewed phase/SERDES timing constraints.
+A fresh complete FPGA build and physical memory/kernel tests remain required.
