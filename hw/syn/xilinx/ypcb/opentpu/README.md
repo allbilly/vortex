@@ -1,6 +1,6 @@
-# OpenTPU-derived CH1 integration prototype
+# OpenTPU-derived CH1 integration
 
-This candidate brings OpenTPU's WL7 DDR PHY, clock control, registered command
+This integration brings OpenTPU's WL7 DDR PHY, clock control, registered command
 injector and native traffic checker into a standalone CH1 controller. The
 reference includes a physical TinyStories pass on build `c0182600`, with
 28,909,056 verified bytes and matching tokens; CH1 calibration, including ECC
@@ -21,26 +21,26 @@ python3 ../hw/syn/xilinx/ypcb/opentpu/gen_core.py --output ch1-wl-prototype \
   --cc "$TOOLDIR/riscv32-gnu-toolchain/bin/riscv32-unknown-elf-gcc"
 ```
 
-**Physical qualification remains pending.** Its CPU now
-runs the complete calibration algorithm: clock phase, write latency, per-bit
-read framing and native traffic tests. Host response-oracle cases and an actual
-RV32I CPU run passed; the latter exercised per-bit corrections including ECC
-lane 8, bus stalls and failure admission. These are simulation results.
-`prototype.json` records the export's unqualified status. The native traffic checker and runtime reader passed standalone tests. Board
-clock/ABI4 integration is implemented; full GPU and routed timing/CDC checks
-remain required.
-The existing production generator and qualified v18 image remain separate.
+The CPU runs the complete calibration algorithm: clock phase, write latency,
+per-bit read framing and native traffic tests. Host response-oracle cases and
+an actual RV32I CPU run passed, including ECC lane 8, bus stalls and failure
+admission. The native traffic checker and runtime reader passed standalone
+tests. These are simulation results; `prototype.json` deliberately leaves a
+new standalone export unqualified.
 
-The clock input is **50 MHz**, while the existing Vortex controller receives
-200 MHz. Full board integration must connect the buffered 50 MHz clock and
-review all clock/reset constraints before building an image. The controller
+The integrated WL/ABI4 image completed routed timing/CDC/DRC and CRC checks on
+October 20. Its physical JTAG run passed all nine CH1 lanes, DDR memory, GPU
+demo and SGEMM with clean enabled ECC. The five Python basic-operation scripts
+are still running. See [progress](../../../../../progress.md) for the exact
+image hash and evidence. This does not qualify arbitrary new exports or
+physical PCIe runtime, which needs a PCIe-connected host.
+
+The clock input is **50 MHz**, while the earlier A7 Vortex controller received
+200 MHz. Board integration connects the buffered 50 MHz clock and loads the
+reviewed clock/reset constraints. The controller
 runs at 100 MHz, DDR800; phase scanning must remain within half a DDR clock
 period. The provisional 1.3 ns clock uncertainty covers that 1.25 ns bound;
-native endpoint, reset and timing review remain required.
-
-The next steps are to integrate the runtime metadata, verify the native traffic
-checker, connect the board clock and constraints, rerun the full GPU/AFU flow,
-and qualify a freshly routed image.
+every new image still requires native endpoint, reset and timing review.
 Retain the full GPU and both JTAG/PCIe runtime interfaces throughout.
 
 `wl7ddrphy.py` and `dfii_q.py` retain their original notices. Clock and BIST

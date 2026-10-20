@@ -1,5 +1,46 @@
 # Current Vortex status — October 20, 2026
 
+**Physical CH1 DDR memory, GPU demo and SGEMM now pass.** The OpenTPU-derived
+WL/ABI4 image completed synthesis, routing, all seven report gates and bitstream
+CRC checks, then loaded into SRAM. The five basic-operation Python examples
+are running under `vortex-wl-fpga-kernels-20261020-v2.service`.
+
+| Check | Latest physical result |
+| --- | --- |
+| SRAM/JTAG | INIT=1, DONE=1, IDCODE `0x23751093`; scalar and queued PIO checks passed |
+| CH1 calibration | All nine byte lanes, including ECC lane 8, passed; firmware `a77fc8fe`, CK phase -44, common window 81 steps |
+| DDR memory | Four distinct 8 KiB regions, including upper-address regions, passed upload/download/copy, alias and 2 GiB bounds checks; this is not a full-capacity soak |
+| GPU demo, `-n64` | Numerical PASS; 2,444 retired instructions, 9,133 cycles; ECC enabled, zero corrected/uncorrectable errors |
+| SGEMM, `-n16` | Numerical PASS; 7,632 retired instructions, 18,925 cycles; ECC enabled, zero corrected/uncorrectable errors |
+| Five basic-operation scripts | In progress; require all 13 default numerical checks and clean ECC after each script |
+| Physical PCIe runtime | Not tested on this JTAG-only host; both interfaces are present and passed the GPU/AFU RTL model |
+
+Live evidence: [hardware manifest](build_ypcb_wl32/fpga-kernels-20261020-v2/manifest.json),
+[demo log](build_ypcb_wl32/fpga-kernels-20261020-v2/demo.log) and
+[SGEMM log](build_ypcb_wl32/fpga-kernels-20261020-v2/sgemm.log).
+The manifest's overall status updates when the complete suite finishes; its
+individual completed steps and logs establish the passes above.
+
+Image: `build_ypcb_wl32/wl-ch1-jtag-pcie-20261020-v3/vortex_ypcb.bit`, SHA-256
+`7590d5487b793402feaeb73e0e5988e0867133436d6c58624230e97b837060bd`.
+Implementation exited zero in 5,234.554 seconds. Routed setup/hold slack is
++0.034/+0.027 ns. The current test owns the normal JTAG leases and releases
+its own processes and leases on exit. Permanent flash has not been written.
+
+Both DDR implementations use LiteDRAM and the same CH1 DDR800 profile. The
+earlier Vortex A7 PHY used fixed CK phase and byte-wide read training; adding
+write-alignment search alone still failed ECC lane 8. The new integration
+adopts OpenTPU's adjustable CK/command clocks, static DQ/DQS clocks, per-bit
+read alignment, registered command injection and traffic-tested phase sweep.
+This is the better-supported training approach for this board. No comparative
+bandwidth benchmark has been run. The pass qualifies the integrated approach;
+it does not isolate one change as the sole cause of the earlier failure.
+
+The observations below preserve earlier stages and failures. The table above
+is the current status.
+
+## Earlier October 20 diagnostics
+
 JTAG access was explicitly reauthorized by the user: “jag lock is release and
 can be used for vortex”. Temporary SRAM and runtime tests may continue; permanent
 flash is outside this authorization. The earlier per-bit diagnostic finished

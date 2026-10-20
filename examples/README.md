@@ -77,12 +77,13 @@ export STARTUP_ADDR=0x40000000
 ./ci/ypcb_env.sh exec make -j1 -C examples run
 ```
 
-These commands run SimX and use no FPGA connection. The current physical YPCB
-trial stopped at DDR ECC lane 8 calibration before GPU execution; these examples
-have no physical FPGA pass yet. A successful simulator run does not qualify DDR
-or hardware execution.
+These commands run SimX and use no FPGA connection. The October 20 WL/ABI4
+image has passed physical CH1 calibration, memory, GPU demo and SGEMM through
+JTAG. The five Python examples are still being checked; see
+[current results](../progress.md) for their separate status. A successful
+simulator run does not qualify DDR or hardware execution.
 
-For a future qualified board session, build `examples runtime DRIVER=ypcb` with
+For an authorized board session, build `examples runtime DRIVER=ypcb` with
 matching flags and use `--driver ypcb` with an already prepared JTAG or PCIe
 runtime connection. Scripts use the existing backend; they do not program an
 FPGA, start a JTAG server or replace the normal hardware ownership procedure. The

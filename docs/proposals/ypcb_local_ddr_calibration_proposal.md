@@ -1,5 +1,10 @@
 # Local CH1 DDR calibration
 
+The WL/ABI4 implementation now passes physical CH1 calibration, memory, GPU
+demo and SGEMM through JTAG. Basic-operation scripts remain in progress. See
+[current status and evidence](../../progress.md); the sections below record the
+earlier designs, failed diagnostics and replacement rationale.
+
 The qualified ABI 2 image loads into SRAM and exposes the JTAG register interface.
 The physical probe measured 32 reads at 12.65–27.37 ms each, median 17.76 ms.
 Host calibration performs 424,234 MMIO calls and keeps a row open across nine
@@ -52,7 +57,7 @@ did not run. ECC remains required; disabling it does not qualify this design.
 OpenTPU's `docs/litedram.md` records CH1 lane 8 failures caused by individual
 DQ bits arriving two read bitslips apart. Its PHY provides `dly_sel_bits` and
 its firmware scans per-bit read eyes, write latency and clock phase. Vortex's
-current PHY and firmware train read alignment per byte at a fixed clock phase.
+earlier A7 PHY and firmware trained read alignment per byte at a fixed clock phase.
 That difference provides a specific diagnosis to investigate.
 
 A native experiment with the actual Vortex C firmware reproduces the observed
