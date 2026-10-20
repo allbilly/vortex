@@ -54,8 +54,10 @@ physical optimization completed in 20 minutes 49 seconds without warnings or
 errors, reducing setup slack to -0.079 ns while hold remained +0.016 ns.
 The subsequent reroute completed in 30 minutes 6 seconds with setup -0.125 ns
 and hold +0.016 ns. The second post-route optimization completed in 10 minutes
-29 seconds with setup -0.060 ns and hold +0.016 ns. Rerouting after that pass
-is active; the image is not timing-qualified. Initial native
+29 seconds with setup -0.060 ns and hold +0.016 ns. Its reroute completed in
+43 minutes 26 seconds with setup -0.186 ns and hold -0.005 ns. The third and
+final repair pass of the frozen script is active; the image is not
+timing-qualified. Initial native
 clock/reset/CDC checks passed, including all 179 connected serializer resets,
 nine unused DM serializers and two preserved lock synchronizer stages. All
 811 frozen input hashes matched; the DDR RTL, firmware, CSR map and phase
