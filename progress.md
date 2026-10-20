@@ -165,6 +165,23 @@ reports are rejected. All 54 runner tests passed, including those formatter
 contract cases and the kernel address/producer checks. The FPGA implementation
 continues in detail placement; no new bitstream has been programmed.
 
+## Routed report gates passed; bitstream generation active
+
+The new WL/ABI4 run passed all seven routed gates: setup +0.034 ns, hold
++0.027 ns, pulse width, Gray-bus skew, complete routing, internal timing coverage
+and DRC. All 152,477 routable nets are routed, with no routing errors, unclocked
+register endpoints or unconstrained internal endpoints. This is internal FPGA
+implementation evidence; external DDR operation remains a physical test.
+
+Bitstream generation is active under `vortex-wl-board-20261020-v3.service`.
+Do not program until its actual successful exit receipt and bitstream CRC check
+exist. Observation, including checkpoint hash:
+`build_ypcb_wl32/routed-signoff-observation-20261020-v1.json`.
+Prepared physical run: `build_ypcb_wl32/run-fpga-kernels-20261020-v1.sh`.
+It checks authorization, producer, frozen inputs and CRC, takes the normal leases,
+loads SRAM and runs memory/demo/SGEMM plus all five example scripts (13 numerical
+checks). Clean enabled ECC is required after each application; flash is not used.
+
 ## Basic-operation examples verified on SimX
 
 The requested [examples folder](examples/README.md) now has flat Python entry
