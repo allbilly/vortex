@@ -223,6 +223,15 @@ CH1 training, both data edges, nine lanes, ECC, handoff and negative/timeout
 cases. Its log is `build_ypcb_native32/native-ddr-host-abi2.log`; the CSR/data
 oracle does not establish physical DDR training.
 
+The partial-write review confirmed that the pinned generator already enables
+AXI read/modify/write when ECC is selected; the compiled controller RTL contains
+that stage. A focused AXI512/ECC576 component simulation preserved unmasked
+bytes with randomized channel stalls and a raw endpoint that writes full words.
+Disabling RMW failed the guard comparison as expected. No adapter HDL fix was
+needed. Evidence is `build_ypcb_native32/ecc-rmw-chain-20261020-v4/manifest.json`;
+the simulator supplies unused read signals on write-only memory ports for its
+pinned memory lowerer. This is component evidence, not a physical DDR test.
+
 The native bitstream CRC checker passed its four known-answer vectors and the
 previous image's two CRC checkpoints. Corrupted payload, corrupted CRC and
 truncated-image controls were rejected with the expected diagnostics. Evidence:
