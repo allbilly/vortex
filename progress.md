@@ -31,15 +31,22 @@ missing-implementation sentinel in the preprocessed tensor core.
 
 Build directory: `build_ypcb_tcu32/`; proposal:
 [FP16 and INT8 tensor kernels](docs/proposals/ypcb_tcu_proposal.md).
-The board-level model checks are running under
-`vortex-tcu-integration-build-20261021-v2.service`; their manifest is
-`build_ypcb_tcu32/integration-build-20261021-v2/manifest.json`. This job verifies
-memory, scalar and both tensor formats through modeled PCIe and JTAG, then
-starts fresh synthesis/routing only after those tests pass. The planned image
-directory is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`; it is not a
-completed bitstream yet.
-Pending: both modeled board interfaces, fresh synthesis/routing and report/CRC
-gates, then authorized SRAM, DDR/ECC, scalar and tensor hardware tests.
+The board-level model passed memory, demo, scalar SGEMM and both tensor formats
+through both PCIe and JTAG. Each tensor matrix case verified two launches.
+Evidence: `build_ypcb_tcu32/integration-build-20261021-v2/manifest.json`, field
+`board_integration_status=FP16_INT8_SCALAR_MEMORY_PCIE_AND_JTAG_RTL_PASS`.
+DDR/PHY responses in these board tests remain oracles.
+
+Fresh Vivado synthesis is active under
+`vortex-tcu-integration-build-20261021-v2.service`, image directory
+`build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. The same job continues through
+implementation after successful synthesis. It has not produced a qualified
+bitstream yet. Pending: synthesis/routing and report/CRC gates, then authorized
+SRAM, DDR/ECC, scalar and tensor hardware tests.
+Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
+(requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
+and `audit-fpga-completion-20261021-v1.py`. Capture the hardware service's owned
+process identities during the physical run for the cleanup audit.
 Vortex uses one heavy stage at a time and an 8 GiB service limit. It has
 not acquired JTAG for this tensor work, and permanent flash remains untouched.
 
