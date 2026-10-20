@@ -29,7 +29,13 @@ ifneq ($(findstring -DVX_CFG_EXT_TCU_ENABLE,$(BOARD_CONFIGS)),)
 RTL_PKGS += $(RTL_DIR)/tcu/VX_tcu_pkg.sv
 endif
 RTL_PKGS += $(RTL_DIR)/VX_trace_pkg.sv $(RTL_DIR)/cp/VX_cp_pkg.sv
-RTL_SRCS := $(shell rg --files $(RTL_DIR) -g '*.sv' -g '*.v' -g '*.vh')
+RTL_SRCS := $(shell find "$(RTL_DIR)" -type f \( -name '*.sv' -o -name '*.v' -o -name '*.vh' \))
+ifneq ($(.SHELLSTATUS),0)
+$(error Unable to discover RTL sources under $(RTL_DIR))
+endif
+ifeq ($(strip $(RTL_SRCS)),)
+$(error No RTL sources found under $(RTL_DIR))
+endif
 SRCS := $(SRC_DIR)/backend.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp
 SRCS += $(SW_COMMON_DIR)/ypcb_host_memory.cpp $(SW_COMMON_DIR)/ypcb_startup.cpp $(SW_COMMON_DIR)/util.cpp
 HEADERS := $(wildcard $(SW_COMMON_DIR)/*.h) $(wildcard $(VORTEX_HOME)/sw/runtime/common/*.h)

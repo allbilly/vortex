@@ -54,6 +54,10 @@ of enabled trace functions even when trace output is disabled. With TCU
 enabled, put `VX_tcu_pkg.sv` after `VX_gpu_pkg.sv` and before `VX_trace_pkg.sv`
 in `RTL_PKGS`.
 
+RTL dependency enumeration must work in the build service's environment.
+Treat discovery errors and empty file lists as fatal; otherwise source edits
+can leave an existing model unchanged while Make reports success.
+
 ## Creating Your Own Regression Test
 
 Inside `tests/regression` you will find a series of folders which are named based on what they test.

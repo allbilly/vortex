@@ -69,9 +69,16 @@ The first unit attempt stopped on a missing TCU trace-package dependency;
 the DMA unit file list now supplies it under the TCU profile.
 
 Fresh synthesis is required after the DMA RTL change; the prepared
-synthesis-reuse retry is superseded. Both board-model interfaces are rebuilding
-under `vortex-tcu-integration-build-20261021-v3.service`, with receipts in
-`integration-build-20261021-v3/`. After those tests pass, the job runs fresh
+synthesis-reuse retry is superseded. Integration attempt v3 was stopped before
+CAD: missing `rg` in the service PATH silently emptied the RTL dependency list,
+and inspection showed that its existing model lacked the new DMA registers.
+Those model results are invalidated in `integration-build-20261021-v3/model-invalidation.json`.
+Discovery now uses standard `find` and rejects errors or empty lists. Three
+regression cases failed before that change and passed afterward; receipts are
+in `model-dependency-validation-20261021-v1/`. The v4 integration runner
+rebuilds both interfaces and checks for the new DMA registers in the compiled
+model before numerical testing. Its receipts are in
+`integration-build-20261021-v4/`. After those tests pass, the job runs fresh
 synthesis/routing in `tcu-ch1-jtag-pcie-20261021-v2/`. Then require all report/CRC gates and physical memory/ECC,
 scalar and FP16/INT8 tests. The unchanged DDR block still needs qualification
 in the newly routed tensor image.
