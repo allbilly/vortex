@@ -7,7 +7,8 @@
 > Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
 > tests. The v16 image has now been programmed into SRAM and passed JTAG MMIO;
-> DDR and GPU kernels are not yet tested. Local FPGA-side calibration is next.
+> Physical DDR and GPU kernels are not yet tested. The local calibration CPU
+> and both-interface GPU simulation now pass; the ABI 3 FPGA build is active.
 
 Fresh ABI 3 synthesis/implementation is running in
 `build_ypcb_native32/ch1-jtag-pcie-20261020-v17/`, freezing commit `6e96b4b9f`
@@ -16,9 +17,11 @@ limits are one, with two allocator arenas. No checkpoint is reused. Native
 ABI 3 startup/scrub and runtime builds passed. JTAG register-batch validation
 passes 29 cases, including the actual Tcl parser with a hardware-API oracle;
 PIO/host-memory RTL tests pass 2,730 byte-range cases and stall/error/timeout
-checks. The full GPU/AFU PCIe/JTAG memory/demo/SGEMM simulation is running in
-`build_ypcb_native32/native-shell-abi3-20261020-v1/`. None of these results is
-physical DDR or GPU execution evidence.
+checks. The full GPU/AFU simulation passed memory/demo/SGEMM through both PCIe
+and JTAG in `build_ypcb_native32/native-shell-abi3-20261020-v1/`. JTAG also
+passes with the PCIe clock stopped. Demo retired 2,444 instructions and SGEMM
+7,632; all numerical/memory comparisons passed. Physical DDR and GPU execution
+are still open. The tested JTAG/runtime update is local commit `be70e829a`.
 
 ## Local DDR calibration CPU — October 20
 
