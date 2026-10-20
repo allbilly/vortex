@@ -159,7 +159,7 @@ CONFIG_STAMP = config.stamp
 # x86 and cross-compiled variants coexist in the same dir.
 APP := $(PROJECT)$(PROJECT_SUFFIX)
 
-all: $(APP) kernel.vxbin kernel.dump
+all: $(if $(strip $(SRCS)),$(APP)) kernel.vxbin kernel.dump
 
 # Force rebuild when CONFIGS (defines) change between runs.
 # PID-suffixed tmp + tolerate concurrent invocations across test
@@ -278,6 +278,8 @@ clean-host:
 clean: clean-kernel clean-host
 	rm -f $(CONFIG_STAMP) $(CONFIG_STAMP).tmp
 
+ifneq ($(strip $(SRCS)),)
 ifneq ($(MAKECMDGOALS),clean)
     -include .depend
+endif
 endif

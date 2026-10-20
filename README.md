@@ -61,6 +61,7 @@ Vortex news can be found on its [website](https://vortexgpgpu.github.io/index.ht
 - `sw`: Software sources (kernel, runtime, and drivers).
 - `sim`: Simulators repository.
 - `tests`: Tests repository.
+- `examples`: [Basic arithmetic, GEMM, convolution and pooling](examples/README.md).
 - `ci`: Continuous integration scripts.
 - `miscs`: Miscellaneous resources.
 - `VX_config.toml` / `VX_types.toml`: Hardware configuration system.

@@ -1,5 +1,9 @@
 # Testing
 
+For small Python examples with GPU kernels and checked numerical output, see
+[basic operations](../examples/README.md). From a configured build directory,
+`make -j1 -C examples run` builds and runs them on SimX.
+
 ## Running a Vortex application
 
 The framework provides a utility script: blackbox.sh under the /ci/ folder for executing applications in the tests tree. It gets copied into the `build` directory with all the environment variables resolved, so you should run it from the `build` directory as follows:

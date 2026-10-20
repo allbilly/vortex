@@ -16,6 +16,40 @@ Physical evidence: `build_ypcb_native32/fpga-kernels-20261020-v1/manifest.json`.
 Permanent flash was not written. Current FPGA contents belong to whichever
 session next programs it and must not be inferred from this saved result.
 
+## Basic-operation examples verified on SimX
+
+The requested [examples folder](examples/README.md) now has flat Python entry
+points `simple_add.py`, `elementwise.py`, `gemm.py`, `conv.py` and `pooling.py`,
+with readable device kernels under `examples/kernels/`. They cover float32
+addition, subtraction, multiplication, division, minimum/maximum, ReLU,
+rectangular matrix multiplication, CHW/OIHW convolution and max/average/min
+pooling. CPU arithmetic is the verification reference; all reported results
+come back through the Vortex runtime and GPU kernel.
+
+All 50 numerical checks passed on SimX across 23 command cases, including
+independent known outputs, partial warps, rectangular matrices, channel/filter
+layout, padded borders and average-pool divisors. Invalid shapes exit 2, help
+works without a device, and the default remains SimX even with an inherited
+`VORTEX_DRIVER=ypcb`. The Python/C argument and launch layouts match actual C++
+headers. Generated build Makefiles reuse the existing kernel toolchain rules;
+source builds stay out of tree. No additional Python packages are required.
+
+All five ELF kernels are RV32 with entry `0x40000000`, using the same YPCB
+configuration as the rebuilt kernel library, runtime stub and SimX backend.
+The shared build-rule change also passed existing demo and SGEMM regressions:
+demo 284 instructions/910 cycles; SGEMM 7,632 instructions/18,686 cycles. This
+completes the previously pending native SimX smoke check.
+
+Evidence and exact commands/hashes:
+`build_ypcb_native32/basic-ops-examples-20261020-v2-final/manifest.json`.
+Build receipts: `build_ypcb_native32/basic-ops-examples-20261020-v1/`.
+The build used one worker with a 4 GiB service memory limit. No bitstream was
+built or changed, and no FPGA/JTAG access or lock acquisition occurred. Physical
+DDR calibration and GPU execution remain pending as stated above.
+
+To run a ready example from `build_ypcb_native32`:
+`./ci/ypcb_env.sh exec python3 ../examples/simple_add.py`.
+
 ## Per-bit diagnostic firmware verified offline
 
 Firmware `78dc1fa8` now records the failed lane's eight individual bit windows,
