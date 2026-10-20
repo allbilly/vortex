@@ -132,8 +132,10 @@ proved and the exact compiled RTL retained in `wl-controller-20261020-v3/`.
 
 The first resumed implementation also stopped during those checks; its synthesis
 reuse verified all 674 hardware inputs and retained the exact compiled CDC RTL.
-Neither run reached routing or produced a new bitstream. A fresh `wl-ch1-jtag-pcie-20261020-v3/` will resume from the verified
-synthesis checkpoint after the successful native clock checks;
+Neither run reached routing or produced a new bitstream. The fresh `wl-ch1-jtag-pcie-20261020-v3/` has resumed implementation from the
+verified synthesis checkpoint after the successful native clock checks. Unit
+`vortex-wl-board-20261020-v3.service` is active, with both Vivado thread limits
+set to one and MemoryMax=8 GiB. Reuse revalidated all 674 hardware inputs;
 keep all original run directories. JTAG remains released while offline work
 continues, and physical GPU execution is still unverified.
 
