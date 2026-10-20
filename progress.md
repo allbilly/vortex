@@ -1,7 +1,8 @@
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> v13 was stopped after identifying unsynchronized PCIe error-status flags.
-> The repair requires a fresh synthesis; the old checkpoint cannot be reused.
+> v14 is running fresh native synthesis with the repaired PCIe error-status
+> crossing in `build_ypcb_native32/ch1-jtag-pcie-20261020-v14/`.
+> v13 is retired; the old checkpoint cannot be reused across this HDL change.
 > Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
 > tests. No new image has yet been programmed.
@@ -23,7 +24,7 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — status CDC repair, fresh synthesis required
+# Native CH1/JTAG/PCIe build — status CDC repaired, fresh synthesis running
 
 October 20 status-crossing audit: `shell/pcie/error_status` is registered on
 `pcie_clk` but fed the board-clock startup read-data register directly. v13
@@ -37,6 +38,10 @@ status. Fresh synthesis and qualification are required for this HDL change.
 The native checkpoint regression rejected the actual old netlist for missing
 first-stage flops; `pcie-status-cdc-before-20261020-v1/` retains its timing
 report and rejection receipt under `build_ypcb_native32`.
+Fresh v14 freezes committed source `4d03888d4`; all 401 source HDL files and
+both generated hardware headers match the passing repaired shell simulation.
+Synthesis and implementation run sequentially with both Vivado worker limits
+set to one. Routed qualification and physical execution remain pending.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
 differed only in LiteX's two timestamp comments. The reuse runner now verifies
