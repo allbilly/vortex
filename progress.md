@@ -9,12 +9,23 @@
 > tests. The v16 image has now been programmed into SRAM and passed JTAG MMIO;
 > DDR and GPU kernels are not yet tested. Local FPGA-side calibration is next.
 
+Fresh ABI 3 synthesis/implementation is running in
+`build_ypcb_native32/ch1-jtag-pcie-20261020-v17/`, freezing commit `6e96b4b9f`
+and the tested `local-selfcal-ddr-20261020-v3` controller. Both Vivado worker
+limits are one, with two allocator arenas. No checkpoint is reused. Native
+ABI 3 startup/scrub and runtime builds passed. JTAG register-batch validation
+passes 29 cases, including the actual Tcl parser with a hardware-API oracle;
+PIO/host-memory RTL tests pass 2,730 byte-range cases and stall/error/timeout
+checks. The full GPU/AFU PCIe/JTAG memory/demo/SGEMM simulation is running in
+`build_ypcb_native32/native-shell-abi3-20261020-v1/`. None of these results is
+physical DDR or GPU execution evidence.
+
 ## Local DDR calibration CPU — October 20
 
 The new CH1 controller exports a 16 KiB RV32I calibration CPU and immutable
 firmware without removing the external Wishbone control interface. Its CSRs
 fit inside the existing `ddrctrl` group; all four original CSR blocks retain
-their addresses. Firmware is 6,824 bytes plus 456 bytes BSS, with over 9 KiB
+their addresses. Firmware is 6,824 bytes plus 456 bytes BSS, with 9,104 bytes
 remaining for stack. It has no unresolved external symbols. CPU RTL comes
 from the pinned `pythondata-cpu-vexriscv==1.0.1.post407` package.
 

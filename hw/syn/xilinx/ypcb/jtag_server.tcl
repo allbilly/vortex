@@ -33,6 +33,28 @@ proc access_word {write address value} {
     if {$write} {return 0}
     return [expr "0x[get_property DATA [get_hw_axi_txns $name]]"]
 }
+proc access_words {write address count values} {
+    global axis
+    set transactions {}
+    for {set i 0} {$i < $count} {incr i} {
+        set name ypcb_batch_$i
+        set args [list -force -address [format %08x [expr {$address + 4*$i}]] -len 1 -size 32]
+        if {$write} {
+            lappend args -type write -data [lindex $values $i]
+        } else {
+            lappend args -type read
+        }
+        create_hw_axi_txn $name $axis {*}$args
+        lappend transactions [get_hw_axi_txns $name]
+    }
+    run_hw_axi -queue {*}$transactions
+    if {$write} {return [list 0]}
+    set result {}
+    foreach transaction $transactions {
+        lappend result [expr "0x[get_property DATA $transaction]"]
+    }
+    return $result
+}
 if {[access_word 0 0x3000 0] != 0x56595043 || [access_word 0 0x3004 0] != 3} {
     error "JTAG AXI does not expose the CH1 YPCB register ABI"
 }
@@ -45,18 +67,32 @@ proc consume {channel} {
     }
     if {[gets $channel line] < 0} {return}
     if {[catch {
-        if {![regexp {^([RW]) ([0-9a-fA-F]{4})(?: ([0-9a-fA-F]{8}))?$} $line all op addr data]} {
+        if {[regexp {^B([RW]) ([0-9a-fA-F]{4}) ([0-9a-fA-F]{2})((?: [0-9a-fA-F]{8})*)$} $line all op addr length data]} {
+            scan $addr %x address
+            scan $length %x count
+            if {$count < 1 || $count > 16 || ($address & 3) || $address + 4*$count > 65536} {
+                error "invalid register batch range"
+            }
+            set values [regexp -all -inline {[0-9a-fA-F]{8}} $data]
+            if {($op eq "W" && [llength $values] != $count) || ($op eq "R" && [llength $values])} {
+                error "invalid batch data count"
+            }
+            set result [access_words [expr {$op eq "W"}] $address $count $values]
+        } elseif {[regexp {^([RW]) ([0-9a-fA-F]{4})(?: ([0-9a-fA-F]{8}))?$} $line all op addr data]} {
+            scan $addr %x address
+            if {$address & 3} {error "unaligned register"}
+            if {($op eq "W") != ($data ne "")} {error "invalid data field"}
+            set value 0
+            if {$op eq "W"} {scan $data %x value}
+            set result [list [access_word [expr {$op eq "W"}] $address $value]]
+        } else {
             error "invalid request"
         }
-        scan $addr %x address
-        if {$address & 3} {error "unaligned register"}
-        if {($op eq "W") != ($data ne "")} {error "invalid data field"}
-        set value 0
-        if {$op eq "W"} {scan $data %x value}
-        set result [access_word [expr {$op eq "W"}] $address $value]
         set status [access_word 0 0x3008 0]
         if {$status & 0x7800} {error [format "AXI transport error status=0x%08x" $status]}
-        puts $channel [format "OK %08x" $result]
+        set response OK
+        foreach value $result {append response [format " %08x" $value]}
+        puts $channel $response
     } diagnostic]} {
         puts $channel "ERR $diagnostic"
     }

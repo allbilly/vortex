@@ -3,6 +3,7 @@ include $(ROOT_DIR)/config.mk
 
 SRC_DIR := $(VORTEX_HOME)/tests/ypcb/selfcal
 FW_DIR := $(VORTEX_HOME)/hw/syn/xilinx/ypcb/selfcal_fw
+HEADERS := $(wildcard $(SW_COMMON_DIR)/ypcb*.h) $(FW_DIR)/calibrate.h
 DDR_DIR ?= $(ROOT_DIR)/hw/syn/xilinx/ypcb/ddr
 CFLAGS += -std=c11 -O2 -Wall -Wextra -Werror -DCAL_HOST
 CFLAGS += -I$(DDR_DIR)/selfcal_fw -I$(SW_COMMON_DIR)
@@ -12,10 +13,10 @@ CXXFLAGS += -I$(FW_DIR) -I$(SW_COMMON_DIR) -I$(ROOT_DIR)/sw/ypcb
 .PHONY: all run rtl-test clean
 all: selfcal-host-test
 
-firmware.o: $(FW_DIR)/calibrate.c $(FW_DIR)/calibrate.h $(FW_DIR)/io.h $(DDR_DIR)/selfcal_fw/config.h
+firmware.o: $(FW_DIR)/calibrate.c $(FW_DIR)/calibrate.h $(FW_DIR)/io.h $(SW_COMMON_DIR)/ypcb_calibration_abi.h $(DDR_DIR)/selfcal_fw/config.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-selfcal-host-test: $(SRC_DIR)/main.cpp $(VORTEX_HOME)/tests/ypcb/ddr/oracle.h firmware.o $(SW_COMMON_DIR)/ypcb_ddr.cpp $(SW_COMMON_DIR)/ypcb_calibration.cpp $(ROOT_DIR)/sw/ypcb/ypcb_ddr_config.h
+selfcal-host-test: $(SRC_DIR)/main.cpp $(VORTEX_HOME)/tests/ypcb/ddr/oracle.h firmware.o $(SW_COMMON_DIR)/ypcb_ddr.cpp $(SW_COMMON_DIR)/ypcb_calibration.cpp $(ROOT_DIR)/sw/ypcb/ypcb_ddr_config.h $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/main.cpp firmware.o $(SW_COMMON_DIR)/ypcb_ddr.cpp $(SW_COMMON_DIR)/ypcb_calibration.cpp -o $@
 
 run: selfcal-host-test

@@ -98,7 +98,6 @@ Result Pio::transfer(uint64_t address, uint8_t* data, size_t size, bool write) {
   if (size == 0) {
     return Result::success;
   }
-  const auto deadline = std::chrono::steady_clock::now() + timeout_;
   while (size != 0) {
     uint32_t status;
     auto result = read_register(4, &status);
@@ -130,16 +129,12 @@ Result Pio::transfer(uint64_t address, uint8_t* data, size_t size, bool write) {
         const size_t position = offset + byte;
         words[position / 4] |= uint32_t(data[byte]) << ((position % 4) * 8);
       }
-      for (size_t word = 0; word < words.size(); ++word) {
-        result = write_register(0x100 + uint32_t(word * 4), words[word]);
-        if (result != Result::success) {
-          return result;
-        }
+      if (mmio_.write_words(pio_base + 0x100, words.data(), words.size())) {
+        poisoned_ = true;
+        return Result::io_error;
       }
     }
-    if (std::chrono::steady_clock::now() >= deadline) {
-      return Result::timeout;
-    }
+    const auto deadline = std::chrono::steady_clock::now() + timeout_;
     result = write_register(0x10, write ? 2 : 1);
     if (result != Result::success) {
       return result;
@@ -150,11 +145,9 @@ Result Pio::transfer(uint64_t address, uint8_t* data, size_t size, bool write) {
     }
     if (!write) {
       std::array<uint32_t, line_size / 4> words;
-      for (size_t word = 0; word < words.size(); ++word) {
-        result = read_register(0x100 + uint32_t(word * 4), &words[word]);
-        if (result != Result::success) {
-          return result;
-        }
+      if (mmio_.read_words(pio_base + 0x100, words.data(), words.size())) {
+        poisoned_ = true;
+        return Result::io_error;
       }
       for (size_t byte = 0; byte < count; ++byte) {
         const size_t position = offset + byte;

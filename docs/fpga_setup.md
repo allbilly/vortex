@@ -4,6 +4,21 @@ YPCB-00338-1P1 preparation and the remaining custom-platform work are tracked
 in [the YPCB port proposal](proposals/ypcb_port_proposal.md). The Alveo build
 instructions below do not produce a YPCB bitstream.
 
+YPCB ABI 3 calibrates CH1's 2 GiB DDR3 with a local 100 MHz RV32I CPU. Export
+the controller with the generated Makefile's `ddr-sources` target into a fresh
+`DDR_OUT_DIR`; `ddr-host-config` binds the runtime to that firmware identity.
+The primary LiteDRAM CPU configuration stays `None` to preserve external
+Wishbone access. The local CPU is added inside the existing `ddrctrl` CSR group.
+See [the calibration design](proposals/ypcb_local_ddr_calibration_proposal.md).
+
+The JTAG AXI core has sixteen entries in both transaction queues. Software
+batches the sixteen PIO data-window words into distinct AXI Lite transactions,
+then executes them with [AMD's `run_hw_axi -queue`](https://docs.amd.com/r/2024.1-English/ug835-vivado-tcl-commands/run_hw_axi).
+PIO timeouts bound each submitted hardware command. A complete application has
+its own deadline in `ci/ypcb_run_fpga.py`. Run the generated `tests/ypcb/selfcal`
+firmware/CPU checks and `ci/test_ypcb_jtag.py` before hardware use. Those checks
+use PHY or transport oracles; physical memory and GPU results remain separate.
+
 The YPCB AXI and Wishbone crossing generators explicitly select LiteX's
 `vivado` toolchain when exporting RTL. `XilinxPlatform` defaults to ISE;
 its attribute translation omits Vivado's `ASYNC_REG`, `mr_ff`, and

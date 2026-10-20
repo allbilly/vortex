@@ -111,6 +111,12 @@ public:
   int cp_reg_read(uint32_t offset, uint32_t* value) {
     return host_ ? host_->cp_reg_read(offset, value) : -1;
   }
+  int read_words(uint32_t offset, uint32_t* values, size_t count) override {
+    return jtag_ ? jtag_->read_words(offset, values, count) : Mmio::read_words(offset, values, count);
+  }
+  int write_words(uint32_t offset, const uint32_t* values, size_t count) override {
+    return jtag_ ? jtag_->write_words(offset, values, count) : Mmio::write_words(offset, values, count);
+  }
   int cp_reg_write(uint32_t offset, uint32_t value) {
     return host_ ? host_->cp_reg_write(offset, value) : -1;
   }
@@ -174,6 +180,16 @@ private:
     if (calibrated != CalibrationResult::success) {
       std::fprintf(stderr, "[VXDRV] Local DDR1 calibration failed: result=%u error=%u lane=%u\n",
                    unsigned(calibrated), calibration.error, calibration.failed_lane);
+      std::fprintf(stderr, "[VXDRV] DDR1 firmware=%08x state=%u probes=%u max_row=%u cycles=%llu\n",
+                   calibration.firmware_id, calibration.state, calibration.probes, calibration.max_row_cycles,
+                   static_cast<unsigned long long>(calibration.cycles));
+      for (unsigned lane = 0; lane < calibration.lanes.size(); ++lane) {
+        std::fprintf(stderr, "[VXDRV] DDR1 lane%u window=%08x scans=", lane, calibration.lanes[lane]);
+        for (unsigned slip = 0; slip < 8; ++slip) {
+          std::fprintf(stderr, "%s%08x", slip ? "," : "", calibration.scans[lane * 8 + slip]);
+        }
+        std::fputc('\n', stderr);
+      }
       return -1;
     }
     std::fprintf(stderr, "[VXDRV] Local DDR1 firmware=%08x probes=%u max_row=%u cycles=%llu\n",

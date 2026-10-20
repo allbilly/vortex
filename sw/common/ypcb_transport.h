@@ -15,6 +15,20 @@ public:
   virtual ~Mmio() = default;
   virtual int read32(uint32_t offset, uint32_t* value) = 0;
   virtual int write32(uint32_t offset, uint32_t value) = 0;
+  virtual int read_words(uint32_t offset, uint32_t* values, size_t count) {
+    if (!values || count == 0 || count > 16 || (offset & 3) || offset > 65536 - count * 4) return -1;
+    for (size_t i = 0; i < count; ++i) {
+      if (read32(offset + uint32_t(i * 4), &values[i])) return -1;
+    }
+    return 0;
+  }
+  virtual int write_words(uint32_t offset, const uint32_t* values, size_t count) {
+    if (!values || count == 0 || count > 16 || (offset & 3) || offset > 65536 - count * 4) return -1;
+    for (size_t i = 0; i < count; ++i) {
+      if (write32(offset + uint32_t(i * 4), values[i])) return -1;
+    }
+    return 0;
+  }
 };
 
 enum class Result { success, invalid, io_error, busy, unready, memory_error, timeout, poisoned };

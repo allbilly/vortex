@@ -202,6 +202,17 @@ public:
   explicit TestMmio(Test& test) : test_(test) {}
   unsigned accesses = 0;
   bool fail = false;
+  std::chrono::milliseconds staging_delay{0};
+
+  int read_words(uint32_t offset, uint32_t* values, size_t count) override {
+    std::this_thread::sleep_for(staging_delay);
+    return Mmio::read_words(offset, values, count);
+  }
+
+  int write_words(uint32_t offset, const uint32_t* values, size_t count) override {
+    std::this_thread::sleep_for(staging_delay);
+    return Mmio::write_words(offset, values, count);
+  }
 
   int read32(uint32_t offset, uint32_t* value) override {
     ++accesses;
@@ -316,6 +327,16 @@ static void host_test(Test& test) {
   first.join();
   second.join();
   require(!failed, "Concurrent host transfers shared the staging window");
+  Pio slow_staging(mmio, std::chrono::milliseconds(100));
+  require(slow_staging.initialize() == Result::success, "Slow staging initialization failed");
+  mmio.staging_delay = std::chrono::milliseconds(120);
+  std::array<uint8_t, 65> staged{}, staged_read{};
+  staged.fill(0xa7);
+  require(slow_staging.write(0x70000, staged.data(), staged.size()) == Result::success
+          && slow_staging.read(0x70000, staged_read.data(), staged_read.size()) == Result::success
+          && staged == staged_read,
+          "Host staging latency consumed the hardware command completion budget");
+  mmio.staging_delay = std::chrono::milliseconds(0);
   Pio faulted(mmio);
   require(faulted.initialize() == Result::success, "Fault test initialization failed");
   mmio.fail = true;

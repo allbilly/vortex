@@ -241,6 +241,25 @@ def main():
         samples = durations[3:]
         state['mmio_probe'] = {'reads': len(samples), 'median_seconds': statistics.median(samples),
                                'min_seconds': min(samples), 'max_seconds': max(samples)}
+        batches = []
+        with socket.create_connection(('127.0.0.1', args.jtag_port), timeout=30) as connection:
+            with connection.makefile('rb') as stream:
+                for iteration in range(8):
+                    words = [0xa5300000 | (iteration << 8) | i for i in range(16)]
+                    connection.sendall(('BW 2100 10 ' + ' '.join(f'{value:08x}' for value in words) + '\n').encode())
+                    if stream.readline(256) != b'OK 00000000\n':
+                        raise RuntimeError('JTAG PIO data-window batch write failed')
+                    started = time.monotonic()
+                    connection.sendall(b'BR 2100 10\n')
+                    line = stream.readline(256)
+                    batches.append(time.monotonic() - started)
+                    if not re.fullmatch(rb'OK(?: [0-9a-fA-F]{8}){16}\n', line):
+                        raise RuntimeError('Invalid JTAG batch read response: ' + repr(line))
+                    if [int(value, 16) for value in line.split()[1:]] != words:
+                        raise RuntimeError('JTAG batch reordered or corrupted PIO data-window words')
+        state['jtag_batch_probe'] = {'blocks': len(batches), 'bytes_per_block': 64,
+                                     'median_read_seconds': statistics.median(batches),
+                                     'scope': 'PIO register data window only; no DDR command issued by this probe'}
         state['status'] = 'SRAM_AND_JTAG_MMIO_PASS_DDR_KERNELS_NOT_TESTED'
         save()
         if args.stage == 'kernels':
