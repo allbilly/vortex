@@ -68,6 +68,10 @@ checks, then the post-optimization PCIe glitchless clock-mode review. Its
 optimized checkpoint is written. Placement and post-placement optimization
 completed; routing is running. Final routed timing,
 integrity and hardware qualification are still open.
+The first routed result has setup slack -0.051 ns and hold slack +0.031 ns.
+Its connectivity verification passed. The configured post-route physical
+optimization/re-routing loop is active; this result has not passed timing
+and has not produced a qualified bitstream for programming.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
 differed only in LiteX's two timestamp comments. The reuse runner now verifies
