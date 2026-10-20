@@ -64,6 +64,14 @@ the controller-matched CSR metadata. Three rejection tests passed before any
 hardware lease or native child was opened; Tcl syntax checks passed. Actual
 programming, bridge operation and GPU examples remain untested.
 
+The final ABI 2 native FPGA host build passed on October 20. The kernel library
+was rebuilt from clean objects, and the dispatcher, YPCB backend, memory-map
+test, `demo` and SGEMM use matching board flags and the 2 GiB memory map. Both
+example kernels link at `0x40000000`. The runtime DDR metadata was matched by
+SHA-256 to v13's exact compiled controller. Commands, exit codes and artifact
+hashes are in `build_ypcb_native32/native-fpga-host-20261020-v3.json`; this is
+build evidence, with no physical DDR or kernel execution yet.
+
 Before host-driven DDR training, measure actual JTAG MMIO transaction latency
 against the 6,942-probe training workload. If it prevents bounded initialization,
 adapt the reference FPGA-side calibration design to CH1's PHY and CSR map;
