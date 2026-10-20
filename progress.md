@@ -8,8 +8,9 @@
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
 > tests. The v16 image has now been programmed into SRAM and passed JTAG MMIO;
 > Physical DDR and GPU kernels are not yet tested. The local calibration CPU
-> and both-interface GPU simulation now pass. Routed ABI 3 checks pass; fresh
-> bitstream finalization is active after the original producer disappeared.
+> and both-interface GPU simulation now pass. The ABI 3 bitstream passed routed
+> signoff, finalization and CRC checks. Temporary SRAM/kernel testing is active;
+> no physical GPU kernel pass has been recorded yet.
 
 ABI 3 v17 routing passed all seven report gates: setup +0.011 ns, hold +0.040 ns,
 147,570 fully routed nets, zero routing errors and no unclocked or unconstrained
@@ -17,7 +18,7 @@ internal endpoints. The producer disappeared after entering bitstream generation
 its exit status is unknown and no bitstream exists in that run. A host OOM event
 occurred at the same time; the exact Vortex exit was not recorded.
 
-The verified checkpoint is being finalized in the fresh
+The verified checkpoint was finalized successfully in the fresh
 `build_ypcb_native32/ch1-jtag-pcie-20261020-v18-finalize/` directory. All 756
 frozen inputs and the checkpoint's archive CRC passed. Its exact SHA-256 is
 `98b421e4f4390ab74f4f110e31ae714d20061c0f76995b7e326cb114e082be75`.
@@ -26,7 +27,19 @@ hardware admission requires this new finalizer's successful receipt. The job
 runs as user unit `vortex-ypcb-v18-finalize-20261020.service`, independent of
 the terminal, with both worker limits one and allocator arenas two. It retains
 source `6e96b4b9f` and the tested `local-selfcal-ddr-20261020-v3` controller.
-No synthesis or routing is repeated. Native
+No synthesis or routing was repeated. Finalization exited 0 after 466.4 seconds,
+with no interruption or timeout. The 18,735,205-byte bitstream SHA-256 is
+`f5bd03e294c7ae4a678458f8d01213366109e87816abd6325555086d8dc61d5b`.
+Both CRC checkpoints, four checker vectors, all 760 finalization input hashes
+and the runtime/controller binding passed. Both GPU kernel ELF entries are
+RV32 at `0x40000000`.
+
+The owned physical job is running under user unit
+`vortex-ypcb-fpga-kernels-20261020-v1.service`, with its manifest in
+`build_ypcb_native32/fpga-kernels-20261020-v1/`. It acquired the canonical JTAG
+lease after cable/holder checks and has started volatile SRAM programming.
+Permanent flash remains untouched. Physical DDR, memory/ECC and kernel results
+are still pending; do not infer them from the programming step. Native
 ABI 3 startup/scrub and runtime builds passed. JTAG register-batch validation
 passes 29 cases, including the actual Tcl parser with a hardware-API oracle;
 PIO/host-memory RTL tests pass 2,730 byte-range cases and stall/error/timeout
@@ -43,8 +56,8 @@ and 24 DSPs. The checkpoint SHA-256 is
 The complete native-client/Tcl loopback test exposed a stale socket-owner race;
 the bridge now observes a previous peer's EOF before deciding ownership. All
 ten protocol tests pass, including 64 reconnects with active-client rejection.
-This software fix does not change the frozen FPGA HDL. No new image has been
-programmed since the ABI 2 JTAG probe.
+This software fix does not change the frozen FPGA HDL. The new physical job
+above is the first ABI 3 SRAM/kernel attempt after the ABI 2 JTAG-only probe.
 
 v17 placement and physical optimization completed. The last pre-route estimate
 was setup slack +0.007 ns and TNS 0. Routing subsequently passed as recorded
