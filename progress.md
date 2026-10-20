@@ -33,6 +33,13 @@ ten protocol tests pass, including 64 reconnects with active-client rejection.
 This software fix does not change the frozen FPGA HDL. No new image has been
 programmed since the ABI 2 JTAG probe.
 
+v17 placement and physical optimization completed. The last pre-route estimate
+is setup slack +0.007 ns and TNS 0. Routing is now running; that estimate is not
+final routed signoff. Pre-route DRC reported zero errors. The actual milestone
+is saved in `build_ypcb_native32/v17-placement-milestone-20261020.json`.
+The hardware launcher now also requires a successful, uninterrupted producer
+exit receipt before programming; all 16 checks and its native receipt check pass.
+
 ## Local DDR calibration CPU — October 20
 
 The new CH1 controller exports a 16 KiB RV32I calibration CPU and immutable
