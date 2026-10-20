@@ -65,7 +65,8 @@ defaults to a fresh v16 directory and rejects an already-active Vortex build.
 Its duplicate guard was verified without starting another CAD worker.
 v15 passed the actual Gray/reset, four PCIe status-chain and mailbox payload
 checks, then the post-optimization PCIe glitchless clock-mode review. Its
-optimized checkpoint is written and placement is running. Final routed timing,
+optimized checkpoint is written. Placement and post-placement optimization
+completed; routing is running. Final routed timing,
 integrity and hardware qualification are still open.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
