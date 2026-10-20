@@ -47,13 +47,14 @@ Synthesis estimates 149,205 LUTs (49.97%), 194 block-RAM tiles (20.31%) and
 Implementation is active under `vortex-tcu-integration-build-20261021-v2.service`,
 image directory `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Placement
 completed successfully in 18 minutes 36 seconds with zero warnings/errors;
-post-placement physical optimization is running before routing. Initial native
+post-placement physical optimization also passed and routing is running.
+Its final pre-route setup estimate was +0.039 ns; routed timing is still open. Initial native
 clock/reset/CDC checks passed, including all 179 connected serializer resets,
 nine unused DM serializers and two preserved lock synchronizer stages. All
 811 frozen input hashes matched; the DDR RTL, firmware, CSR map and phase
 constraints are byte-identical to the qualified scalar image's DDR block.
 New physical DDR and GPU tests remain required. It has not produced a qualified
-bitstream yet. Pending: placement/routing and report/CRC gates, then authorized
+bitstream yet. Pending: routing and report/CRC gates, then authorized
 SRAM, DDR/ECC, scalar and tensor hardware tests.
 Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
 (requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
