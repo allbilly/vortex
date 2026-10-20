@@ -29,6 +29,8 @@ stages before the board-clock status register consumes it. The constraints
 require the actual source, both receiving stages, distinct source/destination
 clocks and direct wiring without a bypass. Only source-to-first-stage paths
 are excluded; settling paths between stages retain ordinary timing.
+The sticky source bit may also feed its own input logic. Follow that logic to
+the capture registers and compare their clocks when checking for a bypass.
 
 The PCIe PIPE clock mux uses BUFGCTRL's glitchless selection mode. The
 rate-change logic waits for PHY completion signals and its state machine;

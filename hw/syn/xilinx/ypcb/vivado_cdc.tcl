@@ -115,17 +115,20 @@ foreach bit {0 1 2 3} {
             error "PCIe status synchronizer is not directly connected: $driver -> $receiver"
         }
     }
-    set loads [get_pins -leaf -of_objects [get_nets -segments -of_objects [ypcb_cdc_pin $source Q]] -filter {DIRECTION == IN}]
-    if {[llength $loads] != 1 || $loads ne [ypcb_cdc_pin $first D]} {
-        error "PCIe status bypasses its first synchronizer stage: $source"
-    }
     set source_clock [ypcb_cdc_clock [ypcb_cdc_pin $source C]]
     set first_clock [ypcb_cdc_clock [ypcb_cdc_pin $first C]]
     set second_clock [ypcb_cdc_clock [ypcb_cdc_pin $second C]]
     if {$source_clock eq $first_clock || $first_clock ne $second_clock} {
         error "Incorrect PCIe status synchronizer clocks: $source -> $first -> $second"
     }
-    set_false_path -from [ypcb_cdc_pin $source Q] -to [ypcb_cdc_pin $first D]
+    foreach receiver [all_fanout -flat -endpoints_only -from [ypcb_cdc_pin $source Q]] {
+        if {$receiver eq [ypcb_cdc_pin $first D]} {continue}
+        set cell [ypcb_cdc_require [get_cells -of_objects $receiver] 1 "PCIe status capture register"]
+        if {[ypcb_cdc_clock [ypcb_cdc_pin $cell C]] ne $source_clock} {
+            error "PCIe status bypasses its first synchronizer stage: $source -> $receiver"
+        }
+    }
+    set_false_path -from $source -to [ypcb_cdc_pin $first D]
     if {[llength [get_timing_paths -from $first -to $second -max_paths 1]] != 1} {
         error "PCIe status synchronizer settling path missing or cut: $bit"
     }

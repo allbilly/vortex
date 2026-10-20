@@ -1,7 +1,9 @@
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> v14 is running fresh native synthesis with the repaired PCIe error-status
-> crossing in `build_ypcb_native32/ch1-jtag-pcie-20261020-v14/`.
+> v14 passed fresh native synthesis with the repaired PCIe error-status crossing.
+> Its checkpoint is preserved in `build_ypcb_native32/ch1-jtag-pcie-20261020-v14/`.
+> The refined status-fanout review passed native positive and bypass-rejection checks;
+> implementation can reuse this synthesis in a fresh output directory.
 > v13 is retired; the old checkpoint cannot be reused across this HDL change.
 > Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
@@ -24,7 +26,7 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — status CDC repaired, fresh synthesis running
+# Native CH1/JTAG/PCIe build — fresh synthesis and status CDC contract passed
 
 October 20 status-crossing audit: `shell/pcie/error_status` is registered on
 `pcie_clk` but fed the board-clock startup read-data register directly. v13
@@ -42,6 +44,21 @@ Fresh v14 freezes committed source `4d03888d4`; all 401 source HDL files and
 both generated hardware headers match the passing repaired shell simulation.
 Synthesis and implementation run sequentially with both Vivado worker limits
 set to one. Routed qualification and physical execution remain pending.
+Fresh v14 synthesis exited 0 after 1,414.6 seconds, with zero errors or critical
+warnings. The design uses 79,304 LUTs, 66,118 registers and 151 BRAM tiles:
+eight additional registers for the four two-stage PCIe status synchronizers.
+Its checkpoint SHA-256 is
+`fb975ddc2cf29d4222dec808bc49d3a3020cf9376bc8f7f604898df398c8b0cd`.
+The actual synthesis exit receipt and utilization report are retained in the run.
+v14 implementation stopped at an overstrict fanout check. Native inspection
+showed each sticky flag feeding its own PCIe-clock register through a LUT and
+its first board-clock synchronizer. The review now follows logic to capture
+registers, permits source-clock feedback and rejects any unsynchronized receiving
+clock. It uses the source register as the timing-exception launch object; Vivado
+rejects a register's Q pin there. The native positive check passed for all four
+chains and rejected an injected source-to-board-register bypass. Evidence is
+`build_ypcb_native32/pcie-status-cdc-contract-20261020-v2/manifest.json`.
+Only the constraint review changed; the verified v14 synthesis can be reused.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
 differed only in LiteX's two timestamp comments. The reuse runner now verifies
