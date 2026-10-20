@@ -106,6 +106,13 @@ The counted software-oracle workload is 424,234 MMIO calls, requiring a mean
 under 0.707 ms per call to fit the existing five-minute limit before wait
 overheads. This is a budget, not a measured cable speed. The count receipt is
 `build_ypcb_native32/ddr-mmio-budget-20261020-v1/manifest.json`.
+The probe also keeps a row open across nine host MMIO calls. For the configured
+MT41K256M8 reference, the maximum ACTIVATE-to-PRECHARGE budget is 70.2 us at or
+below 85 C, so its mean call budget is 7.8 us before wait overheads. Check this
+against physical JTAG measurements before training; the five-minute deadline
+alone is insufficient. The reference-chip identity and cable speed remain
+unverified. The source, calculation and software-oracle count are saved in
+`build_ypcb_native32/ddr-row-budget-20261020-v1/manifest.json`.
 
 The Vortex Podman container and its Ubuntu image were removed as requested.
 Host source/toolchain folders and all other containers were verified preserved;

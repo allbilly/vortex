@@ -68,6 +68,12 @@ useful reference if measured JTAG transaction latency prevents host-driven DDR
 training; the current host algorithm performs 6,942 probes. Any adaptation must
 retain CH1-only 2 GiB operation and use Vortex's actual PHY/CSR map. DDR readback
 and ECC checks must precede interpretation of a failed kernel as a GPU defect.
+Qualify command timing separately from the total training deadline: the current
+probe performs nine host MMIO calls between ACTIVATE and PRECHARGE. The configured
+MT41K256M8 reference specifies maximum `tRAS = 9 * tREFI`, or 70.2 microseconds
+at or below 85 C. Compare measured transport latency against that bound before
+host-driven training. The timing source is the
+[Micron DDR3L datasheet, archived copy](https://dtsheet.com/doc/1384516/2gb--x4--x8--x16-ddr3l-sdram).
 
 The Linux backend uses an unbound `10ee:0480` endpoint with a 64 KiB BAR0.
 Select it with `VORTEX_DRIVER=ypcb VORTEX_YPCB_BDF=0000:bb:dd.f`.
