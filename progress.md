@@ -45,7 +45,9 @@ Synthesis estimates 149,205 LUTs (49.97%), 194 block-RAM tiles (20.31%) and
 `build_ypcb_tcu32/synthesis-observation-20261021-v1.json`.
 
 Implementation is active under `vortex-tcu-integration-build-20261021-v2.service`,
-image directory `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Initial native
+image directory `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Placement
+completed successfully in 18 minutes 36 seconds with zero warnings/errors;
+post-placement physical optimization is running before routing. Initial native
 clock/reset/CDC checks passed, including all 179 connected serializer resets,
 nine unused DM serializers and two preserved lock synchronizer stages. All
 811 frozen input hashes matched; the DDR RTL, firmware, CSR map and phase
