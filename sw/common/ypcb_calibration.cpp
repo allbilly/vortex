@@ -58,6 +58,8 @@ CalibrationResult wait_calibration(Mmio& mmio, CalibrationReport* report,
   report->probes = header[YPCB_CAL_MB_PROBES];
   report->max_row_cycles = header[YPCB_CAL_MB_MAX_ROW_CYCLES];
   report->cycles = (uint64_t(header[YPCB_CAL_MB_CYCLES_HIGH]) << 32) | header[YPCB_CAL_MB_CYCLES_LOW];
+  report->write_slips = header[YPCB_CAL_MB_WRITE_SLIPS];
+  if (report->write_slips & ~0x06db6db6u) return CalibrationResult::unsafe_state;
   if (header[YPCB_CAL_MB_MAGIC] != YPCB_CAL_MAGIC || header[YPCB_CAL_MB_STATE] != report->state
       || report->firmware_id != cfg::calibration_firmware_id) return CalibrationResult::unsafe_state;
   for (unsigned i = 0; i < report->lanes.size(); ++i) {
@@ -104,7 +106,7 @@ CalibrationResult wait_calibration(Mmio& mmio, CalibrationReport* report,
     }
   }
   if (report->state == YPCB_CAL_FAILED) return CalibrationResult::failed;
-  if (report->error || report->failed_lane != 9 || report->probes != 6942
+  if (report->error || report->failed_lane != 9 || report->probes != YPCB_CAL_PROBES
       || report->max_row_cycles == 0 || report->max_row_cycles > (uint64_t(cfg::sys_clock_hz) * 351 / 10000000)
       || report->cycles == 0 || report->cycles > 30ull * cfg::sys_clock_hz) {
     return CalibrationResult::unsafe_state;

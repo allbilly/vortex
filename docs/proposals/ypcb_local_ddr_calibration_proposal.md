@@ -70,12 +70,15 @@ CL6/CWL5, but uses a different PHY with adjustable CK phase. Its successful
 CH1 result needed a per-bit correction on lane 2; ECC lane 8 required none in
 that image. Do not transfer measured phase or bitslip constants between builds.
 
-The next calibration change needs per-bit diagnostic evidence and a reviewed
-implementation of any required per-bit or clock training. A PHY or clock RTL
-change requires fresh synthesis and bitstream qualification. Preserve the full
-GPU, CH1-only 2 GiB with ECC, and both runtime interfaces. Physical calibration,
-memory/ECC, `demo` and SGEMM remain pending. The user has reserved JTAG for
-another session; continue offline until hardware access is authorized again.
+The physical per-bit diagnostic subsequently found no stable eye on any ECC
+lane bit at write alignment zero: valid bits `0x00`, error OR/AND `0xff`, and
+zero passing settings. It used diagnostic firmware `78dc1fa8` on the same v18
+image after all 4,096 firmware words were uploaded and read-verified. That
+result does not support a read-framing-only explanation. The user subsequently
+reauthorized temporary SRAM/runtime testing. No permanent flash was written.
+A PHY or clock RTL change still requires fresh synthesis and bitstream
+qualification. Preserve the full GPU, CH1-only 2 GiB with ECC and both runtime
+interfaces. Physical calibration, memory/ECC, `demo` and SGEMM remain pending.
 
 The reproducible comparison, source hashes, command exit codes and native log
 are in `build_ypcb_native32/opentpu-ecc-framing-review-20261020-v1/`.
@@ -105,5 +108,29 @@ failure diagnostics. Firmware identity changes bind the updated reader to the
 updated firmware. This diagnostic firmware alone does not repair DDR framing.
 The CPU and mailbox RTL are unchanged; only the controller's firmware BRAM
 initialization differs after removing known generator metadata. Using the new
-firmware with an existing image still needs a reviewed upload/provenance path;
-the current hardware runner must not bypass its image/firmware binding.
+firmware with an existing image uses the runner's `calibration` stage. It
+requires identical controller logic, CSR and PHY metadata, matching firmware
+identity and actual CPU simulation proof. It holds the CPU, uploads and verifies
+the complete BRAM, clears the previous terminal state, then restarts and captures
+the new result. Failed or interrupted uploads leave the CPU held. This stage
+does not admit memory or GPU work. A previously latched board startup failure
+remains latched even when replacement firmware calibrates successfully.
+
+## Write latency search
+
+The read-only baseline left the PHY's write bitslip at reset. OpenTPU searches
+write bitslips 0, 2, 4 and 6, corresponding to whole DDR clock shifts. The updated
+firmware tests all four for each lane, scanning eight read bitslips and 32 taps
+with three patterns. It selects the widest stable read window, retaining the
+first write setting on ties, then applies that lane's chosen write/read settings.
+Three further probes verify each lane and three final probes verify all lanes.
+A complete successful calibration therefore performs 27,678 probes. The same
+30-second deadline and open-row timing bound apply.
+
+Mailbox word 15 packs nine write bitslips in successive three-bit fields. The
+runtime rejects odd settings, high reserved bits and the wrong successful probe
+count. Read masks describe the selected write alignment. When no write alignment
+provides a byte-wide eye, the per-bit failure diagnostics describe write setting
+zero; all four byte-wide scans have still been tested. ECC and startup admission
+remain unchanged. Host and actual CPU tests exercise each whole-clock setting,
+per-bit failures, unsupported alignment, restart, stalls and error cleanup.

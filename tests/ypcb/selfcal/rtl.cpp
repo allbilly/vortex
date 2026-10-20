@@ -140,7 +140,9 @@ public:
       if (pause && !paused && pending && serviced > 10) {
         hold();
         // Firmware starts again after a hold, so discard the interrupted initialization oracle.
+        const auto writes = oracle.required_write_slip;
         oracle = CsrOracle{};
+        oracle.required_write_slip = writes;
         state = 0;
         dut.hold = 0;
         paused = true;
@@ -164,6 +166,9 @@ int main(int argc, char** argv) {
   require(file.good(), "Replacement firmware could not be read");
   std::vector<uint8_t> image((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   auto sim = std::make_unique<Simulation>();
+  for (unsigned lane = 0; lane < 9; ++lane) {
+    sim->oracle.required_write_slip[lane] = (lane % 4) * 2;
+  }
   sim->dut.mem_adr = 4095;
   sim->dut.mem_dat = 0xa53cc35a;
   sim->dut.mem_we = 1;
@@ -178,7 +183,7 @@ int main(int argc, char** argv) {
           "CPU firmware did not pass known PHY responses");
   require(sim->mailbox(YPCB_CAL_MB_MAGIC) == YPCB_CAL_MAGIC
           && sim->mailbox(YPCB_CAL_MB_FIRMWARE) == cfg::calibration_firmware_id
-          && sim->mailbox(YPCB_CAL_MB_PROBES) == 6942
+          && sim->mailbox(YPCB_CAL_MB_PROBES) == YPCB_CAL_PROBES
           && sim->mailbox(YPCB_CAL_MB_FAILED_LANE) == 9,
           "CPU firmware result mailbox differs");
   const auto max_row = sim->mailbox(YPCB_CAL_MB_MAX_ROW_CYCLES);
@@ -188,8 +193,11 @@ int main(int argc, char** argv) {
     require((value & 255) == CsrOracle::slip(lane, 1)
             && ((value >> 8) & 255) == CsrOracle::first(lane)
             && ((value >> 16) & 255) == CsrOracle::last(lane), "CPU trained the wrong eye");
+    require(((sim->mailbox(YPCB_CAL_MB_WRITE_SLIPS) >> (lane * 3)) & 7) == (lane % 4) * 2
+            && sim->oracle.banks[1].write_bitslip[lane] == (lane % 4) * 2,
+            "CPU did not select and retain each lane's write alignment");
   }
-  std::printf("CPU PASS: %llu cycles, %u MMIO, 6942 probes, nine lanes, max row %u cycles\n",
+  std::printf("CPU PASS: %llu cycles, %u MMIO, 27678 probes, nine lanes, max row %u cycles\n",
               static_cast<unsigned long long>(sim->cycles), sim->serviced, max_row);
 
   sim = std::make_unique<Simulation>();
@@ -209,7 +217,7 @@ int main(int argc, char** argv) {
   sim->oracle.read_bit_offset[8][5] = 2;
   sim->run(false);
   require(sim->state == YPCB_CAL_FAILED && sim->mailbox(YPCB_CAL_MB_FAILED_LANE) == 8
-          && sim->mailbox(YPCB_CAL_MB_PROBES) == 6936
+          && sim->mailbox(YPCB_CAL_MB_PROBES) == YPCB_CAL_PROBES - 6
           && sim->mailbox(YPCB_CAL_MB_DIAG_MAGIC) == YPCB_CAL_DIAG_MAGIC
           && sim->mailbox(YPCB_CAL_MB_DIAG_LANE) == 8
           && sim->mailbox(YPCB_CAL_MB_DIAG_VALID_BITS) == 255
@@ -229,7 +237,7 @@ int main(int argc, char** argv) {
   require(sim->oracle.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0
           && sim->oracle.banks[1].registers[cfg::ddrctrl_init_error / 4] == 1,
           "CPU diagnostic failure enabled memory");
-  std::printf("CPU DIAGNOSTICS PASS: %llu cycles, lane8,6936 probes,8 individual eyes,bit5 +2 framing\n",
+  std::printf("CPU DIAGNOSTICS PASS: %llu cycles, lane8,27672 probes,8 individual eyes,bit5 +2 framing\n",
               static_cast<unsigned long long>(sim->cycles));
 
   sim = std::make_unique<Simulation>();

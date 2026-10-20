@@ -2,8 +2,9 @@
 
 JTAG access was explicitly reauthorized by the user: “jag lock is release and
 can be used for vortex”. Temporary SRAM and runtime tests may continue; permanent
-flash is outside this authorization. The diagnostic job finished successfully
-and its owned hardware processes exited; both leases were observed free afterward.
+flash is outside this authorization. The earlier per-bit diagnostic finished
+and released its processes and leases. The write-alignment diagnostic also
+finished; its owned processes exited and both leases were observed free.
 
 **GPU examples have not run on the FPGA.** The latest physical test loaded the
 qualified ABI 3 v18 image, verified INIT=1/DONE=1 and IDCODE `0x23751093`, and
@@ -27,6 +28,38 @@ OpenTPU and does not transfer to Vortex. The copied controller under
 it is explicitly ineligible for synthesis or hardware until calibration and
 board integration are complete. ECC remains enabled on CH1's nine physical
 lanes; using CH1 alone does not remove its ECC byte lane.
+
+## Write alignment candidate
+
+The calibration firmware now searches write bitslips 0, 2, 4 and 6 for each
+lane and selects the setting with the widest read window. A complete successful
+run has 27,678 probes, with all nine lanes still required. The native host tests
+passed 4,224 window cases, write alignment choices on lanes 0/8, 40 per-bit
+failure cases, timeout, row timing, restart and runtime rejection checks. The
+Python firmware/producer checks passed all 47 cases. Actual RV32I CPU simulation
+passed: 450,028,903 cycles, 1,691,053 MMIO operations, 27,678 probes and an
+801-cycle maximum open-row span. Restart, stalls, bus faults and lane8 failure
+diagnostics passed too. The physical overlay test finished under
+`vortex-ddr-write-diagnostics-20261020-v1.service`. All 4,096 words were uploaded
+and verified, but ECC lane 8 had no byte-wide eye at any of the four write
+alignments. Calibration failed after 27,672 probes and 433,354,686 cycles, with
+a 687-cycle maximum open-row span. Lanes 0–7 selected write slip zero. Lane8
+per-bit diagnostics at write zero remained all invalid. Results:
+`build_ypcb_native32/ddr-write-diagnostics-20261020-v1/manifest.json`.
+Write alignment alone does not repair the existing A7 PHY integration.
+
+Candidate export: `build_ypcb_native32/local-selfcal-ddr-20261020-v5-write-alignment/`.
+Firmware ID `0c0c441c`, 8,648 bytes, SHA-256
+`fc50db3478c8709b102ccb178e678039a1b908ef6d894c18e893c1a0ce4ed72e`;
+972-byte BSS and 6,764-byte remaining stack. The generated controller logic,
+CSR map and PHY header match v18 exactly after replacing firmware words and
+known banner metadata. Evidence:
+`build_ypcb_native32/firmware-overlay-write-proof-20261020-v1/`.
+The matching CPU proof and physical test are complete. No GPU workload ran.
+The next repair is the OpenTPU-derived PHY/clock/calibration integration, followed
+by fresh synthesis, routing and physical memory/kernel checks. An exact BRAM-only
+patch plan for v18 was prepared in `firmware-bram-map-20261020-v1/`, but was not
+applied or turned into a bitstream because write alignment alone did not fix DDR.
 
 ## Basic-operation examples verified on SimX
 

@@ -25,7 +25,7 @@ class CsrOracle : public Mmio {
 public:
   struct State {
     std::array<uint32_t, 2048> registers{};
-    std::array<unsigned, 9> delay{}, bitslip{};
+    std::array<unsigned, 9> delay{}, bitslip{}, write_bitslip{};
     std::array<std::array<uint32_t, 5>, 4> memory{}, capture{};
     std::vector<std::pair<uint32_t, uint32_t>> modes;
     unsigned reads = 0, writes = 0, activates = 0, precharges = 0;
@@ -41,6 +41,7 @@ public:
   uint32_t fail_once = 0;
   std::array<std::array<int, 8>, 9> read_bit_offset{};
   std::array<uint8_t, 9> unreadable_bits{};
+  std::array<int, 9> required_write_slip{};
 
   static unsigned first(unsigned lane) {
     return 2 + lane * 2;
@@ -115,6 +116,10 @@ public:
         state.bitslip[lane] = 0;
       } else if (local == cfg::ddrphy_rdly_dq_bitslip) {
         state.bitslip[lane] = (state.bitslip[lane] + 1) % 8;
+      } else if (local == cfg::ddrphy_wdly_dq_bitslip_rst) {
+        state.write_bitslip[lane] = 0;
+      } else if (local == cfg::ddrphy_wdly_dq_bitslip) {
+        state.write_bitslip[lane] = (state.write_bitslip[lane] + 1) % 8;
       }
     }
     for (unsigned phase = 0; phase < 4; ++phase) {
@@ -157,7 +162,8 @@ private:
       require(state.active && phase == 3, "Probe read used the wrong phase");
       state.capture = state.memory;
       for (unsigned lane = 0; lane < 9; ++lane) {
-        uint32_t bad = no_windows || int(lane) == broken_lane ? 255 : unreadable_bits[lane];
+        uint32_t bad = no_windows || int(lane) == broken_lane
+            || int(state.write_bitslip[lane]) != required_write_slip[lane] ? 255 : unreadable_bits[lane];
         for (unsigned bit = 0; bit < 8; ++bit) {
           const unsigned framing = unsigned(int(slip(lane, bank)) + read_bit_offset[lane][bit]) & 7;
           if (state.bitslip[lane] != framing

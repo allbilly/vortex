@@ -27,10 +27,10 @@ int main(int argc, char** argv) {
     return 4;
   }
   std::printf("{\"result\":%u,\"firmware_id\":%u,\"state\":%u,\"error\":%u,\"failed_lane\":%u,"
-              "\"probes\":%u,\"max_row_cycles\":%u,\"cycles\":%llu,\"has_bit_diagnostics\":%s,"
+              "\"probes\":%u,\"max_row_cycles\":%u,\"cycles\":%llu,\"write_slips\":%u,\"has_bit_diagnostics\":%s,"
               "\"diagnostic_lane\":%u,\"valid_bits\":%u,\"bit_windows\":[",
               unsigned(result), report.firmware_id, report.state, report.error, report.failed_lane,
-              report.probes, report.max_row_cycles, static_cast<unsigned long long>(report.cycles),
+              report.probes, report.max_row_cycles, static_cast<unsigned long long>(report.cycles), report.write_slips,
               report.has_bit_diagnostics ? "true" : "false", report.diagnostic_lane, report.diagnostic_valid_bits);
   for (unsigned bit = 0; bit < 8; ++bit) {
     std::printf("%s%u", bit ? "," : "", report.bit_windows[bit]);

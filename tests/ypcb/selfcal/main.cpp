@@ -113,7 +113,7 @@ int main() {
   require(run(oracle) == 0, "Firmware failed known PHY responses");
   require(mailbox[YPCB_CAL_MB_MAGIC] == YPCB_CAL_MAGIC
           && mailbox[YPCB_CAL_MB_STATE] == YPCB_CAL_READY
-          && mailbox[YPCB_CAL_MB_PROBES] == 6942
+          && mailbox[YPCB_CAL_MB_PROBES] == YPCB_CAL_PROBES
           && mailbox[YPCB_CAL_MB_FAILED_LANE] == 9, "Firmware completion report differs");
   for (unsigned lane = 0; lane < 9; ++lane) {
     const auto value = mailbox[YPCB_CAL_MB_LANES + lane];
@@ -130,12 +130,28 @@ int main() {
   CalibrationReport report;
   require(wait_calibration(completion, &report) == CalibrationResult::success,
           "Runtime rejected a valid local calibration");
-  require(report.probes == 6942 && completion.writes == 97 && !report.has_bit_diagnostics,
+  require(report.probes == YPCB_CAL_PROBES && completion.writes == 97 && !report.has_bit_diagnostics,
           "Runtime did not read the complete local calibration report");
+  for (unsigned lane : {0u, 8u}) {
+    for (int write : {0, 2, 4, 6}) {
+      CsrOracle aligned;
+      aligned.required_write_slip[lane] = write;
+      require(run(aligned) == 0 && mailbox[YPCB_CAL_MB_PROBES] == YPCB_CAL_PROBES
+              && ((mailbox[YPCB_CAL_MB_WRITE_SLIPS] >> (lane * 3)) & 7) == unsigned(write)
+              && aligned.banks[1].write_bitslip[lane] == unsigned(write),
+              "Firmware missed a write alignment or lost it before verification");
+    }
+  }
   auto reject = [&](CompletionOracle changed, const char* message) {
     require(wait_calibration(changed, &report) == CalibrationResult::unsafe_state, message);
   };
   auto changed = completion;
+  changed.result[YPCB_CAL_MB_WRITE_SLIPS] = 1;
+  reject(changed, "Runtime accepted an odd write alignment");
+  changed = completion;
+  changed.result[YPCB_CAL_MB_WRITE_SLIPS] = 1u << 27;
+  reject(changed, "Runtime accepted an out-of-range write alignment");
+  changed = completion;
   changed.version = 2;
   reject(changed, "Runtime accepted a host-calibrated ABI 2 image");
   changed = completion;
@@ -245,10 +261,16 @@ int main() {
   CsrOracle rejected;
   rejected.reject_ecc_enable = true;
   require(run(rejected) == 3, "Firmware ignored ECC readback failure");
+  CsrOracle unsupported;
+  unsupported.required_write_slip[8] = 1;
+  require(run(unsupported) == 2 && mailbox[YPCB_CAL_MB_FAILED_LANE] == 8
+          && mailbox[YPCB_CAL_MB_PROBES] == YPCB_CAL_PROBES - 6
+          && unsupported.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0,
+          "Firmware accepted a lane without a supported whole-clock write alignment");
   CsrOracle timed;
   require(run(timed, 0, true) == 1, "Firmware ignored deadline");
   CsrOracle slow;
   require(run(slow, 1000) == 4, "Firmware ignored open-row timing budget");
-  std::printf("PASSED: firmware matches %u window cases and CH1 training, 6942 probes, all nine lanes, ECC, cleanup, timeout and row timing oracle\n", cases);
+  std::printf("PASSED: firmware matches %u window cases and CH1 training, 27678 probes, all nine lanes, ECC, cleanup, timeout and row timing oracle\n", cases);
   std::printf("PASSED: %u per-bit framing/unreadable-bit diagnostic cases, runtime bounds and failure admission\n", diagnostic_cases);
 }

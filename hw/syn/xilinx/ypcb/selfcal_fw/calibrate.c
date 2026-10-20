@@ -14,6 +14,8 @@
 enum { OK, TIMEOUT, NO_EYE, READBACK, ROW_TIMING };
 static uint32_t scans[9][8];
 static uint32_t bit_scans[8][8];
+static uint32_t first_bit_scans[8][8];
+static uint32_t write_slips;
 static struct window windows[9];
 static const uint32_t seeds[3] = {42, 84, 36};
 static uint64_t deadline;
@@ -64,6 +66,15 @@ static void configure_lane(uint32_t lane, uint32_t slip, uint32_t delay) {
     }
     for (uint32_t i = 0; i < delay; ++i) {
         write_word(cfg_ddrphy_rdly_dq_inc, 1);
+    }
+    write_word(cfg_ddrphy_dly_sel, 0);
+}
+
+static void configure_write(uint32_t lane, uint32_t slip) {
+    write_word(cfg_ddrphy_dly_sel, 1u << lane);
+    write_word(cfg_ddrphy_wdly_dq_bitslip_rst, 1);
+    for (uint32_t i = 0; i < slip; ++i) {
+        write_word(cfg_ddrphy_wdly_dq_bitslip, 1);
     }
     write_word(cfg_ddrphy_dly_sel, 0);
 }
@@ -175,45 +186,91 @@ static void publish_bit_diagnostics(uint32_t lane, uint32_t error_or, uint32_t e
     cal_mailbox(YPCB_CAL_MB_DIAG_MAGIC, YPCB_CAL_DIAG_MAGIC);
 }
 
+static void scan_lane(uint32_t lane, uint32_t *error_or, uint32_t *error_and) {
+    *error_or = 0;
+    *error_and = 255;
+    for (uint32_t slip = 0; slip < 8; ++slip) {
+        scans[lane][slip] = 0;
+    }
+    for (uint32_t bit = 0; bit < 8; ++bit) {
+        for (uint32_t slip = 0; slip < 8; ++slip) {
+            bit_scans[bit][slip] = 0;
+        }
+    }
+    for (uint32_t slip = 0; slip < 8 && !error; ++slip) {
+        configure_lane(lane, slip, 0);
+        for (uint32_t tap = 0; tap < 32 && !error; ++tap) {
+            uint32_t bad_bits = 0;
+            for (uint32_t sample = 0; sample < 3 && !error; ++sample) {
+                uint32_t bad[9];
+                probe(seeds[sample], bad);
+                bad_bits |= bad[lane];
+            }
+            if (!error) {
+                *error_or |= bad_bits;
+                *error_and &= bad_bits;
+                if (bad_bits == 0) {
+                    scans[lane][slip] |= 1u << tap;
+                }
+                for (uint32_t bit = 0; bit < 8; ++bit) {
+                    if (!((bad_bits >> bit) & 1)) {
+                        bit_scans[bit][slip] |= 1u << tap;
+                    }
+                }
+            }
+            write_word(cfg_ddrphy_dly_sel, 1u << lane);
+            write_word(cfg_ddrphy_rdly_dq_inc, 1);
+            write_word(cfg_ddrphy_dly_sel, 0);
+        }
+    }
+}
+
 static void train(void) {
     for (uint32_t lane = 0; lane < 9 && !error; ++lane) {
         failed_lane = lane;
-        uint32_t error_or = 0, error_and = 255;
-        for (uint32_t bit = 0; bit < 8; ++bit) {
-            for (uint32_t slip = 0; slip < 8; ++slip) {
-                bit_scans[bit][slip] = 0;
-            }
-        }
-        for (uint32_t slip = 0; slip < 8 && !error; ++slip) {
-            configure_lane(lane, slip, 0);
-            for (uint32_t tap = 0; tap < 32 && !error; ++tap) {
-                uint32_t bad_bits = 0;
-                for (uint32_t sample = 0; sample < 3 && !error; ++sample) {
-                    uint32_t bad[9];
-                    probe(seeds[sample], bad);
-                    bad_bits |= bad[lane];
-                }
-                if (!error) {
-                    error_or |= bad_bits;
-                    error_and &= bad_bits;
-                    if (bad_bits == 0) {
-                        scans[lane][slip] |= 1u << tap;
-                    }
-                    for (uint32_t bit = 0; bit < 8; ++bit) {
-                        if (!((bad_bits >> bit) & 1)) {
-                            bit_scans[bit][slip] |= 1u << tap;
-                        }
+        uint32_t best_width = 0, best_write = 0, best_scan[8] = {0};
+        uint32_t first_or = 0, first_and = 255;
+        for (uint32_t write = 0; write < 8 && !error; write += 2) {
+            uint32_t error_or, error_and;
+            configure_write(lane, write);
+            scan_lane(lane, &error_or, &error_and);
+            if (write == 0) {
+                first_or = error_or;
+                first_and = error_and;
+                for (uint32_t bit = 0; bit < 8; ++bit) {
+                    for (uint32_t slip = 0; slip < 8; ++slip) {
+                        first_bit_scans[bit][slip] = bit_scans[bit][slip];
                     }
                 }
-                write_word(cfg_ddrphy_dly_sel, 1u << lane);
-                write_word(cfg_ddrphy_rdly_dq_inc, 1);
-                write_word(cfg_ddrphy_dly_sel, 0);
+            }
+            struct window candidate = {0};
+            if (!error && ypcb_cal_select_window(scans[lane], &candidate)) {
+                uint32_t width = candidate.last - candidate.first + 1;
+                if (width > best_width) {
+                    best_width = width;
+                    best_write = write;
+                    windows[lane] = candidate;
+                    for (uint32_t slip = 0; slip < 8; ++slip) {
+                        best_scan[slip] = scans[lane][slip];
+                    }
+                }
             }
         }
-        if (!error && !ypcb_cal_select_window(scans[lane], &windows[lane])) {
-            publish_bit_diagnostics(lane, error_or, error_and);
+        for (uint32_t slip = 0; slip < 8; ++slip) {
+            scans[lane][slip] = best_scan[slip];
+        }
+        if (!error && !best_width) {
+            // Failure bit diagnostics describe write slip zero; all four write alignments were tested.
+            for (uint32_t bit = 0; bit < 8; ++bit) {
+                for (uint32_t slip = 0; slip < 8; ++slip) {
+                    bit_scans[bit][slip] = first_bit_scans[bit][slip];
+                }
+            }
+            publish_bit_diagnostics(lane, first_or, first_and);
             error = NO_EYE;
         }
+        write_slips |= best_write << (lane * 3);
+        configure_write(lane, best_write);
         configure_lane(lane, windows[lane].slip, windows[lane].center);
         for (uint32_t sample = 0; sample < 3 && !error; ++sample) {
             uint32_t bad[9];
@@ -241,7 +298,7 @@ static void train(void) {
 uint32_t ypcb_calibrate(void) {
     uint64_t start = cal_now();
     deadline = start + 30ull * cfg_sys_clock_hz;
-    error = probes = max_row = 0;
+    error = probes = max_row = write_slips = 0;
     failed_lane = 9;
     for (uint32_t lane = 0; lane < 9; ++lane) {
         for (uint32_t slip = 0; slip < 8; ++slip) {
@@ -279,6 +336,7 @@ uint32_t ypcb_calibrate(void) {
     }
     write_word(cfg_sdram_dfii_control, cfg_dfii_control_cke | cfg_dfii_control_odt | cfg_dfii_control_reset_n);
     for (uint32_t lane = 0; lane < 9; ++lane) {
+        configure_write(lane, 0);
         configure_lane(lane, 0, 0);
     }
     train();
@@ -322,6 +380,7 @@ uint32_t ypcb_calibrate(void) {
     cal_mailbox(YPCB_CAL_MB_FAILED_LANE, failed_lane);
     cal_mailbox(YPCB_CAL_MB_PROBES, probes);
     cal_mailbox(YPCB_CAL_MB_MAX_ROW_CYCLES, max_row);
+    cal_mailbox(YPCB_CAL_MB_WRITE_SLIPS, write_slips);
     cal_mailbox(YPCB_CAL_MB_CYCLES_LOW, (uint32_t)elapsed);
     cal_mailbox(YPCB_CAL_MB_CYCLES_HIGH, (uint32_t)(elapsed >> 32));
     uint32_t state = error ? YPCB_CAL_FAILED : YPCB_CAL_READY;

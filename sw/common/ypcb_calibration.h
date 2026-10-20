@@ -18,6 +18,7 @@ struct CalibrationReport {
   uint32_t probes = 0;
   uint32_t max_row_cycles = 0;
   uint64_t cycles = 0;
+  uint32_t write_slips = 0;
   std::array<uint32_t, 9> lanes{};
   std::array<uint32_t, 72> scans{};
   bool has_bit_diagnostics = false;

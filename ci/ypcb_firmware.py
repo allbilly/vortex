@@ -197,6 +197,7 @@ def upload_and_capture(mmio, payload, firmware_id, offsets, *, timeout=600,
             raise ValueError('Restarted firmware result does not match the uploaded image')
         report.update(state=state, error=mailbox[3], failed_lane=mailbox[4], probes=mailbox[5],
                       max_row_cycles=mailbox[6], cycles=mailbox[7] | (mailbox[8] << 32),
+                      write_slips=[(mailbox[15] >> (lane * 3)) & 7 for lane in range(9)],
                       mailbox=mailbox, final_board_status=read(0x3008))
         if mailbox[9] == 0x59444231:
             report['per_bit'] = {'lane': mailbox[10], 'valid_bits': mailbox[11],
