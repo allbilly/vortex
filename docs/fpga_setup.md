@@ -93,6 +93,14 @@ The hardware runner likewise requires the successful, uninterrupted exit receipt
 from implementation or routed finalization before programming. Reports written
 before bitstream generation do not establish that the producer finished.
 
+If a producer disappears after saving a routed checkpoint, keep its missing
+exit status unknown. `finalize_vivado.py --recover-abandoned-run` explicitly
+checks that no producer still owns that run, requires successful synthesis,
+verifies the frozen inputs and routed reports, and copies the checkpoint into
+a fresh output directory. The native finalizer rechecks the part, clock, CH1
+interface and all routed reports before generating a bitstream. Hardware use
+still requires this new finalizer's own successful exit receipt.
+
 ## Gaining Access to FPGA's with CRNCH
 If you are associated with Georgia Tech (or related workshops) you can use CRNCH's server to gain remote access to FPGA's. Otherwise, you can skip to the Xilinx or Intel (Altera) synthesis steps below.
 

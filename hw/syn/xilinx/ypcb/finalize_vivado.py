@@ -26,11 +26,69 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(original, output):
+def active_producers(original):
+    original = original.resolve()
+    found = []
+    ancestors = {os.getpid()}
+    parent = os.getppid()
+    while parent > 1 and parent not in ancestors:
+        ancestors.add(parent)
+        try:
+            parent = int(Path('/proc', str(parent), 'stat').read_text().rpartition(')')[2].split()[1])
+        except OSError:
+            break
+    for process in Path('/proc').glob('[0-9]*'):
+        if int(process.name) in ancestors:
+            continue
+        try:
+            args = [item.decode() for item in (process / 'cmdline').read_bytes().split(b'\0') if item]
+            if not {'vivado', 'build_vivado.py', 'finalize_vivado.py'} & {Path(item).name for item in args}:
+                continue
+            cwd = (process / 'cwd').resolve()
+            for arg in args:
+                if arg.startswith('-'):
+                    if '=' not in arg:
+                        continue
+                    arg = arg.split('=', 1)[1]
+                path = Path(arg)
+                path = (path if path.is_absolute() else cwd / path).resolve()
+                if path == original or original in path.parents:
+                    found.append({'pid': int(process.name), 'command': args})
+                    break
+        except (OSError, UnicodeError):
+            continue
+    return found
+
+
+def implementation_source(original, recover_abandoned):
+    path = original / 'implement-exit.json'
+    receipt = json.loads(path.read_text()) if path.is_file() else None
+    result = {'original_implementation_exit_sha256': digest(path) if receipt is not None else None}
+    if not recover_abandoned:
+        if receipt is None or receipt.get('interrupted') != 0 or receipt.get('exit_code') not in (0, 1):
+            raise ValueError('Routed reuse requires a completed, uninterrupted implementation')
+        return result
+    active = active_producers(original)
+    if active:
+        raise ValueError('Cannot recover an active routed producer: ' + str(active))
+    progress = json.loads((original / 'progress.json').read_text())
+    synthesis = json.loads((original / 'synthesize-exit.json').read_text())
+    if progress.get('stage') != 'implement' or synthesis.get('exit_code') != 0 or synthesis.get('interrupted') != 0:
+        raise ValueError('Abandoned recovery requires the recorded implementation stage and successful synthesis')
+    result['abandoned_producer_recovery'] = {
+        'observed_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        'original_exit_receipt': receipt, 'original_progress': progress,
+        'original_progress_sha256': digest(original / 'progress.json'),
+        'original_synthesis_exit_sha256': digest(original / 'synthesize-exit.json'),
+        'active_producers': active,
+        'qualification': 'Frozen inputs and original reports are verified; a fresh native checkpoint review and bitstream producer must succeed.',
+    }
+    return result
+
+
+def prepare(original, output, recover_abandoned=False):
     board = Path(__file__).resolve().parent
-    receipt = json.loads((original / 'implement-exit.json').read_text())
-    if receipt['interrupted'] or receipt['exit_code'] not in (0, 1):
-        raise ValueError('Routed reuse requires a completed, uninterrupted implementation')
+    producer = implementation_source(original, recover_abandoned)
     inputs = json.loads((original / 'inputs.json').read_text())
     for name, expected in inputs['inputs'].items():
         if digest(original / name) != expected:
@@ -67,10 +125,10 @@ def prepare(original, output):
     inputs['routed_finalization'] = {
         'run': str(original), 'routed_dcp_sha256': routed_hash,
         'original_inputs_sha256': digest(original / 'inputs.json'),
-        'original_implementation_exit_sha256': digest(original / 'implement-exit.json'),
         'original_implementation_log_sha256': digest(original / 'implement.log'),
         'original_report_sha256': reports,
         'original_report_qualification_with_current_verifier': qualification,
+        **producer,
     }
     inputs['finalization_source_revision'] = subprocess.check_output(
         ['git', 'rev-parse', 'HEAD'], cwd=board, text=True).strip()
@@ -84,11 +142,15 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--vivado', default='vivado')
     parser.add_argument('--timeout', type=int, default=3600)
+    parser.add_argument('--recover-abandoned-run', action='store_true',
+                        help='Recover a verified routed checkpoint after confirming its original producer is no longer active.')
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error('Timeout must be positive')
     original, output = args.run.resolve(), args.output.resolve()
-    prepare(original, output)
+    prepare(original, output, recover_abandoned=args.recover_abandoned_run)
+    if args.recover_abandoned_run and active_producers(original):
+        raise ValueError('The original producer became active during recovery')
     command = [args.vivado, '-mode', 'batch', '-nojournal', '-nolog', '-source',
                str(output / 'finalization/vivado_finalize.tcl'), '-tclargs', str(output)]
     started = time.monotonic()
