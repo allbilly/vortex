@@ -101,6 +101,36 @@ puts "YPCB_CDC_CONSTRAINTS_APPLIED gray_buses=14 gray_bits=42 reset_chains=[llen
 
 set link_first [ypcb_cdc_require [get_cells -regexp {^link_sync_reg\[0\]$}] 1 "PCIe link first stage"]
 set_false_path -to [ypcb_cdc_pin $link_first D]
+foreach bit {0 1 2 3} {
+    set first [ypcb_cdc_require [get_cells -hier -regexp [format {^shell/pcie_error_meta_reg\[%d\]$} $bit]] 1 "PCIe status first stage $bit"]
+    set second [ypcb_cdc_require [get_cells -hier -regexp [format {^shell/pcie_error_sync_reg\[%d\]$} $bit]] 1 "PCIe status second stage $bit"]
+    set source [ypcb_cdc_require [get_cells -hier -regexp [format {^shell/pcie/error_status_reg\[%d\]$} $bit]] 1 "PCIe status source $bit"]
+    foreach cell [list $first $second] {
+        if {![get_property ASYNC_REG $cell]} {error "Missing PCIe status synchronizer attribute: $cell"}
+    }
+    foreach pair [list [list $source $first] [list $first $second]] {
+        lassign $pair driver receiver
+        set outputs [get_pins -leaf -of_objects [get_nets -segments -of_objects [ypcb_cdc_pin $receiver D]] -filter {DIRECTION == OUT}]
+        if {[llength $outputs] != 1 || $outputs ne [ypcb_cdc_pin $driver Q]} {
+            error "PCIe status synchronizer is not directly connected: $driver -> $receiver"
+        }
+    }
+    set loads [get_pins -leaf -of_objects [get_nets -segments -of_objects [ypcb_cdc_pin $source Q]] -filter {DIRECTION == IN}]
+    if {[llength $loads] != 1 || $loads ne [ypcb_cdc_pin $first D]} {
+        error "PCIe status bypasses its first synchronizer stage: $source"
+    }
+    set source_clock [ypcb_cdc_clock [ypcb_cdc_pin $source C]]
+    set first_clock [ypcb_cdc_clock [ypcb_cdc_pin $first C]]
+    set second_clock [ypcb_cdc_clock [ypcb_cdc_pin $second C]]
+    if {$source_clock eq $first_clock || $first_clock ne $second_clock} {
+        error "Incorrect PCIe status synchronizer clocks: $source -> $first -> $second"
+    }
+    set_false_path -from [ypcb_cdc_pin $source Q] -to [ypcb_cdc_pin $first D]
+    if {[llength [get_timing_paths -from $first -to $second -max_paths 1]] != 1} {
+        error "PCIe status synchronizer settling path missing or cut: $bit"
+    }
+}
+puts "YPCB_PCIE_STATUS_CDC_APPLIED bits=4 stages=2"
 set mailbox shell/pcie_control_crossing
 foreach direction {request response} {
     set first [ypcb_cdc_require [get_cells -hier -regexp [format {^%s/%s_sync_reg\[0\]$} $mailbox $direction]] 1 "$direction first stage"]

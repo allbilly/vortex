@@ -1,8 +1,8 @@
 > Current goal, October 20: continue until GPU examples run on the FPGA.
 > The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> Native implementation is running in
-> `build_ypcb_native32/ch1-jtag-pcie-20261020-v13/`, reusing the successful v6
-> synthesis with one worker and allocator arenas limited to two. Hardware use
+> v13 was stopped after identifying unsynchronized PCIe error-status flags.
+> The repair requires a fresh synthesis; the old checkpoint cannot be reused.
+> Builds retain one worker and allocator arenas limited to two. Hardware use
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
 > tests. No new image has yet been programmed.
 
@@ -23,7 +23,20 @@ is active; its request, logs and receipt are under
 This is coordination of the existing temporary test, not permission for a new
 permanent flash operation. The PCIe-only c0182301 target is retired.
 
-# Native CH1/JTAG/PCIe build — synthesis passed, implementation running
+# Native CH1/JTAG/PCIe build — status CDC repair, fresh synthesis required
+
+October 20 status-crossing audit: `shell/pcie/error_status` is registered on
+`pcie_clk` but fed the board-clock startup read-data register directly. v13
+was stopped, with exit -15 recorded and all outputs preserved. Its first
+route had setup slack -1.888 ns; no bitstream or hardware operation resulted.
+The repair adds two preserved synchronizer stages for each independent sticky
+flag. Native constraints verify the source, both stages, direct connections,
+absence of a bypass and distinct clocks before excluding only the first-stage
+crossing. The shell test also checks that a real PCIe AXI error reaches board
+status. Fresh synthesis and qualification are required for this HDL change.
+The native checkpoint regression rejected the actual old netlist for missing
+first-stage flops; `pcie-status-cdc-before-20261020-v1/` retains its timing
+report and rejection receipt under `build_ypcb_native32`.
 
 October 20 update: fresh v7 export was rejected because the generated CDC files
 differed only in LiteX's two timestamp comments. The reuse runner now verifies
@@ -72,18 +85,22 @@ SHA-256 to v13's exact compiled controller. Commands, exit codes and artifact
 hashes are in `build_ypcb_native32/native-fpga-host-20261020-v3.json`; this is
 build evidence, with no physical DDR or kernel execution yet.
 
-The final ABI 2 native shell simulation now passes memory-map transfers, `demo`
+After the status CDC repair, the ABI 2 native shell simulation passes memory-map transfers, `demo`
 and SGEMM over both PCIe and JTAG, including stopped PCIe clock in JTAG mode.
-Both interfaces retire 2,444 instructions in 6,237 GPU cycles for `demo` and
-7,632 instructions in 18,440 cycles for SGEMM. CH0 sees no DDR traffic. The
+Both interfaces retire 2,444 instructions in 6,234 GPU cycles for `demo` and
+7,632 instructions in 18,442 cycles for SGEMM. CH0 sees no DDR traffic. The
 model uses real AFU/GPU RTL with memory and PHY status oracles; it does not
 qualify physical DDR. Logs and exits are in
-`build_ypcb_native32/native-shell-abi2-20261020-v1/manifest.json`.
+`build_ypcb_native32/native-shell-abi2-20261020-v2/manifest.json`.
 
 Before host-driven DDR training, measure actual JTAG MMIO transaction latency
 against the 6,942-probe training workload. If it prevents bounded initialization,
 adapt the reference FPGA-side calibration design to CH1's PHY and CSR map;
 do not hide the bottleneck by extending timeouts without that measurement.
+The counted software-oracle workload is 424,234 MMIO calls, requiring a mean
+under 0.707 ms per call to fit the existing five-minute limit before wait
+overheads. This is a budget, not a measured cable speed. The count receipt is
+`build_ypcb_native32/ddr-mmio-budget-20261020-v1/manifest.json`.
 
 The Vortex Podman container and its Ubuntu image were removed as requested.
 Host source/toolchain folders and all other containers were verified preserved;

@@ -86,16 +86,24 @@ module VX_ypcb_shell #(
     wire afu_interrupt;
     `UNUSED_VAR (afu_interrupt)
     wire [3:0] pcie_error;
+    // Sticky flags can cross independently of each other.
+    (* ASYNC_REG = "TRUE" *) reg [3:0] pcie_error_meta, pcie_error_sync;
     reg hard_error;
-    wire [3:0] transport_error = pcie_error | {hard_error, 3'b0};
+    wire [3:0] transport_error = pcie_error_sync | {hard_error, 3'b0};
     wire afu_ready = memory_ready == 2'b10;
     assign busy = pcie_busy || memory_busy || scrub_busy;
 
     always @(posedge clk) begin
         if (reset) begin
+            pcie_error_meta <= 0;
+            pcie_error_sync <= 0;
             hard_error <= 0;
-        end else if (tx_error) begin
-            hard_error <= 1;
+        end else begin
+            pcie_error_meta <= pcie_error;
+            pcie_error_sync <= pcie_error_meta;
+            if (tx_error) begin
+                hard_error <= 1;
+            end
         end
     end
 

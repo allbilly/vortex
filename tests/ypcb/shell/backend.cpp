@@ -73,6 +73,10 @@ public:
   int prepare() {
     uint32_t value = 0;
     require(read32(0, &value) != 0, "unready AFU access succeeded");
+    if (!jtag_mode_) {
+      require(read32(0x3008, &value) == 0 && (value & 0x1000),
+          "PCIe AXI error did not reach board status");
+    }
     reset_model();
     require(read32(0x3000, &value) == 0 && value == 0x56595043, "startup signature");
     require(read32(0x9000, &value) != 0, "unmapped control access succeeded");

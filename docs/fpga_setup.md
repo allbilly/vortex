@@ -23,6 +23,13 @@ check the synthesized Gray-pointer drivers before applying their delay and
 skew budgets. DDR external I/O timing still needs its own board and memory
 delay budget.
 
+Review status and error sidebands separately from the data mailbox. PCIe error
+flags are sticky, independent bits; YPCB crosses each through two `ASYNC_REG`
+stages before the board-clock status register consumes it. The constraints
+require the actual source, both receiving stages, distinct source/destination
+clocks and direct wiring without a bypass. Only source-to-first-stage paths
+are excluded; settling paths between stages retain ordinary timing.
+
 The PCIe PIPE clock mux uses BUFGCTRL's glitchless selection mode. The
 rate-change logic waits for PHY completion signals and its state machine;
 it permits variable clock switching latency. In this mode, missing setup or
