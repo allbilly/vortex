@@ -165,6 +165,7 @@ See [docs/coding_guidelines_cpp.md](docs/coding_guidelines_cpp.md) and [docs/cod
 - **Comments explain *why*, not *what*.** Well-named identifiers carry the *what*.
 - **Never reference the current task, PR, caller, issue number, or fix.** Those belong in the commit message and rot in code. Don't write `// used by foo()`, `// added for the X flow`, `// handles issue #123`.
 - **`RTL_PKGS` is for `VX_*_pkg.sv` only.** Verilog interfaces are illegal there. If an interface isn't being discovered, fix it via include paths or file naming — not by stuffing it into `RTL_PKGS`.
+- **Trace package dependencies follow enabled extensions.** Standalone units using `VX_trace_pkg.sv` with TCU enabled must load `VX_tcu_pkg.sv` first. See [docs/testing.md](docs/testing.md).
 - **RTL parameter names must avoid Vivado synthesis-property names.** Vivado exports module parameters as case-insensitive cell properties: a Boolean `USE_DSP` collides with the enum property `use_dsp`. Use `DSP_ENABLE` for the Boolean feature knob.
 - **Library RTL defaults to `TRACING_OFF`.** Modules under `hw/rtl/libs/` are excluded from VCD by default to keep waveform size manageable. Toggle per-file with `TRACING_ON`/`TRACING_OFF`, or globally with `CONFIGS="-DTRACING_ALL"`.
 - **No multi-paragraph docstrings or multi-line block comments** for trivial code. One short line is the ceiling unless the logic genuinely needs more.

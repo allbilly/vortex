@@ -25,6 +25,18 @@ parameters as case-insensitive synthesis properties, and `USE_DSP` collides
 with its string-valued `use_dsp` property. This parameter rename changes no
 arithmetic or pipeline stage.
 
+The first tensor implementation missed 125 MHz setup by 0.129 ns on one DMA
+endpoint. Its path runs from `dst_offset` through buffer indexing, alignment
+and the host read-back comparison into the DMA state register: 27 logic levels
+and 8.036 ns of data-path delay. Hold, pulse, routing, skew, internal coverage
+and DRC passed. Capture the final accepted host write beat and byte strobes,
+then compare read-back data against that reference. It is available before
+the write response and read-back request, so no state, AXI handshake or
+command-completion cycle changes. SimX timing therefore needs no change.
+Verify functional and cycle equivalence, including posted-write visibility,
+then run fresh synthesis and the full integration and physical tests. The old
+synthesis checkpoint cannot be reused after this RTL change.
+
 Validation order:
 
 1. Native TFR arithmetic, SimX `sgemm_tcu`, and actual GPU/AFU RTL through XRT,

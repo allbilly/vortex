@@ -46,6 +46,14 @@ You can execute the default opncl suite by running the following commands at the
     $ make -C tests/opencl run-simx
     $ make -C tests/opencl run-rtlsim
 
+## Standalone RTL unit tests
+
+Run units from a configured build tree, for example
+`make -j1 -C hw/unittest/cp_dma run`. Unit file lists must include dependencies
+of enabled trace functions even when trace output is disabled. With TCU
+enabled, put `VX_tcu_pkg.sv` after `VX_gpu_pkg.sv` and before `VX_trace_pkg.sv`
+in `RTL_PKGS`.
+
 ## Creating Your Own Regression Test
 
 Inside `tests/regression` you will find a series of folders which are named based on what they test.

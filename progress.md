@@ -37,48 +37,55 @@ Evidence: `build_ypcb_tcu32/integration-build-20261021-v2/manifest.json`, field
 `board_integration_status=FP16_INT8_SCALAR_MEMORY_PCIE_AND_JTAG_RTL_PASS`.
 DDR/PHY responses in these board tests remain oracles.
 
-Fresh synthesis passed in 1,274.334 seconds, with actual exit zero and no
+The first tensor synthesis passed in 1,274.334 seconds, with actual exit zero and no
 critical warnings/errors. The checkpoint SHA-256 is
 `4c72ed096933710c2cf1206026ab676e238d16bfbd3901b4916dd949cf8cc902`.
 Synthesis estimates 149,205 LUTs (49.97%), 194 block-RAM tiles (20.31%) and
 144 DSPs (7.50%); these are not final routed figures. Observation:
 `build_ypcb_tcu32/synthesis-observation-20261021-v1.json`.
 
-Implementation is active under `vortex-tcu-integration-build-20261021-v2.service`,
-image directory `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Placement
-completed successfully in 18 minutes 36 seconds with zero warnings/errors;
-post-placement physical optimization also passed. The first full routing run
-completed in 47 minutes 36 seconds, with setup -0.136 ns and hold +0.016 ns.
-It reported the `Route 35-39` timing critical warning. The first post-route
-physical optimization completed in 20 minutes 49 seconds without warnings or
-errors, reducing setup slack to -0.079 ns while hold remained +0.016 ns.
-The subsequent reroute completed in 30 minutes 6 seconds with setup -0.125 ns
-and hold +0.016 ns. The second post-route optimization completed in 10 minutes
-29 seconds with setup -0.060 ns and hold +0.016 ns. Its reroute completed in
-43 minutes 26 seconds with setup -0.186 ns and hold -0.005 ns. The third and
-final repair pass completed in 22 minutes 56 seconds with setup -0.094 ns and
-hold +0.006 ns. The frozen flow's last reroute is active; the image is not
-timing-qualified. Initial native
-clock/reset/CDC checks passed, including all 179 connected serializer resets,
-nine unused DM serializers and two preserved lock synchronizer stages. All
-811 frozen input hashes matched; the DDR RTL, firmware, CSR map and phase
-constraints are byte-identical to the qualified scalar image's DDR block.
-New physical DDR and GPU tests remain required. It has not produced a qualified
-bitstream yet. Pending: routing and report/CRC gates, then authorized
-SRAM, DDR/ECC, scalar and tensor hardware tests.
+The first implementation exited 1, uninterrupted, after 15,992.366 seconds
+(4 h 26 min 32 s). Its directory is
+`build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Setup missed by 0.129 ns on
+one endpoint; hold was +0.016 ns. All six other report gates passed, including
+251,140 fully routed nets, zero routing errors, complete internal clock/timing
+coverage, 14 design Gray buses and 12 vendor skew constraints. All 811 frozen
+inputs matched. No bitstream was generated and no tensor image was programmed.
+Evidence: `timing-failure-analysis-20261021-v1.json` in the tensor build, the
+original `implement-exit.json`, timing reports and `routed.dcp`. The routed
+checkpoint SHA-256 is
+`92661dfff1dd55fdc507fa3552db7af9709a19e579139973f07ebf97201b0bb2`.
+
+The failing path is entirely in DMA read-back validation: `dst_offset` through
+buffer indexing/alignment and a wide comparison into the DMA state register.
+It has 27 logic levels and 8.036 ns of data-path delay. The RTL now captures
+the final accepted host write data and byte strobes before read-back validation.
+No state or AXI handshake cycle is added. Both original and modified RTL
+passed 787 DMA cases, including nine posted-write cases with 234 stale
+read-backs. Every transfer's completion cycles and request counts matched:
+37,624 cycles and 4,385 requests total. Evidence:
+`dma-timing-validation-20261021-v2/manifest.json` and `cycle-comparison.json`.
+The first unit attempt stopped on a missing TCU trace-package dependency;
+the DMA unit file list now supplies it under the TCU profile.
+
+Fresh synthesis is required after the DMA RTL change; the prepared
+synthesis-reuse retry is superseded. Next: rebuild both board-model interfaces,
+run fresh synthesis/routing and all report/CRC gates, then physical memory/ECC,
+scalar and FP16/INT8 tests. The unchanged DDR block still needs qualification
+in the newly routed tensor image.
 Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
 (requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
 and `audit-fpga-completion-20261021-v1.py`. Capture the hardware service's owned
 process identities during the physical run for the cleanup audit.
+These unexecuted launchers must be bound to the new qualified image before use.
 The hardware runner reports `FPGA_TENSOR_KERNEL_SUITE_RUNNING` until both
 formats finish. All 71 runner checks passed after regenerating the build tree.
 The source flow now checkpoints initial routing and each post-route optimization
 pass, preserving the optimizer's routed result instead of rerunning the full
 router after every pass. This follows
 [AMD UG904](https://docs.amd.com/r/en-US/ug904-vivado-implementation/Physical-Optimization).
-Tcl syntax and all four synthesis-reuse checks passed; the synthesis Tcl prefix
-and all 811 frozen inputs of the live run are unchanged. That run still uses its
-original frozen script. The revised flow has not yet been exercised in Vivado.
+Tcl syntax and all four synthesis-reuse checks passed. The failed run preserves
+its original frozen script. The revised flow has not yet been exercised in Vivado.
 Vortex uses one heavy stage at a time and an 8 GiB service limit. It has
 not acquired JTAG for this tensor work, and permanent flash remains untouched.
 

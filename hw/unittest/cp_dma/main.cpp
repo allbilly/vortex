@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 static uint64_t timestamp = 0;
 static bool trace_en = false;
@@ -47,6 +48,11 @@ struct Port {
     top->prefix##_rdata, top->prefix##_rid, top->prefix##_rlast, top->prefix##_rresp}
 
 struct AxiSlave {
+    struct PendingWrite {
+        uint64_t address, strobe;
+        std::array<uint32_t, 16> data;
+    };
+
     static constexpr uint64_t BASE = 0x1000;
     static constexpr unsigned SIZE = 65536;
     std::array<uint8_t, SIZE> memory{};
@@ -55,6 +61,33 @@ struct AxiSlave {
     unsigned read_left = 0, write_left = 0, cycle_count = 0;
     uint8_t read_id = 0, write_id = 0;
     unsigned read_requests = 0, write_requests = 0;
+    unsigned visibility_delay = 0, pending_delay = 0, stale_readbacks = 0;
+    std::vector<PendingWrite> pending_writes;
+    std::array<uint32_t, 16> read_data{};
+    bool read_from_pending = false;
+
+    void store(const PendingWrite& write) {
+        for (unsigned byte = 0; byte < 64; ++byte) {
+            if ((write.strobe >> byte) & 1) {
+                memory.at(write.address - BASE + byte) =
+                    uint8_t(write.data[byte / 4] >> ((byte % 4) * 8));
+            }
+        }
+    }
+
+    void capture_read() {
+        read_from_pending = false;
+        for (const auto& write : pending_writes) {
+            read_from_pending |= write.address == read_address;
+        }
+        for (unsigned word = 0; word < 16; ++word) {
+            uint32_t value = 0;
+            for (unsigned byte = 0; byte < 4; ++byte) {
+                value |= uint32_t(memory.at(read_address - BASE + word * 4 + byte)) << (byte * 8);
+            }
+            read_data[word] = value;
+        }
+    }
 
     void drive(Port port) {
         port.arready = !reading && cycle_count % 3 != 0;
@@ -64,14 +97,10 @@ struct AxiSlave {
         port.rresp = 0;
         if (reading) {
             for (unsigned word = 0; word < 16; ++word) {
-                uint32_t value = 0;
-                for (unsigned byte = 0; byte < 4; ++byte) {
-                    value |= uint32_t(memory.at(read_address - BASE + word * 4 + byte)) << (byte * 8);
-                }
-                port.rdata[word] = value;
+                port.rdata[word] = read_data[word];
             }
         }
-        port.awready = !writing && !response && cycle_count % 5 != 0;
+        port.awready = !writing && !response && pending_writes.empty() && cycle_count % 5 != 0;
         port.wready = writing && cycle_count % 7 < 5;
         port.bvalid = response;
         port.bid = write_id;
@@ -88,10 +117,15 @@ struct AxiSlave {
             read_left = unsigned(port.arlen) + 1;
             read_id = port.arid;
             ++read_requests;
+            capture_read();
         } else if (port.rvalid && port.rready) {
+            stale_readbacks += read_from_pending;
             read_address += 64;
             --read_left;
             reading = read_left != 0;
+            if (reading) {
+                capture_read();
+            }
         }
         if (port.awvalid && port.awready) {
             expect((port.awaddr & 63) == 0, "Unaligned full-width write address");
@@ -105,21 +139,31 @@ struct AxiSlave {
         }
         if (port.wvalid && port.wready) {
             expect(bool(port.wlast) == (write_left == 1), "Incorrect WLAST");
-            for (unsigned byte = 0; byte < 64; ++byte) {
-                if ((port.wstrb >> byte) & 1) {
-                    memory.at(write_address - BASE + byte) =
-                        uint8_t(port.wdata[byte / 4] >> ((byte % 4) * 8));
-                }
+            PendingWrite write{write_address, port.wstrb, {}};
+            for (unsigned word = 0; word < 16; ++word) {
+                write.data[word] = port.wdata[word];
+            }
+            if (visibility_delay != 0) {
+                pending_writes.push_back(write);
+            } else {
+                store(write);
             }
             write_address += 64;
             --write_left;
             if (write_left == 0) {
                 writing = false;
                 response = true;
+                pending_delay = visibility_delay;
             }
         }
         if (port.bvalid && port.bready) {
             response = false;
+        }
+        if (pending_delay != 0 && --pending_delay == 0) {
+            for (const auto& write : pending_writes) {
+                store(write);
+            }
+            pending_writes.clear();
         }
         ++cycle_count;
     }
@@ -171,6 +215,7 @@ static void transfer(vl_simulator<VVX_cp_dma_top>& sim, AxiSlave& host,
     sim->cmd_packed[8] = opcode;
     const unsigned prior_requests = host.read_requests + device.read_requests
                                  + host.write_requests + device.write_requests;
+    const unsigned prior_stale = host.stale_readbacks;
     sim->grant = 1;
     cycle(sim, host, device, tick);
     cycle(sim, host, device, tick);
@@ -181,6 +226,7 @@ static void transfer(vl_simulator<VVX_cp_dma_top>& sim, AxiSlave& host,
         done = sim->done;
     }
     expect(done, "DMA timed out");
+    expect(host.pending_writes.empty(), "DMA completed before posted host writes became visible");
     if (host.memory != expected_host || device.memory != expected_device) {
         std::fprintf(stderr, "opcode=%u src=0x%llx dst=0x%llx bytes=%u\n",
                      unsigned(opcode), static_cast<unsigned long long>(source),
@@ -190,6 +236,8 @@ static void transfer(vl_simulator<VVX_cp_dma_top>& sim, AxiSlave& host,
     if (size == 0) {
         expect(prior_requests == host.read_requests + device.read_requests
              + host.write_requests + device.write_requests, "Zero-size DMA issued traffic");
+    } else if (opcode == 2 && host.visibility_delay != 0) {
+        expect(host.stale_readbacks > prior_stale, "Posted-write case did not exercise stale read-back");
     }
 }
 
@@ -220,6 +268,18 @@ int main(int argc, char** argv) {
             }
         }
     }
-    std::printf("PASSED: %u DMA cases, upload/download/copy, byte offsets, tails, guards, 4 KiB splits and backpressure\n", cases);
+    host.visibility_delay = 35;
+    transfer(sim, host, device, tick, 2, 0x2000, 0x6000, 0);
+    ++cases;
+    const std::array<unsigned, 3> posted_lengths = {13, 65, 4097};
+    for (unsigned source_offset : {0u, 17u, 63u}) {
+        for (unsigned index = 0; index < 3; ++index) {
+            transfer(sim, host, device, tick, 2, 0x2fc0 + source_offset,
+                     0x6fc0 + destination_offsets[index + 1], posted_lengths[index]);
+            ++cases;
+        }
+    }
+    std::printf("PASSED: %u DMA cases, upload/download/copy, byte offsets, tails, guards, 4 KiB splits, backpressure and posted writes (%u stale read-backs)\n",
+                cases, host.stale_readbacks);
     return 0;
 }

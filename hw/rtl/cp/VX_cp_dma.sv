@@ -95,6 +95,8 @@ module VX_cp_dma
   logic [5:0]           src_offset, dst_offset;
   logic [BIDX_W-1:0]    beat_idx;
   logic [CL_BITS-1:0]   buf_r [MAX_BURST];
+  logic [CL_BITS-1:0]   flush_data_r;
+  logic [CL_BYTES-1:0]  flush_strobe_r;
 
   logic [12:0] next_chunk;
   always_comb begin
@@ -132,7 +134,7 @@ module VX_cp_dma
   end
   wire [CL_BITS-1:0] flush_mask;
   for (genvar lane = 0; lane < CL_BYTES; ++lane) begin : g_flush_mask
-    assign flush_mask[lane * 8 +: 8] = {8{write_strobe[lane]}};
+    assign flush_mask[lane * 8 +: 8] = {8{flush_strobe_r[lane]}};
   end
 
   // ---- Logical read channel ----
@@ -149,6 +151,14 @@ module VX_cp_dma
   wire               wr_awready = wr_to_host ? axi_host.awready : axi_dev.awready;
   wire               wr_wready  = wr_to_host ? axi_host.wready  : axi_dev.wready;
   wire               wr_bvalid  = wr_to_host ? axi_host.bvalid  : axi_dev.bvalid;
+
+  // Capture the accepted host beat to keep alignment out of read-back feedback.
+  always_ff @(posedge clk) begin
+      if (!reset && wr_wvalid && wr_wready && last_write_beat && wr_to_host) begin
+          flush_data_r <= write_data;
+          flush_strobe_r <= write_strobe;
+      end
+  end
 
   // ---- FSM ----
   always_ff @(posedge clk) begin
@@ -228,8 +238,6 @@ module VX_cp_dma
             dst_r     <= dst_r + 64'(chunk_bytes);
             rem_bytes <= rem_bytes - 64'(chunk_bytes);
             // Host-direction: prove this chunk committed before moving on.
-            // The saved offsets keep the last write's data/mask stable after
-            // the logical byte addresses advance.
             state     <= wr_to_host ? S_FLUSH_AR : S_SETUP;
           end
         end
@@ -240,10 +248,8 @@ module VX_cp_dma
         end
         S_FLUSH_R: begin
           if (axi_host.rvalid && axi_host.rready) begin
-            // Validate: the read-back must equal the line still held in
-            // buf_r. Stale data means the write has not reached the memory
-            // controller yet -- re-issue the read until it has.
-            state <= (((axi_host.rdata ^ write_data) & flush_mask) == '0)
+            // Retry until the accepted write becomes visible to the host read path.
+            state <= (((axi_host.rdata ^ flush_data_r) & flush_mask) == '0)
                        ? S_SETUP : S_FLUSH_AR;
           end
         end
