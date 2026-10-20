@@ -30,9 +30,10 @@ new standalone export unqualified.
 
 The integrated WL/ABI4 image completed routed timing/CDC/DRC and CRC checks on
 October 20. Its physical JTAG run passed all nine CH1 lanes, DDR memory, GPU
-demo and SGEMM with clean enabled ECC. The five Python basic-operation scripts
-are still running. See [progress](../../../../../progress.md) for the exact
-image hash and evidence. This does not qualify arbitrary new exports or
+demo and SGEMM with clean enabled ECC. All five Python basic-operation scripts
+also passed: 13 numerical checks covering 472 output values. The run finished
+on October 21 and released JTAG. See [progress](../../../../../progress.md) for
+the exact image hash and evidence. This does not qualify arbitrary new exports or
 physical PCIe runtime, which needs a PCIe-connected host.
 
 The clock input is **50 MHz**, while the earlier A7 Vortex controller received

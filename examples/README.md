@@ -77,12 +77,13 @@ export STARTUP_ADDR=0x40000000
 ./ci/ypcb_env.sh exec make -j1 -C examples run
 ```
 
-These commands run SimX and use no FPGA connection. The October 20 WL/ABI4
-image has passed physical CH1 calibration, memory, GPU demo and SGEMM through
-JTAG. `simple_add.py` and all seven `elementwise.py` operators have also passed
-on the FPGA with clean ECC. GEMM, convolution and pooling are still being
-checked; see [current results](../progress.md) for their separate status. A successful
-simulator run does not qualify DDR or hardware execution.
+These commands run SimX and use no FPGA connection. The WL/ABI4 hardware run
+completed on October 21 with physical CH1 calibration, memory, GPU demo, SGEMM
+and all five Python scripts passing through JTAG. The scripts checked 472
+output values across 13 numerical cases, with enabled clean ECC after every
+application. See [current results](../progress.md) for the exact image and
+logs. Physical PCIe runtime and a full-capacity DDR soak remain untested.
+A successful simulator run alone does not establish hardware execution.
 
 For an authorized board session, build `examples runtime DRIVER=ypcb` with
 matching flags and use `--driver ypcb` with an already prepared JTAG or PCIe

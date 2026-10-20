@@ -1,9 +1,11 @@
-# Current Vortex status — October 20, 2026
+# Current Vortex status — October 21, 2026
 
-**Physical CH1 DDR memory, GPU demo and SGEMM now pass.** The OpenTPU-derived
-WL/ABI4 image completed synthesis, routing, all seven report gates and bitstream
-CRC checks, then loaded into SRAM. The five basic-operation Python examples
-are running under `vortex-wl-fpga-kernels-20261020-v2.service`.
+**Vortex GPU kernels now run and pass on the physical FPGA.** The OpenTPU-derived
+WL/ABI4 image passed CH1 DDR memory, GPU demo, SGEMM and all five basic-operation
+Python scripts: 13 basic numerical checks covering 472 output values. The run
+finished at 00:07:29 HKT under `vortex-wl-fpga-kernels-20261020-v2.service`.
+All eight memory/application stages retained enabled ECC with zero corrected
+or uncorrectable errors. The goal is achieved for the local JTAG connection.
 
 | Check | Latest physical result |
 | --- | --- |
@@ -14,20 +16,29 @@ are running under `vortex-wl-fpga-kernels-20261020-v2.service`.
 | SGEMM, `-n16` | Numerical PASS; 7,632 retired instructions, 18,925 cycles; ECC enabled, zero corrected/uncorrectable errors |
 | Basic vector addition | PASS: all 37 outputs exact; ECC enabled and clean |
 | Seven elementwise operators | PASS: add/subtract/multiply/divide/minimum/maximum/ReLU, 37 outputs each; division max absolute error `5.11e-08`, others exact; ECC enabled and clean |
-| Basic GEMM, convolution and pooling | In progress; 8 of 13 default basic-operation checks have passed so far |
+| Basic GEMM | PASS: `5×3 @ 3×7`, all 35 outputs exact; ECC enabled and clean |
+| Convolution | PASS: padded two-channel input, `3×5×7` output, all 105 values exact; ECC enabled and clean |
+| Pooling | PASS: maximum, average and minimum, 12 outputs each, all exact; ECC enabled and clean |
 | Physical PCIe runtime | Not tested on this JTAG-only host; both interfaces are present and passed the GPU/AFU RTL model |
 
-Live evidence: [hardware manifest](build_ypcb_wl32/fpga-kernels-20261020-v2/manifest.json),
+Evidence: [hardware manifest](build_ypcb_wl32/fpga-kernels-20261020-v2/manifest.json),
 [demo log](build_ypcb_wl32/fpga-kernels-20261020-v2/demo.log) and
 [SGEMM log](build_ypcb_wl32/fpga-kernels-20261020-v2/sgemm.log).
-The manifest's overall status updates when the complete suite finishes; its
-individual completed steps and logs establish the passes above.
+Terminal status: `FPGA_MEMORY_DEMO_SGEMM_AND_BASIC_EXAMPLES_PASS`; all ten command
+steps exited zero. The independent [completion audit](build_ypcb_wl32/completion-audit-20261020-v1.json)
+passed 47 checks covering all 783 frozen image inputs, 20 host artifacts, seven
+kernel image layouts, runtime/controller binding, numerical output, ECC and
+hardware cleanup. Its [script](build_ypcb_wl32/audit-fpga-completion-20261020-v1.py)
+only inspects artifacts, process state and leases; it does not access JTAG.
 
 Image: `build_ypcb_wl32/wl-ch1-jtag-pcie-20261020-v3/vortex_ypcb.bit`, SHA-256
 `7590d5487b793402feaeb73e0e5988e0867133436d6c58624230e97b837060bd`.
 Implementation exited zero in 5,234.554 seconds. Routed setup/hold slack is
-+0.034/+0.027 ns. The current test owns the normal JTAG leases and releases
-its own processes and leases on exit. Permanent flash has not been written.
++0.034/+0.027 ns. The owned hardware servers and bridge exited; both JTAG
+leases were confirmed available and ports 3122/3124 had no listeners. The GPU
+test is finished and JTAG is released. The image remains in volatile FPGA
+SRAM; permanent flash has not been written. The test service peaked at 939.9 MiB
+and took 38 minutes 10.608 seconds, including programming and JTAG transfers.
 
 Both DDR implementations use LiteDRAM and the same CH1 DDR800 profile. The
 earlier Vortex A7 PHY used fixed CK phase and byte-wide read training; adding

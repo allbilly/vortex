@@ -1,9 +1,10 @@
 # Local CH1 DDR calibration
 
 The WL/ABI4 implementation now passes physical CH1 calibration, memory, GPU
-demo and SGEMM through JTAG. Basic-operation scripts remain in progress. See
-[current status and evidence](../../progress.md); the sections below record the
-earlier designs, failed diagnostics and replacement rationale.
+demo, SGEMM and all five basic-operation scripts through JTAG. All 13 basic
+numerical checks passed with clean enabled ECC, and the test released JTAG.
+See [current status and evidence](../../progress.md); the sections below record
+the earlier designs, failed diagnostics and replacement rationale.
 
 The qualified ABI 2 image loads into SRAM and exposes the JTAG register interface.
 The physical probe measured 32 reads at 12.65–27.37 ms each, median 17.76 ms.
