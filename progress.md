@@ -49,8 +49,10 @@ image directory `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`. Placement
 completed successfully in 18 minutes 36 seconds with zero warnings/errors;
 post-placement physical optimization also passed. The first full routing run
 completed in 47 minutes 36 seconds, with setup -0.136 ns and hold +0.016 ns.
-It reported the `Route 35-39` timing critical warning. The automatic physical
-optimization/rerouting loop is active; the image is not timing-qualified. Initial native
+It reported the `Route 35-39` timing critical warning. The first post-route
+physical optimization completed in 20 minutes 49 seconds without warnings or
+errors, reducing setup slack to -0.079 ns while hold remained +0.016 ns.
+Rerouting of that optimized design is active; the image is not timing-qualified. Initial native
 clock/reset/CDC checks passed, including all 179 connected serializer resets,
 nine unused DM serializers and two preserved lock synchronizer stages. All
 811 frozen input hashes matched; the DDR RTL, firmware, CSR map and phase
