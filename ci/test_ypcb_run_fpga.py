@@ -1,4 +1,6 @@
 import importlib.util
+import contextlib
+import io
 import json
 import struct
 from pathlib import Path
@@ -93,3 +95,43 @@ def test_kernel_address_region(tmp_path, start, end, payload, valid):
     else:
         with pytest.raises(ValueError, match='Kernel image'):
             module.kernel_layout(path)
+
+
+@pytest.mark.parametrize('name,labels', [
+    ('simple_add', ['simple_add']),
+    ('elementwise', ['add', 'sub', 'mul', 'div', 'min', 'max', 'relu']),
+    ('gemm', ['gemm 5x3 @ 3x7']),
+    ('conv', ['conv output=3x3x5']),
+    ('pooling', ['pooling max output=2x2x3', 'pooling avg output=2x2x3', 'pooling min output=2x2x3']),
+])
+@pytest.mark.parametrize('change', ['none', 'missing', 'duplicate', 'backend', 'empty', 'nonfinite'])
+def test_basic_example_evidence(name, labels, change):
+    root = Path((Path.cwd() / 'config.mk').read_text().split('VORTEX_HOME ?= ', 1)[1].splitlines()[0])
+    loaded = []
+    for key, path in [('runner', root / 'ci/ypcb_run_fpga.py'), ('common', root / 'examples/common.py')]:
+        spec = importlib.util.spec_from_file_location('ypcb_evidence_' + key, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        loaded.append(module)
+    runner, common = loaded
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        for label in labels:
+            common.verify(label, [1.0, -2.0], [1.0, -2.0], 'ypcb')
+    log = output.getvalue()
+    if change == 'missing':
+        log = '\n'.join(log.splitlines()[2:])
+    elif change == 'duplicate':
+        log += log.splitlines()[0] + '\n'
+    elif change == 'backend':
+        log = log.replace('driver=ypcb', 'driver=simx')
+    elif change == 'empty':
+        log = log.replace('elements=2', 'elements=0')
+    elif change == 'nonfinite':
+        log = log.replace('max_abs_error=0', 'max_abs_error=nan')
+    if change == 'none':
+        result = runner.example_checks(name, log)
+        assert [item['name'] for item in result] == labels
+    else:
+        with pytest.raises(ValueError):
+            runner.example_checks(name, log)

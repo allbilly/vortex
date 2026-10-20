@@ -147,6 +147,22 @@ The new run passed both pre- and post-optimization clock checks and entered
 placement. Keep all original run directories. JTAG remains released while offline work
 continues, and physical GPU execution is still unverified.
 
+## Basic operations through actual GPU/AFU RTL
+
+All 14 Python/public-runtime checks passed through the JTAG model of the actual
+GPU/AFU RTL, using the correctly linked YPCB kernels: vector addition, all seven
+elementwise operators (including division), rectangular GEMM, two convolution
+layouts and all three pooling modes. This uses the explicit test backend, with
+simulated DDR/PHY responses, and is not a physical FPGA result. Evidence:
+`build_ypcb_wl32/basic-ops-rtl-20261020-v1/manifest.json` (7.325 seconds).
+
+The physical result validator now recognizes the individual operation labels
+printed by the existing scripts and requires all 13 default numerical checks
+across the five files. Missing, duplicate, wrong-backend, empty and nonfinite
+reports are rejected. All 54 runner tests passed, including those formatter
+contract cases and the kernel address/producer checks. The FPGA implementation
+continues in detail placement; no new bitstream has been programmed.
+
 ## Basic-operation examples verified on SimX
 
 The requested [examples folder](examples/README.md) now has flat Python entry

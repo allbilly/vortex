@@ -7,6 +7,7 @@ import datetime
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -41,6 +42,27 @@ def kernel_layout(path):
     if start != 0x40000000 or not start < end <= 0x50000000:
         raise ValueError('Kernel image does not fit the YPCB code region: ' + str(path))
     return {'start': start, 'end': end}
+
+
+def example_checks(name, log):
+    labels = {'simple_add': ('simple_add',), 'elementwise': ('add', 'sub', 'mul', 'div', 'min', 'max', 'relu'),
+              'gemm': ('gemm ',), 'conv': ('conv output=',),
+              'pooling': ('pooling max output=', 'pooling avg output=', 'pooling min output=')}[name]
+    matches = re.findall(r'^PASS ([^:\n]+): driver=ypcb, float32 elements=(\d+), max_abs_error=([^\s]+)$', log, re.M)
+    if len(matches) != len(labels):
+        raise ValueError(name + ' did not report every expected YPCB GPU check')
+    for label in labels:
+        selected = [m for m in matches if m[0] == label or
+                    (label.endswith((' ', '=')) and m[0].startswith(label))]
+        if len(selected) != 1:
+            raise ValueError(name + ' has missing or duplicate numerical checks')
+    result = []
+    for label, count, error in matches:
+        value = float(error)
+        if int(count) <= 0 or not math.isfinite(value) or value < 0:
+            raise ValueError(name + ' has invalid numerical-check evidence')
+        result.append({'name': label, 'elements': int(count), 'max_abs_error': value})
+    return result
 
 
 def producer_receipt(image, inputs):
@@ -328,8 +350,7 @@ def main():
                 log = step('example-' + name,
                            ['python3', host / f'examples/{name}.py', '--build', host, '--driver', 'ypcb'],
                            host, timeout=1200, environment=environment)
-                if not re.search(r'^PASS ' + re.escape(name) + r'.*driver=ypcb', log, re.M):
-                    raise ValueError(name + ' did not verify its GPU output through the YPCB driver')
+                state['example_' + name + '_checks'] = example_checks(name, log)
                 ecc, _ = read_words(ecc_offsets)
                 state['example_' + name + '_ecc'] = dict(zip(ecc_names, ecc))
                 save()
