@@ -398,6 +398,8 @@ def main():
                     raise ValueError(name + ' did not retain enabled, clean CH1 ECC')
             state['status'] = 'FPGA_MEMORY_DEMO_SGEMM_AND_BASIC_EXAMPLES_PASS'
             if run_tensor:
+                state['status'] = 'FPGA_TENSOR_KERNEL_SUITE_RUNNING'
+                save()
                 for input_type, output_type in (('fp16', 'fp32'), ('int8', 'int32')):
                     directory = host / 'tensor-apps' / input_type
                     for shape, cols in (('square', 16), ('rectangular', 32)):

@@ -70,6 +70,8 @@ Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
 (requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
 and `audit-fpga-completion-20261021-v1.py`. Capture the hardware service's owned
 process identities during the physical run for the cleanup audit.
+The hardware runner reports `FPGA_TENSOR_KERNEL_SUITE_RUNNING` until both
+formats finish. All 71 runner checks passed after regenerating the build tree.
 The source flow now checkpoints initial routing and each post-route optimization
 pass, preserving the optimizer's routed result instead of rerunning the full
 router after every pass. This follows
