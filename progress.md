@@ -8,12 +8,25 @@
 > will acquire the shared exclusive JTAG lease before SRAM loading and runtime
 > tests. The v16 image has now been programmed into SRAM and passed JTAG MMIO;
 > Physical DDR and GPU kernels are not yet tested. The local calibration CPU
-> and both-interface GPU simulation now pass; the ABI 3 FPGA build is active.
+> and both-interface GPU simulation now pass. Routed ABI 3 checks pass; fresh
+> bitstream finalization is active after the original producer disappeared.
 
-Fresh ABI 3 implementation is running in
-`build_ypcb_native32/ch1-jtag-pcie-20261020-v17/`, freezing commit `6e96b4b9f`
-and the tested `local-selfcal-ddr-20261020-v3` controller. Both Vivado worker
-limits are one, with two allocator arenas. No checkpoint is reused. Native
+ABI 3 v17 routing passed all seven report gates: setup +0.011 ns, hold +0.040 ns,
+147,570 fully routed nets, zero routing errors and no unclocked or unconstrained
+internal endpoints. The producer disappeared after entering bitstream generation;
+its exit status is unknown and no bitstream exists in that run. A host OOM event
+occurred at the same time; the exact Vortex exit was not recorded.
+
+The verified checkpoint is being finalized in the fresh
+`build_ypcb_native32/ch1-jtag-pcie-20261020-v18-finalize/` directory. All 756
+frozen inputs and the checkpoint's archive CRC passed. Its exact SHA-256 is
+`98b421e4f4390ab74f4f110e31ae714d20061c0f76995b7e326cb114e082be75`.
+Recovery preserves the unknown old exit and rechecks the checkpoint natively;
+hardware admission requires this new finalizer's successful receipt. The job
+runs as user unit `vortex-ypcb-v18-finalize-20261020.service`, independent of
+the terminal, with both worker limits one and allocator arenas two. It retains
+source `6e96b4b9f` and the tested `local-selfcal-ddr-20261020-v3` controller.
+No synthesis or routing is repeated. Native
 ABI 3 startup/scrub and runtime builds passed. JTAG register-batch validation
 passes 29 cases, including the actual Tcl parser with a hardware-API oracle;
 PIO/host-memory RTL tests pass 2,730 byte-range cases and stall/error/timeout
@@ -34,8 +47,8 @@ This software fix does not change the frozen FPGA HDL. No new image has been
 programmed since the ABI 2 JTAG probe.
 
 v17 placement and physical optimization completed. The last pre-route estimate
-is setup slack +0.007 ns and TNS 0. Routing is now running; that estimate is not
-final routed signoff. Pre-route DRC reported zero errors. The actual milestone
+was setup slack +0.007 ns and TNS 0. Routing subsequently passed as recorded
+above. Pre-route DRC reported zero errors. The placement milestone
 is saved in `build_ypcb_native32/v17-placement-milestone-20261020.json`.
 The hardware launcher now also requires a successful, uninterrupted producer
 exit receipt before programming; all 16 checks and its native receipt check pass.
