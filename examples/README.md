@@ -85,7 +85,9 @@ or hardware execution.
 For a future qualified board session, build `examples runtime DRIVER=ypcb` with
 matching flags and use `--driver ypcb` with an already prepared JTAG or PCIe
 runtime connection. Scripts use the existing backend; they do not program an
-FPGA, start a JTAG server or replace the normal hardware ownership procedure.
+FPGA, start a JTAG server or replace the normal hardware ownership procedure. The
+hardware qualification runner checks kernel address headers before taking the
+JTAG lease; kernels must start at `0x40000000` and end by `0x50000000`.
 
 ## Source map
 

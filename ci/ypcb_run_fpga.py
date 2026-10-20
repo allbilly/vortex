@@ -14,6 +14,7 @@ import shutil
 import signal
 import socket
 import statistics
+import struct
 import subprocess
 import tempfile
 import time
@@ -28,6 +29,18 @@ def interrupt(number, frame):
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def kernel_layout(path):
+    with path.open('rb') as stream:
+        header = stream.read(16)
+        payload = stream.read(1)
+    if len(header) != 16 or not payload:
+        raise ValueError('Kernel image is empty or has a truncated address header: ' + str(path))
+    start, end = struct.unpack('<QQ', header)
+    if start != 0x40000000 or not start < end <= 0x50000000:
+        raise ValueError('Kernel image does not fit the YPCB code region: ' + str(path))
+    return {'start': start, 'end': end}
 
 
 def producer_receipt(image, inputs):
@@ -189,6 +202,8 @@ def main():
             for name in ('common', *basic_ops):
                 relative = f'examples/{name}.py'
                 artifact_sources[relative] = root / relative
+            state['kernel_layouts'] = {name: kernel_layout(source) for name, source in artifact_sources.items()
+                                       if name.endswith('.vxbin')}
             state['runtime_artifacts'] = {name: digest(source) for name, source in artifact_sources.items()}
             host = output / 'host'
             for name, expected in state['runtime_artifacts'].items():

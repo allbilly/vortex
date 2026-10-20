@@ -105,12 +105,19 @@ runtime uses the validated phase/per-bit result reader before requesting ECC
 scrub. DDR MMCM lock status now crosses two preserved synchronizer stages.
 Both Vivado worker settings remain one, with an 8 GiB service memory limit.
 
-ABI4 startup/scrub RTL and host tests passed. All 61 integration Python checks
+ABI4 startup/scrub RTL and host tests passed. All 69 integration Python checks
 passed. The complete actual-GPU shell passed memory, demo and SGEMM via both
 modeled PCIe and modeled JTAG, with source/DDR responses still simulated:
 `build_ypcb_wl32/shell-abi4-20261020-v1/manifest.json`.
-The production runtime and all five basic-operation GPU kernels build. Their
-frozen package paths/help were checked without accessing hardware. Physical
+The production runtime and all five basic-operation GPU kernels build. A
+preparation check caught a default-address example build; the kernels and kernel
+library were rebuilt with matching YPCB flags and entry `0x40000000`. All seven
+physical-test kernels (demo, SGEMM and five basic operations) are RV32 and fit
+the code region below `0x50000000`. The hardware runner checks those `.vxbin`
+address bounds before taking a hardware lease. Build receipts:
+`build_ypcb_wl32/basic-examples-board-build-20261020-v1/manifest.json`; readiness:
+`build_ypcb_wl32/hardware-test-preparation-20261020-v1.json`. Their frozen package
+paths/help were checked without accessing hardware. Physical
 qualification now includes all five example scripts after memory/demo/SGEMM,
 with enabled and clean ECC required after each application.
 
@@ -132,11 +139,12 @@ proved and the exact compiled RTL retained in `wl-controller-20261020-v3/`.
 
 The first resumed implementation also stopped during those checks; its synthesis
 reuse verified all 674 hardware inputs and retained the exact compiled CDC RTL.
-Neither run reached routing or produced a new bitstream. The fresh `wl-ch1-jtag-pcie-20261020-v3/` has resumed implementation from the
+Neither earlier run reached routing or produced a new bitstream. The fresh `wl-ch1-jtag-pcie-20261020-v3/` has resumed implementation from the
 verified synthesis checkpoint after the successful native clock checks. Unit
 `vortex-wl-board-20261020-v3.service` is active, with both Vivado thread limits
 set to one and MemoryMax=8 GiB. Reuse revalidated all 674 hardware inputs;
-keep all original run directories. JTAG remains released while offline work
+The new run passed both pre- and post-optimization clock checks and entered
+placement. Keep all original run directories. JTAG remains released while offline work
 continues, and physical GPU execution is still unverified.
 
 ## Basic-operation examples verified on SimX

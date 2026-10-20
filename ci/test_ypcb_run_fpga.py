@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import struct
 from pathlib import Path
 import subprocess
 import sys
@@ -68,3 +69,27 @@ def test_image_producer_exit_receipt(tmp_path, finalized, outcome):
     else:
         with pytest.raises(ValueError, match='Image producer'):
             module.producer_receipt(tmp_path, inputs)
+
+
+@pytest.mark.parametrize('start,end,payload,valid', [
+    (0x40000000, 0x40001000, b'\x13\0\0\0', True),
+    (0x40000000, 0x50000000, b'\x13\0\0\0', True),
+    (0x80000000, 0x80001000, b'\x13\0\0\0', False),
+    (0x40000000, 0x50000001, b'\x13\0\0\0', False),
+    (0x40000000, 0x40000000, b'\x13\0\0\0', False),
+    (0x40000000, 0x3fffffff, b'\x13\0\0\0', False),
+    (0x40000000, 0x40001000, b'', False),
+    (None, None, b'\0' * 15, False),
+])
+def test_kernel_address_region(tmp_path, start, end, payload, valid):
+    root = Path((Path.cwd() / 'config.mk').read_text().split('VORTEX_HOME ?= ', 1)[1].splitlines()[0])
+    spec = importlib.util.spec_from_file_location('ypcb_fpga_runner', root / 'ci/ypcb_run_fpga.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    path = tmp_path / 'kernel.vxbin'
+    path.write_bytes((struct.pack('<QQ', start, end) if start is not None else b'') + payload)
+    if valid:
+        assert module.kernel_layout(path) == {'start': start, 'end': end}
+    else:
+        with pytest.raises(ValueError, match='Kernel image'):
+            module.kernel_layout(path)
