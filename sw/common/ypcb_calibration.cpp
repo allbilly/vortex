@@ -48,7 +48,7 @@ CalibrationResult wait_calibration(Mmio& mmio, CalibrationReport* report,
       && mmio.write32(base + cfg::ddrctrl_selfcal_mbox_adr, index) == 0
       && mmio.read32(base + cfg::ddrctrl_selfcal_mbox_dat, value) == 0;
   };
-  std::array<uint32_t, 9> header{};
+  std::array<uint32_t, 16> header{};
   for (unsigned i = 0; i < header.size(); ++i) {
     if (!mailbox(i, &header[i])) return CalibrationResult::io_error;
   }
@@ -65,6 +65,43 @@ CalibrationResult wait_calibration(Mmio& mmio, CalibrationReport* report,
   }
   for (unsigned i = 0; i < report->scans.size(); ++i) {
     if (!mailbox(YPCB_CAL_MB_SCANS + i, &report->scans[i])) return CalibrationResult::io_error;
+  }
+  const uint32_t diagnostic_magic = header[YPCB_CAL_MB_DIAG_MAGIC];
+  if (diagnostic_magic != 0 && diagnostic_magic != YPCB_CAL_DIAG_MAGIC) {
+    return CalibrationResult::unsafe_state;
+  }
+  if (diagnostic_magic == YPCB_CAL_DIAG_MAGIC) {
+    report->has_bit_diagnostics = true;
+    report->diagnostic_lane = header[YPCB_CAL_MB_DIAG_LANE];
+    report->diagnostic_valid_bits = header[YPCB_CAL_MB_DIAG_VALID_BITS];
+    report->diagnostic_error_or = header[YPCB_CAL_MB_DIAG_ERROR_OR];
+    report->diagnostic_error_and = header[YPCB_CAL_MB_DIAG_ERROR_AND];
+    report->diagnostic_taps = header[YPCB_CAL_MB_DIAG_TAPS];
+    if (report->state != YPCB_CAL_FAILED || report->error != 2
+        || report->diagnostic_lane != report->failed_lane || report->diagnostic_lane >= 9
+        || report->diagnostic_valid_bits > 255 || report->diagnostic_error_or > 255
+        || report->diagnostic_error_and > 255 || report->diagnostic_taps != 256) {
+      return CalibrationResult::unsafe_state;
+    }
+    for (unsigned bit = 0; bit < 8; ++bit) {
+      if (!mailbox(YPCB_CAL_MB_BIT_WINDOWS + bit, &report->bit_windows[bit])
+          || !mailbox(YPCB_CAL_MB_BIT_COUNTS + bit, &report->bit_counts[bit])
+          || !mailbox(YPCB_CAL_MB_BIT_MASKS + bit, &report->bit_masks[bit])) {
+        return CalibrationResult::io_error;
+      }
+      const uint32_t value = report->bit_windows[bit], count = report->bit_counts[bit];
+      if (count > 256) return CalibrationResult::unsafe_state;
+      if ((report->diagnostic_valid_bits >> bit) & 1) {
+        const unsigned slip = value & 255, first = (value >> 8) & 255;
+        const unsigned last = (value >> 16) & 255, center = value >> 24;
+        if (slip >= 8 || first >= last || last >= 32 || center != (first + last) / 2
+            || count < last - first + 1) return CalibrationResult::unsafe_state;
+        const uint32_t mask = uint32_t((uint64_t(1) << (last - first + 1)) - 1) << first;
+        if ((report->bit_masks[bit] & mask) != mask) return CalibrationResult::unsafe_state;
+      } else if (value || report->bit_masks[bit]) {
+        return CalibrationResult::unsafe_state;
+      }
+    }
   }
   if (report->state == YPCB_CAL_FAILED) return CalibrationResult::failed;
   if (report->error || report->failed_lane != 9 || report->probes != 6942

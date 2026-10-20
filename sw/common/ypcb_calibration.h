@@ -20,6 +20,15 @@ struct CalibrationReport {
   uint64_t cycles = 0;
   std::array<uint32_t, 9> lanes{};
   std::array<uint32_t, 72> scans{};
+  bool has_bit_diagnostics = false;
+  uint32_t diagnostic_lane = 9;
+  uint32_t diagnostic_valid_bits = 0;
+  uint32_t diagnostic_error_or = 0;
+  uint32_t diagnostic_error_and = 0;
+  uint32_t diagnostic_taps = 0;
+  std::array<uint32_t, 8> bit_windows{};
+  std::array<uint32_t, 8> bit_counts{};
+  std::array<uint32_t, 8> bit_masks{};
 };
 
 CalibrationResult wait_calibration(Mmio& mmio, CalibrationReport* report,

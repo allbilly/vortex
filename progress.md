@@ -1,63 +1,127 @@
-> Current hardware disposition: JTAG released at the user's request. All Vortex
-> programmer/runtime processes exited. Another project now owns the shared
-> lease and USB cable; do not disturb it or reacquire hardware without a new
-> user instruction. Continue offline work only. Release evidence:
-> `build_ypcb_native32/jtag-release-20261020-v2.json`.
->
-> The ABI 3 physical trial loaded SRAM and passed JTAG transfers. Calibration
-> found windows for eight data lanes but none for ECC lane 8, so memory and GPU
-> tests did not run. This is a DDR calibration finding, not a GPU failure.
->
-> Current goal, October 20: continue until GPU examples run on the FPGA.
-> The OpenTPU exclusion watcher expired; the new user instruction resumes Vortex.
-> v16 bitstream finalization passed in
-> `build_ypcb_native32/ch1-jtag-pcie-20261020-v16-finalize/`, with 727 frozen inputs.
-> The refined status-fanout review passed native positive and bypass-rejection checks.
-> v13 is retired; the old checkpoint cannot be reused across this HDL change.
-> Builds retain one worker and allocator arenas limited to two. Hardware use
-> will acquire the shared exclusive JTAG lease before SRAM loading and runtime
-> tests. The v16 image has now been programmed into SRAM and passed JTAG MMIO;
-> Physical DDR and GPU kernels are not yet tested. The local calibration CPU
-> and both-interface GPU simulation now pass. The ABI 3 bitstream passed routed
-> signoff, finalization and CRC checks. Temporary SRAM/kernel testing is active;
-> no physical GPU kernel pass has been recorded yet.
+# Current Vortex status — October 20, 2026
 
-ABI 3 v17 routing passed all seven report gates: setup +0.011 ns, hold +0.040 ns,
-147,570 fully routed nets, zero routing errors and no unclocked or unconstrained
-internal endpoints. The producer disappeared after entering bitstream generation;
-its exit status is unknown and no bitstream exists in that run. A host OOM event
-occurred at the same time; the exact Vortex exit was not recorded.
+JTAG is released at the user's request. No Vortex hardware process remains;
+reacquisition is disabled. Another session has hardware priority. Continue
+**offline only** until the user authorizes hardware access again. The last
+release check found both locks free; this is an observation, not ownership.
+Release evidence: `build_ypcb_native32/jtag-release-20261020-v3.json`.
 
-The verified checkpoint was finalized successfully in the fresh
+**GPU examples have not run on the FPGA.** The ABI 3 v18 trial loaded SRAM,
+reported INIT=1/DONE=1 and IDCODE `0x23751093`, and passed eight queued 64-byte
+JTAG PIO-window write/read pairs. Its local DDR firmware trained data lanes 0–7
+but found no read eye on ECC lane 8. Calibration stopped after 6,936 probes;
+`memory` failed during device initialization, before any memory workload,
+`demo` or SGEMM. This is a DDR calibration finding; no GPU failure is established.
+Physical evidence: `build_ypcb_native32/fpga-kernels-20261020-v1/manifest.json`.
+Permanent flash was not written. Current FPGA contents belong to whichever
+session next programs it and must not be inferred from this saved result.
+
+## Per-bit diagnostic firmware verified offline
+
+Firmware `78dc1fa8` now records the failed lane's eight individual bit windows,
+passing-tap counts, raw selected-bitslip masks and scan error masks. It uses
+reserved words in the existing 128-word mailbox, adds no DDR probes, and still
+rejects a byte with no common eye. The runtime validates and prints the report.
+
+Native checks passed 4,224 window cases and 40 per-bit cases covering both
+framing offsets and unreadable bits, with malformed-report rejection and failed
+initialization retained. The actual RV32I CPU/BRAM/Wishbone simulation passed
+its normal 6,942-probe run and a 6,936-probe lane 8 failure with bit 5 shifted by
+two read bitslips. The failed run retained eight individual eyes and kept memory
+disabled. Normal execution took 112,954,178 simulated cycles; maximum open-row
+span was 801 cycles against the 3,510-cycle limit. Reset/restart, BRAM upload,
+backpressure, bus-error propagation and failure cleanup also passed.
+
+The new firmware is 7,288 bytes, BSS 712 bytes and stack reserve 8,384 bytes.
+It contains 1,705 RV32I instruction words, no unresolved symbols and no M/F/C
+instructions. SHA-256:
+`2a49007e44b931ec381563506113bc56022d36e2aa5834e1e8c70da7ba67ee2c`.
+The fresh controller export is
+`build_ypcb_native32/local-selfcal-ddr-20261020-v4-bit-diagnostics/`.
+Only firmware BRAM initialization differs from v3 after removing the specific
+known generator metadata; CPU/mailbox/controller logic is unchanged. This
+source comparison does not qualify checkpoint reuse or a new physical image.
+
+The runtime built separately with strict link checks, and the software/hardware
+source-boundary guard passed. The RTL test's missing Verilator default is fixed;
+the original failed command receipt is preserved. Its corrected native unit
+finished with exit 0, no interruption, in 112.3 seconds. It used one build worker
+and a 3 GiB service memory limit. No Vivado build or hardware access was started.
+
+Evidence: `build_ypcb_native32/selfcal-bit-diagnostics-20261020-v1/manifest.json`;
+actual CPU log/exit: `build_ypcb_native32/selfcal-bit-diagnostics-20261020-v2-rtl/`.
+The next offline step is a reviewed firmware upload/provenance path for the
+existing calibration CPU. The old v18 runner's image/firmware binding must
+remain enforced. Diagnostic firmware is not a DDR fix or permission to reacquire
+JTAG; physical per-bit evidence, memory/ECC and GPU examples are still pending.
+
+## Offline OpenTPU review
+
+OpenTPU provides a relevant calibration approach: per-bit read framing,
+write-latency scanning and adjustable clock phase. Its `docs/litedram.md`
+documents CH1 lane 8 with no byte-wide eye because individual DQ bits needed
+different read bitslips. Vortex currently has only byte-wide read training.
+
+A baseline native experiment runs the pre-diagnostic Vortex C firmware against
+synthetic raw PHY responses. Uniform ECC framing passes all nine lanes and
+6,942 probes. Shifting each of the eight ECC bits independently by two read
+bitslips reproduces lane 8 NO_EYE, all-zero byte masks and 6,936 probes, despite
+valid eyes for every individual bit. All eight cases retain failure cleanup.
+This confirms a calibration limitation that can produce the saved symptom;
+it does **not** prove the physical Vortex cause without per-bit observations.
+
+All 117 CH1 pins match OpenTPU. A completed native inspection of the saved
+routed checkpoint confirms internal VREF 0.750 V on banks 16–18. None of ECC
+DQ64–71 has a VREF package-pin function; the earlier VREF-pin hypothesis is
+rejected. No pin or VREF change is justified by this evidence.
+
+The exact OpenTPU PHY metadata matching its c0182800 hardware record is DDR800,
+100 MHz, CL6/CWL5, with the WL PHY and CK phase -44. Its successful CH1 startup
+needed a per-bit +2 correction on lane 2 bit 0, while ECC lane 8 offsets were
+zero in that image. The currently bundled host profile had a different hash
+and was excluded; the review uses the exact frozen core metadata. Do not copy
+measured constants or transfer qualification between the two designs.
+
+Review, source hashes, reproducible experiment and actual exit codes:
+`build_ypcb_native32/opentpu-ecc-framing-review-20261020-v1/manifest.json`.
+The review did not access hardware or acquire either lock.
+
+The diagnostic implementation above is verified offline. Review a bounded
+firmware upload path and any required PHY/read training or phase change.
+Any changed PHY/clock RTL requires fresh
+synthesis and full bitstream qualification. Preserve the full RV32 GPU at
+125 MHz, CH1-only 2 GiB/ECC, and both JTAG and PCIe runtime interfaces. Physical
+calibration, memory/ECC, `demo` and SGEMM remain pending hardware authorization.
+See [the proposal](docs/proposals/ypcb_local_ddr_calibration_proposal.md).
+
+## Completed image and simulation evidence
+
+The v17 implementation passed all seven routed report gates: setup +0.011 ns,
+hold +0.040 ns, 147,570 fully routed nets, zero routing errors, and no unclocked
+or unconstrained internal endpoints. Its producer disappeared during bitstream
+generation with no exit receipt; the original exit remains unknown. A host OOM
+occurred at the same time, but the exact Vortex termination cause is unproven.
+
+The preserved routed checkpoint was finalized in the fresh
 `build_ypcb_native32/ch1-jtag-pcie-20261020-v18-finalize/` directory. All 756
-frozen inputs and the checkpoint's archive CRC passed. Its exact SHA-256 is
-`98b421e4f4390ab74f4f110e31ae714d20061c0f76995b7e326cb114e082be75`.
-Recovery preserves the unknown old exit and rechecks the checkpoint natively;
-hardware admission requires this new finalizer's successful receipt. The job
-runs as user unit `vortex-ypcb-v18-finalize-20261020.service`, independent of
-the terminal, with both worker limits one and allocator arenas two. It retains
-source `6e96b4b9f` and the tested `local-selfcal-ddr-20261020-v3` controller.
-No synthesis or routing was repeated. Finalization exited 0 after 466.4 seconds,
-with no interruption or timeout. The 18,735,205-byte bitstream SHA-256 is
+original frozen inputs, its archive CRC and all 760 finalization input hashes
+passed. Native finalization exited 0 after 466.4 seconds, without interruption
+or timeout. The bitstream is 18,735,205 bytes, SHA-256
 `f5bd03e294c7ae4a678458f8d01213366109e87816abd6325555086d8dc61d5b`.
-Both CRC checkpoints, four checker vectors, all 760 finalization input hashes
-and the runtime/controller binding passed. Both GPU kernel ELF entries are
-RV32 at `0x40000000`.
+Both CRC checkpoints, four checker vectors and runtime/controller binding passed.
+Both GPU ELF entries are RV32 at `0x40000000`. No synthesis or routing was
+repeated during finalization. Both Vivado worker limits remain one and allocator
+arenas remain two. This image is offline qualified but failed physical DDR
+calibration as recorded above; rebuilding the same sources does not address it.
 
-The owned physical job is running under user unit
-`vortex-ypcb-fpga-kernels-20261020-v1.service`, with its manifest in
-`build_ypcb_native32/fpga-kernels-20261020-v1/`. It acquired the canonical JTAG
-lease after cable/holder checks and has started volatile SRAM programming.
-Permanent flash remains untouched. Physical DDR, memory/ECC and kernel results
-are still pending; do not infer them from the programming step. Native
-ABI 3 startup/scrub and runtime builds passed. JTAG register-batch validation
-passes 29 cases, including the actual Tcl parser with a hardware-API oracle;
-PIO/host-memory RTL tests pass 2,730 byte-range cases and stall/error/timeout
-checks. The full GPU/AFU simulation passed memory/demo/SGEMM through both PCIe
-and JTAG in `build_ypcb_native32/native-shell-abi3-20261020-v1/`. JTAG also
-passes with the PCIe clock stopped. Demo retired 2,444 instructions and SGEMM
-7,632; all numerical/memory comparisons passed. Physical DDR and GPU execution
-are still open. The tested JTAG/runtime update is local commit `be70e829a`.
+Full GPU/AFU simulation passed memory, `demo` and SGEMM through both PCIe and
+JTAG in `build_ypcb_native32/native-shell-abi3-20261020-v1/`; JTAG also passed
+with the PCIe clock stopped. Demo retired 2,444 instructions and SGEMM 7,632;
+all numerical/memory checks passed. The local VexRiscv calibration CPU also
+passed RTL simulation with PHY response oracles. These remain simulation
+results, separate from physical DDR and GPU qualification.
+
+## Earlier milestones and preserved history
 
 v17 synthesis passed with actual exit 0 after 1,192.6 seconds, zero errors and
 zero critical warnings. It uses 83,386 LUTs, 67,384 registers, 160 BRAM tiles

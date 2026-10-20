@@ -130,7 +130,7 @@ int main() {
   CalibrationReport report;
   require(wait_calibration(completion, &report) == CalibrationResult::success,
           "Runtime rejected a valid local calibration");
-  require(report.probes == 6942 && completion.writes == 90,
+  require(report.probes == 6942 && completion.writes == 97 && !report.has_bit_diagnostics,
           "Runtime did not read the complete local calibration report");
   auto reject = [&](CompletionOracle changed, const char* message) {
     require(wait_calibration(changed, &report) == CalibrationResult::unsafe_state, message);
@@ -147,6 +147,9 @@ int main() {
   changed = completion;
   changed.result[YPCB_CAL_MB_FIRMWARE] ^= 1;
   reject(changed, "Runtime accepted mismatched firmware");
+  changed = completion;
+  changed.result[YPCB_CAL_MB_DIAG_MAGIC] = 1;
+  reject(changed, "Runtime accepted invalid bit diagnostic magic");
   changed = completion;
   changed.result[YPCB_CAL_MB_MAX_ROW_CYCLES] = 3511;
   reject(changed, "Runtime accepted excessive open-row timing");
@@ -171,6 +174,74 @@ int main() {
             && bad.banks[1].registers[cfg::sdram_dfii_control / 4] == cfg::dfii_control_odt,
             "Firmware failure cleanup differs");
   }
+  unsigned diagnostic_cases = 0;
+  CompletionOracle diagnostic_completion;
+  for (unsigned lane : {0u, 8u}) {
+    for (unsigned bit = 0; bit < 8; ++bit) {
+      for (int offset : {-2, 2}) {
+        CsrOracle shifted;
+        shifted.read_bit_offset[lane][bit] = offset;
+        require(run(shifted) == 2 && mailbox[YPCB_CAL_MB_FAILED_LANE] == lane,
+                "Firmware accepted a byte with inconsistent bit framing");
+        require(mailbox[YPCB_CAL_MB_DIAG_MAGIC] == YPCB_CAL_DIAG_MAGIC
+                && mailbox[YPCB_CAL_MB_DIAG_LANE] == lane
+                && mailbox[YPCB_CAL_MB_DIAG_VALID_BITS] == 255
+                && mailbox[YPCB_CAL_MB_DIAG_ERROR_AND] == 0
+                && mailbox[YPCB_CAL_MB_DIAG_TAPS] == 256,
+                "Firmware lost individual read eyes");
+        for (unsigned dq = 0; dq < 8; ++dq) {
+          const uint32_t w = mailbox[YPCB_CAL_MB_BIT_WINDOWS + dq];
+          const unsigned framing = unsigned(int(CsrOracle::slip(lane, 1)) + (dq == bit ? offset : 0)) & 7;
+          const unsigned first = CsrOracle::first(lane), last = CsrOracle::last(lane);
+          const uint32_t mask = uint32_t((uint64_t(1) << (last - first + 1)) - 1) << first;
+          require((w & 255) == framing && ((w >> 8) & 255) == first
+                  && ((w >> 16) & 255) == last
+                  && mailbox[YPCB_CAL_MB_BIT_COUNTS + dq] == last - first + 1
+                  && mailbox[YPCB_CAL_MB_BIT_MASKS + dq] == mask,
+                  "Firmware reported the wrong per-bit eye or data packing");
+        }
+        diagnostic_completion = CompletionOracle{};
+        diagnostic_completion.banks = shifted.banks;
+        diagnostic_completion.result = mailbox;
+        diagnostic_completion.result[YPCB_CAL_MB_FIRMWARE] = cfg::calibration_firmware_id;
+        require(wait_calibration(diagnostic_completion, &report) == CalibrationResult::failed
+                && report.has_bit_diagnostics && report.diagnostic_lane == lane
+                && report.diagnostic_valid_bits == 255 && diagnostic_completion.writes == 121,
+                "Runtime lost bit diagnostics or accepted failed training");
+        require(shifted.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0
+                && shifted.banks[1].registers[cfg::ddrctrl_init_error / 4] == 1,
+                "Diagnostic scan published memory readiness");
+        ++diagnostic_cases;
+      }
+    }
+  }
+  for (unsigned bit = 0; bit < 8; ++bit) {
+    CsrOracle bad;
+    bad.unreadable_bits[8] = 1u << bit;
+    require(run(bad) == 2 && mailbox[YPCB_CAL_MB_DIAG_VALID_BITS] == (255u ^ (1u << bit))
+            && mailbox[YPCB_CAL_MB_DIAG_ERROR_AND] == (1u << bit)
+            && mailbox[YPCB_CAL_MB_BIT_COUNTS + bit] == 0
+            && mailbox[YPCB_CAL_MB_BIT_WINDOWS + bit] == 0,
+            "Unusable bit was reported as a framing-only problem");
+    ++diagnostic_cases;
+  }
+  changed = diagnostic_completion;
+  changed.result[YPCB_CAL_MB_DIAG_LANE] = 9;
+  reject(changed, "Runtime accepted an out-of-range diagnostic lane");
+  changed = diagnostic_completion;
+  changed.result[YPCB_CAL_MB_DIAG_TAPS] = 255;
+  reject(changed, "Runtime accepted an incomplete bit scan");
+  changed = diagnostic_completion;
+  changed.result[YPCB_CAL_MB_BIT_MASKS] = 0;
+  reject(changed, "Runtime accepted a claimed eye without passing taps");
+  changed = diagnostic_completion;
+  changed.result[YPCB_CAL_MB_BIT_COUNTS] = 257;
+  reject(changed, "Runtime accepted an excessive passing-tap count");
+  changed = diagnostic_completion;
+  changed.result[YPCB_CAL_MB_STATE] = YPCB_CAL_READY;
+  reject(changed, "Runtime accepted readiness with failure diagnostics");
+  require(run(oracle) == 0 && mailbox[YPCB_CAL_MB_DIAG_MAGIC] == 0,
+          "Firmware restart retained stale failure diagnostics");
   CsrOracle rejected;
   rejected.reject_ecc_enable = true;
   require(run(rejected) == 3, "Firmware ignored ECC readback failure");
@@ -179,4 +250,5 @@ int main() {
   CsrOracle slow;
   require(run(slow, 1000) == 4, "Firmware ignored open-row timing budget");
   std::printf("PASSED: firmware matches %u window cases and CH1 training, 6942 probes, all nine lanes, ECC, cleanup, timeout and row timing oracle\n", cases);
+  std::printf("PASSED: %u per-bit framing/unreadable-bit diagnostic cases, runtime bounds and failure admission\n", diagnostic_cases);
 }

@@ -167,6 +167,33 @@ int main(int argc, char** argv) {
           "CPU published memory readiness after failure");
 
   sim = std::make_unique<Simulation>();
+  sim->oracle.read_bit_offset[8][5] = 2;
+  sim->run(false);
+  require(sim->state == YPCB_CAL_FAILED && sim->mailbox(YPCB_CAL_MB_FAILED_LANE) == 8
+          && sim->mailbox(YPCB_CAL_MB_PROBES) == 6936
+          && sim->mailbox(YPCB_CAL_MB_DIAG_MAGIC) == YPCB_CAL_DIAG_MAGIC
+          && sim->mailbox(YPCB_CAL_MB_DIAG_LANE) == 8
+          && sim->mailbox(YPCB_CAL_MB_DIAG_VALID_BITS) == 255
+          && sim->mailbox(YPCB_CAL_MB_DIAG_ERROR_AND) == 0
+          && sim->mailbox(YPCB_CAL_MB_DIAG_TAPS) == 256,
+          "CPU firmware did not preserve lane8 per-bit framing evidence");
+  for (unsigned bit = 0; bit < 8; ++bit) {
+    const uint32_t w = sim->mailbox(YPCB_CAL_MB_BIT_WINDOWS + bit);
+    const unsigned expected_slip = CsrOracle::slip(8, 1) + (bit == 5 ? 2 : 0);
+    require((w & 255) == expected_slip
+            && ((w >> 8) & 255) == CsrOracle::first(8)
+            && ((w >> 16) & 255) == CsrOracle::last(8)
+            && sim->mailbox(YPCB_CAL_MB_BIT_COUNTS + bit) == CsrOracle::last(8) - CsrOracle::first(8) + 1
+            && sim->mailbox(YPCB_CAL_MB_BIT_MASKS + bit) != 0,
+            "CPU mailbox lost a per-bit eye");
+  }
+  require(sim->oracle.banks[1].registers[cfg::ddrctrl_init_done / 4] == 0
+          && sim->oracle.banks[1].registers[cfg::ddrctrl_init_error / 4] == 1,
+          "CPU diagnostic failure enabled memory");
+  std::printf("CPU DIAGNOSTICS PASS: %llu cycles, lane8,6936 probes,8 individual eyes,bit5 +2 framing\n",
+              static_cast<unsigned long long>(sim->cycles));
+
+  sim = std::make_unique<Simulation>();
   sim->inject_error = true;
   sim->dut.hold = 0;
   for (unsigned i = 0; i < 30000 && !(sim->dut.status & 32); ++i) sim->tick();

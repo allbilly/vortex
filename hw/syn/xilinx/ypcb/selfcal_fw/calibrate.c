@@ -13,6 +13,7 @@
 
 enum { OK, TIMEOUT, NO_EYE, READBACK, ROW_TIMING };
 static uint32_t scans[9][8];
+static uint32_t bit_scans[8][8];
 static struct window windows[9];
 static const uint32_t seeds[3] = {42, 84, 36};
 static uint64_t deadline;
@@ -144,20 +145,65 @@ int ypcb_cal_select_window(const uint32_t scan[8], struct window *result) {
     return best >= 2;
 }
 
+static void publish_bit_diagnostics(uint32_t lane, uint32_t error_or, uint32_t error_and) {
+    uint32_t valid = 0;
+    for (uint32_t bit = 0; bit < 8; ++bit) {
+        struct window w = {0};
+        uint32_t count = 0;
+        for (uint32_t slip = 0; slip < 8; ++slip) {
+            uint32_t mask = bit_scans[bit][slip];
+            while (mask) {
+                mask &= mask - 1;
+                ++count;
+            }
+        }
+        uint32_t best_mask = 0;
+        if (ypcb_cal_select_window(bit_scans[bit], &w)) {
+            valid |= 1u << bit;
+            best_mask = bit_scans[bit][w.slip];
+        }
+        cal_mailbox(YPCB_CAL_MB_BIT_WINDOWS + bit,
+                    w.slip | (w.first << 8) | (w.last << 16) | (w.center << 24));
+        cal_mailbox(YPCB_CAL_MB_BIT_COUNTS + bit, count);
+        cal_mailbox(YPCB_CAL_MB_BIT_MASKS + bit, best_mask);
+    }
+    cal_mailbox(YPCB_CAL_MB_DIAG_LANE, lane);
+    cal_mailbox(YPCB_CAL_MB_DIAG_VALID_BITS, valid);
+    cal_mailbox(YPCB_CAL_MB_DIAG_ERROR_OR, error_or);
+    cal_mailbox(YPCB_CAL_MB_DIAG_ERROR_AND, error_and);
+    cal_mailbox(YPCB_CAL_MB_DIAG_TAPS, 256);
+    cal_mailbox(YPCB_CAL_MB_DIAG_MAGIC, YPCB_CAL_DIAG_MAGIC);
+}
+
 static void train(void) {
     for (uint32_t lane = 0; lane < 9 && !error; ++lane) {
         failed_lane = lane;
+        uint32_t error_or = 0, error_and = 255;
+        for (uint32_t bit = 0; bit < 8; ++bit) {
+            for (uint32_t slip = 0; slip < 8; ++slip) {
+                bit_scans[bit][slip] = 0;
+            }
+        }
         for (uint32_t slip = 0; slip < 8 && !error; ++slip) {
             configure_lane(lane, slip, 0);
             for (uint32_t tap = 0; tap < 32 && !error; ++tap) {
-                uint32_t passed = 1;
+                uint32_t bad_bits = 0;
                 for (uint32_t sample = 0; sample < 3 && !error; ++sample) {
                     uint32_t bad[9];
                     probe(seeds[sample], bad);
-                    passed &= bad[lane] == 0;
+                    bad_bits |= bad[lane];
                 }
-                if (passed && !error) {
-                    scans[lane][slip] |= 1u << tap;
+                if (!error) {
+                    error_or |= bad_bits;
+                    error_and &= bad_bits;
+                    if (bad_bits == 0) {
+                        scans[lane][slip] |= 1u << tap;
+                    }
+                    for (uint32_t bit = 0; bit < 8; ++bit) {
+                        if (!((bad_bits >> bit) & 1)) {
+                            bit_scans[bit][slip] |= 1u << tap;
+                        }
+                    }
                 }
                 write_word(cfg_ddrphy_dly_sel, 1u << lane);
                 write_word(cfg_ddrphy_rdly_dq_inc, 1);
@@ -165,6 +211,7 @@ static void train(void) {
             }
         }
         if (!error && !ypcb_cal_select_window(scans[lane], &windows[lane])) {
+            publish_bit_diagnostics(lane, error_or, error_and);
             error = NO_EYE;
         }
         configure_lane(lane, windows[lane].slip, windows[lane].center);

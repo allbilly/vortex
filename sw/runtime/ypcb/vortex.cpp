@@ -190,6 +190,17 @@ private:
         }
         std::fputc('\n', stderr);
       }
+      if (calibration.has_bit_diagnostics) {
+        std::fprintf(stderr, "[VXDRV] DDR1 lane%u bit-eyes=%02x error_or=%02x error_and=%02x scan_taps=%u\n",
+                     calibration.diagnostic_lane, calibration.diagnostic_valid_bits,
+                     calibration.diagnostic_error_or, calibration.diagnostic_error_and,
+                     calibration.diagnostic_taps);
+        for (unsigned bit = 0; bit < 8; ++bit) {
+          std::fprintf(stderr, "[VXDRV] DDR1 lane%u bit%u valid=%u window=%08x mask=%08x pass_taps=%u\n",
+                       calibration.diagnostic_lane, bit, (calibration.diagnostic_valid_bits >> bit) & 1,
+                       calibration.bit_windows[bit], calibration.bit_masks[bit], calibration.bit_counts[bit]);
+        }
+      }
       return -1;
     }
     std::fprintf(stderr, "[VXDRV] Local DDR1 firmware=%08x probes=%u max_row=%u cycles=%llu\n",

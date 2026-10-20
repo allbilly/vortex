@@ -39,6 +39,8 @@ public:
   bool persistent_error = false;
   bool reject_ecc_enable = false;
   uint32_t fail_once = 0;
+  std::array<std::array<int, 8>, 9> read_bit_offset{};
+  std::array<uint8_t, 9> unreadable_bits{};
 
   static unsigned first(unsigned lane) {
     return 2 + lane * 2;
@@ -155,13 +157,17 @@ private:
       require(state.active && phase == 3, "Probe read used the wrong phase");
       state.capture = state.memory;
       for (unsigned lane = 0; lane < 9; ++lane) {
-        const bool passes = !no_windows && int(lane) != broken_lane
-          && state.bitslip[lane] == slip(lane, bank)
-          && state.delay[lane] >= first(lane) && state.delay[lane] <= last(lane);
-        if (!passes) {
-          const unsigned byte = lane + (bank == 0 ? 0 : 9);
+        uint32_t bad = no_windows || int(lane) == broken_lane ? 255 : unreadable_bits[lane];
+        for (unsigned bit = 0; bit < 8; ++bit) {
+          const unsigned framing = unsigned(int(slip(lane, bank)) + read_bit_offset[lane][bit]) & 7;
+          if (state.bitslip[lane] != framing
+              || state.delay[lane] < first(lane) || state.delay[lane] > last(lane)) {
+            bad |= 1u << bit;
+          }
+        }
+        for (unsigned byte : {lane, lane + 9}) {
           for (unsigned p = 0; p < 4; ++p) {
-            state.capture[p][4 - byte / 4] ^= 1u << ((byte % 4) * 8);
+            state.capture[p][4 - byte / 4] ^= bad << ((byte % 4) * 8);
           }
         }
       }

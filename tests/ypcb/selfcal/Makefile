@@ -5,6 +5,7 @@ SRC_DIR := $(VORTEX_HOME)/tests/ypcb/selfcal
 FW_DIR := $(VORTEX_HOME)/hw/syn/xilinx/ypcb/selfcal_fw
 HEADERS := $(wildcard $(SW_COMMON_DIR)/ypcb*.h) $(FW_DIR)/calibrate.h
 DDR_DIR ?= $(ROOT_DIR)/hw/syn/xilinx/ypcb/ddr
+VERILATOR ?= $(VERILATOR_PATH)/bin/verilator
 CFLAGS += -std=c11 -O2 -Wall -Wextra -Werror -DCAL_HOST
 CFLAGS += -I$(DDR_DIR)/selfcal_fw -I$(SW_COMMON_DIR)
 CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -Werror -pthread
