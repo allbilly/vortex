@@ -143,8 +143,10 @@ Neither earlier run reached routing or produced a new bitstream. The fresh `wl-c
 verified synthesis checkpoint after the successful native clock checks. Unit
 `vortex-wl-board-20261020-v3.service` is active, with both Vivado thread limits
 set to one and MemoryMax=8 GiB. Reuse revalidated all 674 hardware inputs;
-The new run passed both pre- and post-optimization clock checks and entered
-placement. Keep all original run directories. JTAG remains released while offline work
+The new run passed both pre- and post-optimization clock checks and completed
+placement successfully (zero placement warnings/errors, 898 reported seconds).
+Physical optimization is active; routing and final timing/bitstream checks are
+pending. Observation: `build_ypcb_wl32/placement-observation-20261020-v1.json`. Keep all original run directories. JTAG remains released while offline work
 continues, and physical GPU execution is still unverified.
 
 ## Basic operations through actual GPU/AFU RTL
