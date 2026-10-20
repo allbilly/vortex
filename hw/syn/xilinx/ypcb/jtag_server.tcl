@@ -65,7 +65,13 @@ proc consume {channel} {
         set client ""
         return
     }
-    if {[gets $channel line] < 0} {return}
+    if {[gets $channel line] < 0} {
+        if {[eof $channel]} {
+            close $channel
+            set client ""
+        }
+        return
+    }
     if {[catch {
         if {[regexp {^B([RW]) ([0-9a-fA-F]{4}) ([0-9a-fA-F]{2})((?: [0-9a-fA-F]{8})*)$} $line all op addr length data]} {
             scan $addr %x address
@@ -101,6 +107,8 @@ proc consume {channel} {
 proc accept {channel address port} {
     global client
     fconfigure $channel -buffering line -blocking 0 -translation lf
+    # A nonblocking socket reports the previous peer's EOF only after a read.
+    if {$client ne ""} {consume $client}
     if {$client ne ""} {
         puts $channel "ERR client already connected"
         close $channel

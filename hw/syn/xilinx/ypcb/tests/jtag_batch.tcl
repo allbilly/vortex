@@ -62,6 +62,13 @@ proc request {line} {
     file delete $temporary
     return $result
 }
+if {[lindex $argv 1] eq "--serve"} {
+    for {set i 0} {$i < 16} {incr i} {dict set registers [expr {0x2100+4*$i}] [expr {0x100+$i}]}
+    set listener [socket -server accept -myaddr 127.0.0.1 0]
+    puts [lindex [fconfigure $listener -sockname] end]
+    flush stdout
+    vwait forever
+}
 set data {}
 for {set i 0} {$i < 16} {incr i} {lappend data [format %08x [expr {0xabc00000+$i}]]}
 if {[request "BW 2100 10 [join $data]"] ne "OK 00000000"} {error "Batch write failed"}

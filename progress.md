@@ -10,7 +10,7 @@
 > Physical DDR and GPU kernels are not yet tested. The local calibration CPU
 > and both-interface GPU simulation now pass; the ABI 3 FPGA build is active.
 
-Fresh ABI 3 synthesis/implementation is running in
+Fresh ABI 3 implementation is running in
 `build_ypcb_native32/ch1-jtag-pcie-20261020-v17/`, freezing commit `6e96b4b9f`
 and the tested `local-selfcal-ddr-20261020-v3` controller. Both Vivado worker
 limits are one, with two allocator arenas. No checkpoint is reused. Native
@@ -22,6 +22,16 @@ and JTAG in `build_ypcb_native32/native-shell-abi3-20261020-v1/`. JTAG also
 passes with the PCIe clock stopped. Demo retired 2,444 instructions and SGEMM
 7,632; all numerical/memory comparisons passed. Physical DDR and GPU execution
 are still open. The tested JTAG/runtime update is local commit `be70e829a`.
+
+v17 synthesis passed with actual exit 0 after 1,192.6 seconds, zero errors and
+zero critical warnings. It uses 83,386 LUTs, 67,384 registers, 160 BRAM tiles
+and 24 DSPs. The checkpoint SHA-256 is
+`aaf6be96cde50c1b0bb571de8b60cc2b8078440c8b07fb4d49919c25a9ce935a`.
+The complete native-client/Tcl loopback test exposed a stale socket-owner race;
+the bridge now observes a previous peer's EOF before deciding ownership. All
+ten protocol tests pass, including 64 reconnects with active-client rejection.
+This software fix does not change the frozen FPGA HDL. No new image has been
+programmed since the ABI 2 JTAG probe.
 
 ## Local DDR calibration CPU — October 20
 
