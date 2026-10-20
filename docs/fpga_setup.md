@@ -89,6 +89,9 @@ When running Vivado in a transient systemd unit, save the actual command exit
 code in its run directory before the wrapper exits. A successful unit can be
 unloaded before a dependent observes its result. Preserve its log and
 checkpoint; a missing unit alone cannot establish stage completion.
+The hardware runner likewise requires the successful, uninterrupted exit receipt
+from implementation or routed finalization before programming. Reports written
+before bitstream generation do not establish that the producer finished.
 
 ## Gaining Access to FPGA's with CRNCH
 If you are associated with Georgia Tech (or related workshops) you can use CRNCH's server to gain remote access to FPGA's. Otherwise, you can skip to the Xilinx or Intel (Altera) synthesis steps below.

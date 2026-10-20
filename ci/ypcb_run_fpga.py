@@ -30,6 +30,17 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def producer_receipt(image, inputs):
+    name = 'finalize-exit.json' if 'routed_finalization' in inputs else 'implement-exit.json'
+    path = image / name
+    if not path.is_file():
+        raise ValueError('Image producer is not complete: missing ' + name)
+    receipt = json.loads(path.read_text())
+    if receipt.get('exit_code') != 0 or receipt.get('interrupted') != 0 or receipt.get('timed_out', False):
+        raise ValueError('Image producer did not finish successfully: ' + name)
+    return {'file': name, 'sha256': digest(path), 'receipt': receipt}
+
+
 def stop(child):
     if child.poll() is not None:
         return child.returncode
@@ -140,6 +151,7 @@ def main():
                 or not required.issubset(qualification['checks']) or not all(qualification['checks'].values())):
             raise ValueError('Exact image has not passed its routed report gates')
         inputs = json.loads((image / 'inputs.json').read_text())
+        state['image_producer'] = producer_receipt(image, inputs)
         for name, expected in inputs['inputs'].items():
             if digest(image / name) != expected:
                 raise ValueError('Frozen image input changed: ' + name)
