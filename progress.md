@@ -12,7 +12,9 @@ are running under `vortex-wl-fpga-kernels-20261020-v2.service`.
 | DDR memory | Four distinct 8 KiB regions, including upper-address regions, passed upload/download/copy, alias and 2 GiB bounds checks; this is not a full-capacity soak |
 | GPU demo, `-n64` | Numerical PASS; 2,444 retired instructions, 9,133 cycles; ECC enabled, zero corrected/uncorrectable errors |
 | SGEMM, `-n16` | Numerical PASS; 7,632 retired instructions, 18,925 cycles; ECC enabled, zero corrected/uncorrectable errors |
-| Five basic-operation scripts | In progress; require all 13 default numerical checks and clean ECC after each script |
+| Basic vector addition | PASS: all 37 outputs exact; ECC enabled and clean |
+| Seven elementwise operators | PASS: add/subtract/multiply/divide/minimum/maximum/ReLU, 37 outputs each; division max absolute error `5.11e-08`, others exact; ECC enabled and clean |
+| Basic GEMM, convolution and pooling | In progress; 8 of 13 default basic-operation checks have passed so far |
 | Physical PCIe runtime | Not tested on this JTAG-only host; both interfaces are present and passed the GPU/AFU RTL model |
 
 Live evidence: [hardware manifest](build_ypcb_wl32/fpga-kernels-20261020-v2/manifest.json),

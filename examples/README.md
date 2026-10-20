@@ -79,8 +79,9 @@ export STARTUP_ADDR=0x40000000
 
 These commands run SimX and use no FPGA connection. The October 20 WL/ABI4
 image has passed physical CH1 calibration, memory, GPU demo and SGEMM through
-JTAG. The five Python examples are still being checked; see
-[current results](../progress.md) for their separate status. A successful
+JTAG. `simple_add.py` and all seven `elementwise.py` operators have also passed
+on the FPGA with clean ECC. GEMM, convolution and pooling are still being
+checked; see [current results](../progress.md) for their separate status. A successful
 simulator run does not qualify DDR or hardware execution.
 
 For an authorized board session, build `examples runtime DRIVER=ypcb` with
