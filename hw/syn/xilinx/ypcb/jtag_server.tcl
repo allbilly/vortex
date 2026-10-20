@@ -16,6 +16,7 @@ refresh_hw_device [current_hw_device]
 set axes [get_hw_axis]
 if {[llength $axes] != 1} {error "Expected exactly one JTAG AXI master"}
 set axis [lindex $axes 0]
+reset_hw_axi $axis
 set client ""
 proc access_word {write address value} {
     global axis
