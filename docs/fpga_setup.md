@@ -13,6 +13,15 @@ checks. The primary LiteDRAM CPU configuration stays `None` to preserve external
 Wishbone access. The local CPU is inside the existing `ddrctrl` CSR group.
 See [the calibration design](proposals/ypcb_local_ddr_calibration_proposal.md).
 
+The separate `ypcb_tcu` profile enables FP16-to-FP32 and INT8-to-INT32 tensor
+arithmetic on one eight-thread core. Configure a fresh RV32, 2 GiB build with
+`--profile=ypcb_tcu`; retain the scalar build separately. Its TFR pipeline uses
+DSP inference and five stages consistently in simulation and synthesis.
+See [the tensor-image plan](proposals/ypcb_tcu_proposal.md). Profile changes,
+including inherited profiles, require `configure` so generated headers and
+compiler flags describe the same machine. Unchanged generated contents retain
+their timestamps. Existing scalar hardware results do not qualify this image.
+
 The JTAG AXI core has sixteen entries in both transaction queues. Software
 batches the sixteen PIO data-window words into distinct AXI Lite transactions,
 then executes them with [AMD's `run_hw_axi -queue`](https://docs.amd.com/r/2024.1-English/ug835-vivado-tcl-commands/run_hw_axi).

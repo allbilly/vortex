@@ -98,14 +98,14 @@ def pytest_sessionfinish(session):
 
 
 def _build_vars():
-    """(source root, XLEN, memory size) for the build tree pytest is running in.
+    """(source root, XLEN, memory size, profile) for the current build tree.
 
     config.mk is what configure recorded, so it is authoritative: an ambient
     XLEN in the environment may differ from the one this tree was generated
     with, and regenerating against the wrong width would report every header as
     stale.
     """
-    root, xlen, memory_size = None, None, None
+    root, xlen, memory_size, profile = None, None, None, ""
     try:
         with open("config.mk") as fh:
             for line in fh:
@@ -118,9 +118,12 @@ def _build_vars():
                 m = re.match(r"\s*MEMORY_SIZE\s*[?:]?=\s*(\S+)", line)
                 if m:
                     memory_size = m.group(1)
+                m = re.match(r"\s*PROFILE\s*[?:]?=\s*(\S*)", line)
+                if m:
+                    profile = m.group(1)
     except OSError:
         pass
-    return root, xlen, memory_size
+    return root, xlen, memory_size, profile
 
 
 def _assert_config_current():
@@ -134,7 +137,7 @@ def _assert_config_current():
     Regeneration is byte-stable, so comparing against a fresh generation is an
     exact test.
     """
-    source_root, xlen, memory_size = _build_vars()
+    source_root, xlen, memory_size, profile = _build_vars()
     if not source_root or not xlen:
         return
     gen = os.path.join(source_root, "ci", "gen_config.py")
@@ -151,6 +154,8 @@ def _assert_config_current():
             extra = ["--resolved"] if name == "VX_types" else []
             if name == "VX_types" and memory_size:
                 extra.append("--cflags=-DVX_MEM_GLOBAL_SIZE=" + memory_size)
+            if name == "VX_config" and profile:
+                extra.append("--profile=" + profile)
             for subdir, ext, fmt in (("hw", ".vh", "verilog"), ("sw", ".h", "cpp")):
                 built = os.path.join(subdir, name + ext)
                 if not os.path.exists(built):

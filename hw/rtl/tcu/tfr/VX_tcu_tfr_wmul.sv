@@ -16,9 +16,9 @@
 // Generic unsigned mantissa multiplier for the TFR FEDP.
 //   p[i] = a[i] * b[SHARED_B ? 0 : i]   (i = 0 .. LANES-1)
 //
-// USE_DSP=0: LUT fabric — a Wallace tree per lane when square (N==M), else an
+// DSP_ENABLE=0: LUT fabric — a Wallace tree per lane when square (N==M), else an
 //            inferred multiply. Area-optimal / ASIC-portable.
-// USE_DSP=1: pack all LANES products into ONE DSP48 by placing the per-lane
+// DSP_ENABLE=1: pack all LANES products into ONE DSP48 by placing the per-lane
 //            operands in non-overlapping fields of the 27x18 product:
 //   LANES==1            : plain DSP multiply.
 //   LANES==2, SHARED_B  : pa = a1<<P | a0, prod = pa*b0  -> no cross-terms
@@ -26,11 +26,11 @@
 //   LANES==2, !SHARED_B : pa = a1<<K | a0, pb = b1<<K | b0, K=P+1; the two
 //                         diagonal products land clear of the middle cross-term
 //                         field, which is discarded.
-// All paths are bit-identical; USE_DSP only changes the target primitive.
+// All paths are bit-identical; DSP_ENABLE only changes the target primitive.
 // (Independent packing is limited to LANES<=2: at LANES>2 the off-diagonal
 //  partial products collide with the wanted diagonal terms.)
 //
-// OUT_REG registers the raw product; with USE_DSP the register sits directly
+// OUT_REG registers the raw product; with DSP_ENABLE the register sits directly
 // on the inferred multiply so it is absorbed into the DSP48 PREG.
 module VX_tcu_tfr_wmul #(
     parameter N        = 4,       // operand A width
@@ -38,7 +38,7 @@ module VX_tcu_tfr_wmul #(
     parameter LANES    = 1,       // products packed into one DSP (1 or 2)
     parameter SHARED_B = 0,       // 1: every lane multiplies the single b[0]
     parameter P        = N + M,   // per-product width
-    parameter USE_DSP  = 0,
+    parameter DSP_ENABLE  = 0,
     parameter OUT_REG  = 0        // register the raw product (DSP48 PREG)
 ) (
     input  wire                    clk,
@@ -53,7 +53,7 @@ module VX_tcu_tfr_wmul #(
     // the DSP48 M/P pipeline registers. For the packed LANES==2 cases the FULL
     // product is registered before slicing — registering the disjoint slices
     // instead forces the register into fabric and leaves the DSP48 unpipelined.
-    if (USE_DSP == 0) begin : g_lut
+    if (DSP_ENABLE == 0) begin : g_lut
         wire [LANES-1:0][P-1:0] p_w;
         for (genvar i = 0; i < LANES; ++i) begin : g_mul
             localparam BI = (SHARED_B != 0) ? 0 : i;

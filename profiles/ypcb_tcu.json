@@ -1,0 +1,31 @@
+{
+  "name": "ypcb_tcu",
+  "description": "YPCB RV32 GPU with FP16 and INT8 tensor arithmetic, CH1 2 GiB ECC and both host interfaces.",
+  "core": {
+    "VX_CFG_NUM_WARPS": 4,
+    "VX_CFG_NUM_THREADS": 8,
+    "VX_CFG_ISSUE_WIDTH": 1,
+    "VX_CFG_FPU_TYPE": "STD",
+    "VX_CFG_EXT_TCU_ENABLE": true,
+    "VX_CFG_TCU_TYPE": "TFR",
+    "VX_CFG_TCU_FP16_ENABLE": true,
+    "VX_CFG_TCU_INT8_ENABLE": true,
+    "VX_CFG_TCU_USE_DSP": 1,
+    "VX_CFG_TCU_LATENCY": 5
+  },
+  "chip": {
+    "VX_CFG_NUM_CLUSTERS": 1,
+    "VX_CFG_NUM_CORES": 1
+  },
+  "platform": {
+    "VX_CFG_PLATFORM_CLOCK_RATE": 125,
+    "VX_CFG_PLATFORM_MEMORY_NUM_BANKS": 1,
+    "VX_CFG_PLATFORM_MEMORY_ADDR_WIDTH": 31,
+    "VX_CFG_MEM_ADDR_WIDTH": 31,
+    "VX_CFG_PLATFORM_MEMORY_PEAK_BW": 6400
+  },
+  "sources": {
+    "core": "ci/testcases/tensor.yaml model_parity-fp16; one issue block and the existing four-warp YPCB core. Five TFR stages and DSP inference match FPGA synthesis in simulation too.",
+    "platform": "hw/syn/xilinx/ypcb/config.mk; WL/ABI4 CH1 DDR800 ECC controller and independent 125 MHz GPU clock. Peak bandwidth is a configured capability, not a measurement."
+  }
+}

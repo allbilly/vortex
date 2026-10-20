@@ -84,7 +84,7 @@ ifneq (,$(filter -DVX_CFG_TCU_TYPE_TFR, $(XCONFIGS)))
 RTL_INCLUDE += -I$(RTL_DIR)/tcu/tfr
 TOP := VX_tcu_fedp_tfr
 PARAMS += -GLANE_MASK=1
-PARAMS += -GUSE_DSP=$(USE_DSP)
+PARAMS += -GDSP_ENABLE=$(USE_DSP)
 CXXFLAGS += -DVX_CFG_TCU_TYPE_TFR
 endif
 

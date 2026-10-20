@@ -26,7 +26,7 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
     parameter EXP_W = 10,       // Max exponent width
     parameter TCK = 2 * N,      // Max physical lanes
     parameter SF = 1,           // Scale factor slots
-    parameter USE_DSP = 0,      // map mantissa multipliers onto DSP48 slices
+    parameter DSP_ENABLE = 0,      // map mantissa multipliers onto DSP48 slices
     parameter PROD_REG = 0      // product/flag register stages (multiply-stage seam)
 ) (
     input wire              clk,
@@ -81,7 +81,7 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
         .W(W),
         .WA(WA),
         .EXP_W(EXP_W),
-        .USE_DSP(USE_DSP),
+        .DSP_ENABLE(DSP_ENABLE),
         .PROD_REG(PROD_REG)
     ) mul_f16 (
         .clk        (clk),
@@ -117,7 +117,7 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
             .W(W),
             .WA(WA),
             .EXP_W(EXP_W),
-            .USE_DSP(USE_DSP),
+            .DSP_ENABLE(DSP_ENABLE),
             .PROD_REG(PROD_REG)
         ) mul_f8 (
             .clk        (clk),
@@ -168,7 +168,7 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
             .W(W),
             .WA(WA),
             .EXP_W(EXP_W),
-            .USE_DSP(USE_DSP),
+            .DSP_ENABLE(DSP_ENABLE),
             .PROD_REG(PROD_REG)
         ) mul_f4 (
             .clk        (clk),
@@ -204,7 +204,7 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
     VX_tcu_tfr_mul_i8 #(
         .N(N),
         .TCK(TCK),
-        .USE_DSP(USE_DSP),
+        .DSP_ENABLE(DSP_ENABLE),
         .PROD_REG(PROD_REG)
     ) mul_int8 (
         .clk        (clk),
@@ -225,7 +225,7 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
     VX_tcu_tfr_mul_i4 #(
         .N(N),
         .TCK(TCK),
-        .USE_DSP(USE_DSP),
+        .DSP_ENABLE(DSP_ENABLE),
         .PROD_REG(PROD_REG)
     ) mul_int4 (
         .clk        (clk),

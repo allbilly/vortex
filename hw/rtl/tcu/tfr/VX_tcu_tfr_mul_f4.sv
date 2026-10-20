@@ -21,7 +21,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
     parameter W     = 25,
     parameter WA    = 28,
     parameter EXP_W = 10,
-    parameter USE_DSP = 0,  // map mantissa multipliers onto DSP48 slices
+    parameter DSP_ENABLE = 0,  // map mantissa multipliers onto DSP48 slices
     parameter PROD_REG = 0  // product/flag register stages (multiply-stage seam)
 ) (
     input wire                      clk,
@@ -135,7 +135,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         VX_tcu_tfr_wmul #(
             .N       (2),
             .LANES   (2),
-            .USE_DSP (USE_DSP),
+            .DSP_ENABLE (DSP_ENABLE),
             .OUT_REG (PROD_REG)
         ) f4m01 (
             .clk    (clk),
@@ -147,7 +147,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         VX_tcu_tfr_wmul #(
             .N       (2),
             .LANES   (2),
-            .USE_DSP (USE_DSP),
+            .DSP_ENABLE (DSP_ENABLE),
             .OUT_REG (PROD_REG)
         ) f4m23 (
             .clk    (clk),
@@ -295,7 +295,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         wire [7:0] sf_man_prod;
         VX_tcu_tfr_wmul #(
             .N(4),
-            .USE_DSP(USE_DSP)
+            .DSP_ENABLE(DSP_ENABLE)
         ) sf_wtmul (
             .clk    (clk),
             .enable (enable),
@@ -363,7 +363,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         VX_tcu_tfr_wmul #(
             .N       (2),
             .LANES   (2),
-            .USE_DSP (USE_DSP)
+            .DSP_ENABLE (DSP_ENABLE)
         ) f4m01 (
             .clk    (clk),
             .enable (enable),
@@ -374,7 +374,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         VX_tcu_tfr_wmul #(
             .N       (2),
             .LANES   (2),
-            .USE_DSP (USE_DSP)
+            .DSP_ENABLE (DSP_ENABLE)
         ) f4m23 (
             .clk    (clk),
             .enable (enable),
@@ -391,7 +391,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .M        (8),
             .LANES    (2),
             .SHARED_B (1),
-            .USE_DSP  (USE_DSP),
+            .DSP_ENABLE  (DSP_ENABLE),
             .OUT_REG  (PROD_REG)
         ) tm01 (
             .clk    (clk),
@@ -405,7 +405,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .M        (8),
             .LANES    (2),
             .SHARED_B (1),
-            .USE_DSP  (USE_DSP),
+            .DSP_ENABLE  (DSP_ENABLE),
             .OUT_REG  (PROD_REG)
         ) tm23 (
             .clk    (clk),

@@ -254,8 +254,21 @@ gen_header() {
     local out="$2"
     local fmt="$3"
     local extra="$4"
-    if [ ! -f "$out" ] || [ "$toml" -nt "$out" ] || [ "$CONFIG_STAMP" -nt "$out" ] || [ "$SOURCE_DIR/ci/gen_config.py" -nt "$out" ]; then
-        "$SOURCE_DIR/ci/gen_config.py" --config "$toml" --output "$out" --format "$fmt" $extra
+    if [ ! -f "$out" ] || [ "$toml" -nt "$out" ] || [ "$CONFIG_STAMP" -nt "$out" ] || [ "$SOURCE_DIR/ci/gen_config.py" -nt "$out" ] \
+        || { [ "${toml##*/}" = VX_config.toml ] && [ -n "$PROFILE" ]; }; then
+        local temporary
+        temporary=$(mktemp -d "${out}.tmp.XXXXXX")
+        if ! "$SOURCE_DIR/ci/gen_config.py" --config "$toml" --output "$temporary/${out##*/}" --format "$fmt" $extra; then
+            rm -f -- "$temporary/${out##*/}"
+            rmdir -- "$temporary"
+            return 1
+        fi
+        if [ -f "$out" ] && cmp -s "$temporary/${out##*/}" "$out"; then
+            rm -f -- "$temporary/${out##*/}"
+        else
+            mv -f -- "$temporary/${out##*/}" "$out"
+        fi
+        rmdir -- "$temporary"
     fi
 }
 # gen_config.py reads XLEN from the environment to resolve the XLEN-dependent
@@ -269,6 +282,6 @@ for toml in "$SOURCE_DIR"/*.toml; do
         VX_types) extra="--resolved --cflags=-DVX_MEM_GLOBAL_SIZE=$MEMORY_SIZE" ;;
         VX_config) [ -n "$PROFILE" ] && extra="--profile=$PROFILE" ;;
     esac
-    gen_header "$toml" "$CURRENT_DIR/hw/$name.vh" verilog "$extra"
-    gen_header "$toml" "$CURRENT_DIR/sw/$name.h"  cpp     "$extra"
+    gen_header "$toml" "$CURRENT_DIR/hw/$name.vh" verilog "$extra" || exit 1
+    gen_header "$toml" "$CURRENT_DIR/sw/$name.h"  cpp     "$extra" || exit 1
 done

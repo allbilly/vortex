@@ -17,7 +17,7 @@ module VX_tcu_tfr_mul_i4 import VX_tcu_pkg::*; #(
     parameter `STRING INSTANCE_ID = "",
     parameter N   = 2,
     parameter TCK = 2 * N,
-    parameter USE_DSP = 0,  // map the int4 multiplies onto DSP48 slices
+    parameter DSP_ENABLE = 0,  // map the int4 multiplies onto DSP48 slices
     parameter PROD_REG = 0  // product/flag register stages (multiply-stage seam)
 ) (
     input wire                      clk,
@@ -78,7 +78,7 @@ module VX_tcu_tfr_mul_i4 import VX_tcu_pkg::*; #(
             .data_out (pvalid_r)
         );
 
-        if (USE_DSP != 0) begin : g_dsp
+        if (DSP_ENABLE != 0) begin : g_dsp
             // a*b == sign(a^b) * (|a|*|b|): pack two unsigned 4x4 magnitude
             // products per DSP48, then re-apply the sign in fabric. Two DSPs
             // cover the four int4 products of a lane (vs four with 1/DSP).
@@ -95,7 +95,7 @@ module VX_tcu_tfr_mul_i4 import VX_tcu_pkg::*; #(
             VX_tcu_tfr_wmul #(
                 .N       (4),
                 .LANES   (2),
-                .USE_DSP (1),
+                .DSP_ENABLE (1),
                 .OUT_REG (PROD_REG)
             ) m01 (
                 .clk    (clk),
@@ -107,7 +107,7 @@ module VX_tcu_tfr_mul_i4 import VX_tcu_pkg::*; #(
             VX_tcu_tfr_wmul #(
                 .N       (4),
                 .LANES   (2),
-                .USE_DSP (1),
+                .DSP_ENABLE (1),
                 .OUT_REG (PROD_REG)
             ) m23 (
                 .clk    (clk),

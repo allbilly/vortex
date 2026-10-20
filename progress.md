@@ -1,11 +1,57 @@
 # Current Vortex status — October 21, 2026
 
+**The separate FP16 and INT8 tensor image is in progress.** The `ypcb_tcu`
+profile selects one eight-thread core, a five-stage TFR tensor unit with DSP
+inference, FP16-to-FP32 and INT8-to-INT32 arithmetic. CH1-only 2 GiB ECC and
+both JTAG/PCIe interfaces are retained. The scalar image below is preserved.
+
+Native TFR arithmetic passed FP16, signed INT8 and unsigned INT8 checks using
+the canonical references from `hw/unittest/Makefile`. The initial invocation
+used the generic floating-point reference and stopped on a two-ULP difference;
+the corrected TFR command uses `USE_FEDP` and `--W=25`, with unchanged tolerance.
+Both requested formats passed SimX square and rectangular matrix tests, with
+two launches per case. INT8 uses K=32 to satisfy its tensor tile geometry.
+Both formats also passed XRT square and rectangular tests, with two launches
+per case: eight matrix cases and sixteen verified launches across SimX/XRT.
+The native job completed successfully under `vortex-tcu-native-20261021-v5.service`.
+Evidence: `build_ypcb_tcu32/native-validation-20261021-v5/manifest.json` and
+`tensor-log-checks.json` in that directory. No tensor FPGA pass is claimed.
+
+All 72 profile/runner checks passed. Profile regeneration now follows inherited
+profile contents, preserves unchanged header timestamps and rejects invalid
+profiles; the pytest freshness guard uses the configured profile too. The
+TFR Boolean parameter is renamed `DSP_ENABLE` to avoid Vivado's `use_dsp`
+property collision. The YPCB export and shell model now include the tensor
+package and sources and retain the selected profile. The verified export has
+31 tensor source entries, including `VX_tcu_pkg.sv`. The initial board-model
+attempt stopped at elaboration because the YPCB paths omitted the generated
+`VX_CFG_TCU_TYPE_TFR` selector. Both the export and shell model now forward it;
+`frontend-sources-20261021-v3/` selects the TFR implementation and contains no
+missing-implementation sentinel in the preprocessed tensor core.
+
+Build directory: `build_ypcb_tcu32/`; proposal:
+[FP16 and INT8 tensor kernels](docs/proposals/ypcb_tcu_proposal.md).
+The board-level model checks are running under
+`vortex-tcu-integration-build-20261021-v2.service`; their manifest is
+`build_ypcb_tcu32/integration-build-20261021-v2/manifest.json`. This job verifies
+memory, scalar and both tensor formats through modeled PCIe and JTAG, then
+starts fresh synthesis/routing only after those tests pass. The planned image
+directory is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v1/`; it is not a
+completed bitstream yet.
+Pending: both modeled board interfaces, fresh synthesis/routing and report/CRC
+gates, then authorized SRAM, DDR/ECC, scalar and tensor hardware tests.
+Vortex uses one heavy stage at a time and an 8 GiB service limit. It has
+not acquired JTAG for this tensor work, and permanent flash remains untouched.
+
+## Qualified scalar image
+
 **Vortex GPU kernels now run and pass on the physical FPGA.** The OpenTPU-derived
 WL/ABI4 image passed CH1 DDR memory, GPU demo, SGEMM and all five basic-operation
 Python scripts: 13 basic numerical checks covering 472 output values. The run
 finished at 00:07:29 HKT under `vortex-wl-fpga-kernels-20261020-v2.service`.
 All eight memory/application stages retained enabled ECC with zero corrected
-or uncorrectable errors. The goal is achieved for the local JTAG connection.
+or uncorrectable errors. Scalar image qualification is complete for the local
+JTAG connection.
 
 | Check | Latest physical result |
 | --- | --- |

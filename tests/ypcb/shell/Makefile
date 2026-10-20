@@ -9,16 +9,25 @@ RUNTIME_DIR := $(ROOT_DIR)/sw/runtime
 VERILATOR ?= $(VERILATOR_PATH)/bin/verilator
 PROJECT := libvortex-ypcb-shell-test.so
 include $(BOARD_DIR)/config.mk
-BOARD_CONFIGS := $(YPCB_CONFIGS)
+BOARD_CONFIGS := $(CONFIGS) $(YPCB_CONFIGS)
+BOARD_XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(BOARD_CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
+TCU_ITYPE ?= fp16
+TCU_OTYPE ?= fp32
+TCU_K := $(if $(filter int8,$(TCU_ITYPE)),32,16)
 
 RTL_FLAGS := -DVX_CFG_XLEN=32 -DVX_CFG_XLEN_32 -DVX_CFG_FPU_TYPE=STD -DVX_CFG_FPU_TYPE_STD
 RTL_FLAGS += -DSIMULATION -DNDEBUG -DVX_CFG_PLATFORM_CLOCK_RATE=125
 RTL_FLAGS += $(BOARD_CONFIGS)
+RTL_FLAGS += $(filter -DVX_CFG_TCU_TYPE_%,$(BOARD_XCONFIGS))
 RTL_FLAGS += -I$(ROOT_DIR)/hw -I$(RTL_DIR) -I$(BOARD_DIR) -I$(RTL_DIR)/libs
 RTL_FLAGS += -I$(RTL_DIR)/interfaces -I$(RTL_DIR)/core -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm
 RTL_FLAGS += -I$(RTL_DIR)/cache -I$(RTL_DIR)/fpu -I$(RTL_DIR)/cp
 RTL_FLAGS += -I$(RTL_DIR)/afu/xrt -I$(RTL_DIR)/afu/common
+RTL_FLAGS += -I$(RTL_DIR)/tcu -I$(RTL_DIR)/tcu/tfr
 RTL_PKGS := $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv
+ifneq ($(findstring -DVX_CFG_EXT_TCU_ENABLE,$(BOARD_CONFIGS)),)
+RTL_PKGS += $(RTL_DIR)/tcu/VX_tcu_pkg.sv
+endif
 RTL_PKGS += $(RTL_DIR)/VX_trace_pkg.sv $(RTL_DIR)/cp/VX_cp_pkg.sv
 RTL_SRCS := $(shell rg --files $(RTL_DIR) -g '*.sv' -g '*.v' -g '*.vh')
 SRCS := $(SRC_DIR)/backend.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp
@@ -30,8 +39,9 @@ CXXFLAGS += -std=c++17 -O2 -DNDEBUG -Wall -Wextra -fPIC -fno-tree-loop-distribut
 CXXFLAGS += -I$(SW_COMMON_DIR) -I$(ROOT_DIR)/sw
 CXXFLAGS += -I$(VORTEX_HOME)/sw/runtime/common -I$(VORTEX_HOME)/sw/runtime/include
 CXXFLAGS += $(BOARD_CONFIGS)
+CXXFLAGS += $(filter -DVX_CFG_TCU_TYPE_%,$(BOARD_XCONFIGS))
 
-.PHONY: all run run-demo run-sgemm kernel-build force
+.PHONY: all run run-demo run-sgemm run-sgemm-tcu kernel-build force
 all: $(PROJECT)
 
 config.stamp: force
@@ -55,3 +65,7 @@ run-demo: all kernel-build
 run-sgemm: all kernel-build
 	$(MAKE) -C $(ROOT_DIR)/tests/regression/sgemm CONFIGS='$(BOARD_CONFIGS)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)
 	cd $(ROOT_DIR)/tests/regression/sgemm && LD_LIBRARY_PATH=$(CURDIR):$(RUNTIME_DIR) VORTEX_DRIVER=ypcb-shell-test VORTEX_CP_POLL_TIMEOUT_S=120 ./sgemm -n16
+
+run-sgemm-tcu: all kernel-build
+	$(MAKE) -C $(ROOT_DIR)/tests/regression/sgemm_tcu CONFIGS='$(BOARD_CONFIGS) -DITYPE=$(TCU_ITYPE) -DOTYPE=$(TCU_OTYPE)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)
+	cd $(ROOT_DIR)/tests/regression/sgemm_tcu && LD_LIBRARY_PATH=$(CURDIR):$(RUNTIME_DIR) VORTEX_DRIVER=ypcb-shell-test VORTEX_CP_POLL_TIMEOUT_S=120 ./sgemm_tcu -m16 -n16 -k$(TCU_K) -r2

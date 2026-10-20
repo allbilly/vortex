@@ -20,7 +20,7 @@ module VX_tcu_fedp_tfr import VX_tcu_pkg::*; #(
     parameter N = TCU_TC_K,
     parameter SF = 1,
     parameter W = 25,
-    parameter USE_DSP = 0   // map mantissa multipliers onto DSP48 slices (same latency)
+    parameter DSP_ENABLE = 0   // map mantissa multipliers onto DSP48 slices (same latency)
 ) (
     input  wire clk,
     input  wire reset,
@@ -62,9 +62,9 @@ module VX_tcu_fedp_tfr import VX_tcu_pkg::*; #(
 
     // Latency Configuration
     // The multiply-stage depth derives from the configured total latency.
-    // USE_DSP swaps the mantissa Wallace tree for an inferred DSP48 multiply at
+    // DSP_ENABLE swaps the mantissa Wallace tree for an inferred DSP48 multiply at
     // the SAME latency. At MUL_LATENCY=2 the format banks register their raw
-    // products (DSP48 PREG with USE_DSP), splitting the classify/multiply and
+    // products (DSP48 PREG with DSP_ENABLE), splitting the classify/multiply and
     // reduce/join cones across two cycles; pipe_mul stays DEPTH 1 — the
     // lane-masked pipe register only aligns correctly at DEPTH 1.
     localparam ALN_LATENCY = 1;
@@ -128,7 +128,7 @@ module VX_tcu_fedp_tfr import VX_tcu_pkg::*; #(
         .WA (ACC_SIG_W),
         .EXP_W (EXP_W),
         .SF (SF),
-        .USE_DSP (USE_DSP),
+        .DSP_ENABLE (DSP_ENABLE),
         .PROD_REG (PROD_REG)
     ) shared_mul (
         .clk(clk),

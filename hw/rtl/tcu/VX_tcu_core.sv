@@ -654,7 +654,7 @@ module VX_tcu_core import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
                 .LATENCY (FEDP_LATENCY),
                 .N (FEDP_K),
                 .SF (FEDP_SF),
-                .USE_DSP (`VX_CFG_TCU_USE_DSP)
+                .DSP_ENABLE (`VX_CFG_TCU_USE_DSP)
             ) fedp (
                 .clk   (clk),
                 .reset (reset),

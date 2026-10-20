@@ -10,6 +10,75 @@ import sys
 import pytest
 
 
+def tensor_runner():
+    root = Path((Path.cwd() / 'config.mk').read_text().split('VORTEX_HOME ?= ', 1)[1].splitlines()[0])
+    spec = importlib.util.spec_from_file_location('ypcb_tensor_runner', root / 'ci/ypcb_run_fpga.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_tensor_preflight_rejects_scalar_build_before_hardware(tmp_path):
+    root = Path((Path.cwd() / 'config.mk').read_text().split('VORTEX_HOME ?= ', 1)[1].splitlines()[0])
+    build = tmp_path / 'build'
+    build.mkdir()
+    (build / 'config.mk').write_text(f'VORTEX_HOME ?= {root}\nXLEN ?= 32\nMEMORY_SIZE ?= 2147483648\n')
+    output = tmp_path / 'output'
+    result = subprocess.run([sys.executable, str(root / 'ci/ypcb_run_fpga.py'),
+        '--build', str(build), '--image-run', str(tmp_path / 'missing-image'), '--output', str(output),
+        '--vivado-bin', str(tmp_path / 'missing-vivado'), '--crc-checker', str(tmp_path / 'missing-crc'),
+        '--hardware-lease', str(tmp_path / 'hardware.lock'), '--stage', 'tensor-kernels'],
+        capture_output=True, text=True, timeout=30)
+    assert result.returncode != 0
+    receipt = json.loads((output / 'manifest.json').read_text())
+    assert 'configured ypcb_tcu profile' in receipt['error']
+    assert receipt['hardware_accessed'] is False
+    assert not (tmp_path / 'hardware.lock').exists()
+
+
+@pytest.mark.parametrize('missing', ['', 'VX_CFG_EXT_TCU_ENABLE', 'VX_CFG_TCU_INT8_ENABLE',
+                                      'VX_CFG_TCU_FP16_ENABLE', 'VX_CFG_NUM_THREADS=8', 'VX_CFG_TCU_TYPE_TFR'])
+def test_tensor_image_requires_both_formats(tmp_path, missing):
+    flags = ['VX_CFG_EXT_TCU_ENABLE', 'VX_CFG_TCU_TYPE=TFR', 'VX_CFG_TCU_FP16_ENABLE',
+             'VX_CFG_TCU_INT8_ENABLE', 'VX_CFG_NUM_THREADS=8', 'VX_CFG_TCU_LATENCY=5', 'VX_CFG_TCU_USE_DSP=1',
+             'VX_CFG_TCU_TYPE_TFR']
+    directory = tmp_path / 'afu'
+    directory.mkdir()
+    (directory / 'config.flags').write_text(' '.join('-D' + flag for flag in flags if flag != missing))
+    module = tensor_runner()
+    if missing:
+        with pytest.raises(ValueError, match='frozen dual-format'):
+            module.tensor_configuration(tmp_path)
+    else:
+        assert len(module.tensor_configuration(tmp_path)) == len(flags)
+
+
+@pytest.mark.parametrize('dtype,source,target', [('fp16', 'fp16 (id=2)', 'fp32 (id=0)'),
+                                               ('int8', 'i8 (id=17)', 'i32 (id=16)')])
+@pytest.mark.parametrize('failure', ['', 'wrong_format', 'missing_iteration', 'zero_counters', 'no_pass'])
+def test_tensor_repeated_numerical_and_retirement_evidence(dtype, source, target, failure):
+    log = f'input data type: {source}\noutput data type: {target}\n'
+    log += '[iter 0] match (0 errors)\nPERF: instrs=30, cycles=40\n'
+    log += '[iter 1] match (0 errors)\nPERF: instrs=30, cycles=40\n'
+    log += 'cleanup\nPERF: instrs=30, cycles=40\nPASSED!\n'
+    if failure == 'wrong_format':
+        log = log.replace(source, 'invalid')
+    elif failure == 'missing_iteration':
+        log = log.replace('[iter 1] match (0 errors)', '[iter 1] MISMATCH (1 errors)')
+    elif failure == 'zero_counters':
+        log = log.replace('instrs=30', 'instrs=0')
+    elif failure == 'no_pass':
+        log = log.replace('PASSED!', '')
+    module = tensor_runner()
+    if failure:
+        with pytest.raises(ValueError, match='Tensor kernel'):
+            module.tensor_checks(log, dtype, 'fp32' if dtype == 'fp16' else 'int32')
+    else:
+        result = module.tensor_checks(log, dtype, 'fp32' if dtype == 'fp16' else 'int32')
+        assert result['verified_iterations'] == 2
+        assert result['instructions'] == 30
+
+
 @pytest.mark.parametrize('failure_kind', ['missing_report', 'missing_checks', 'failed_timing', 'producer_not_finished'])
 def test_preflight_rejects_before_hardware(tmp_path, failure_kind):
     root = Path((Path.cwd() / 'config.mk').read_text().split('VORTEX_HOME ?= ', 1)[1].splitlines()[0])

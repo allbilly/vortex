@@ -21,7 +21,7 @@ module VX_tcu_tfr_mul_f8 import VX_tcu_pkg::*;
     parameter W     = 25,
     parameter WA    = 28,
     parameter EXP_W = 10,
-    parameter USE_DSP = 0,  // map mantissa multipliers onto DSP48 slices
+    parameter DSP_ENABLE = 0,  // map mantissa multipliers onto DSP48 slices
     parameter PROD_REG = 0  // product/flag register stages (multiply-stage seam)
 ) (
     input wire                      clk,
@@ -235,14 +235,14 @@ module VX_tcu_tfr_mul_f8 import VX_tcu_pkg::*;
         );
 
         // The two fp8 mantissa products in a lane are independent unsigned 4x4
-        // multiplies — small enough to pack into a single DSP48 (USE_DSP),
+        // multiplies — small enough to pack into a single DSP48 (DSP_ENABLE),
         // halving the f8 DSP count vs one DSP per product. PROD_REG lands the
         // products in the DSP48 PREG.
         wire [1:0][7:0] man_prod;
         VX_tcu_tfr_wmul #(
             .N       (4),
             .LANES   (2),
-            .USE_DSP (USE_DSP),
+            .DSP_ENABLE (DSP_ENABLE),
             .OUT_REG (PROD_REG)
         ) wtmul (
             .clk    (clk),

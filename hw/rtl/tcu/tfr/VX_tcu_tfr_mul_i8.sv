@@ -17,7 +17,7 @@ module VX_tcu_tfr_mul_i8 import VX_tcu_pkg::*; #(
     parameter `STRING INSTANCE_ID = "",
     parameter N   = 2,
     parameter TCK = 2 * N,
-    parameter USE_DSP = 0,  // map the int8 multiplies onto DSP48 slices
+    parameter DSP_ENABLE = 0,  // map the int8 multiplies onto DSP48 slices
     parameter PROD_REG = 0  // product/flag register stages (multiply-stage seam)
 ) (
     input wire                      clk,
@@ -64,11 +64,11 @@ module VX_tcu_tfr_mul_i8 import VX_tcu_pkg::*; #(
             wire [7:0] raw_b = b_col[i/2][(i%2)*16 + j*8 +: 8];
             wire signed [8:0] s_a = is_signed_int ? $signed({raw_a[7], raw_a}) : $signed({1'b0, raw_a});
             wire signed [8:0] s_b = is_signed_int ? $signed({raw_b[7], raw_b}) : $signed({1'b0, raw_b});
-            // 9x9 signed product; USE_DSP maps it to a DSP48 (else LUT fabric).
+            // 9x9 signed product; DSP_ENABLE maps it to a DSP48 (else LUT fabric).
             // PROD_REG lands the product in the DSP48 PREG; invalid lanes are
             // masked post-seam so the DSP input cone stays flat.
             wire signed [16:0] prod_full;
-            if (USE_DSP != 0) begin : g_dsp
+            if (DSP_ENABLE != 0) begin : g_dsp
                 (* use_dsp = "yes" *) wire signed [16:0] dsp_prod = s_a * s_b;
                 assign prod_full = dsp_prod;
             end else begin : g_lut

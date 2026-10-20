@@ -34,11 +34,15 @@ BOARD_SOURCES := $(wildcard $(SRC_DIR)/VX_ypcb_*.sv) $(SRC_DIR)/ypcb_top.sv
 override CONFIGS += $(YPCB_CONFIGS) -DSYNTHESIS -DVIVADO -DNDEBUG
 XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
 CFLAGS := -DVX_CFG_XLEN=$(XLEN) -DVX_CFG_XLEN_$(XLEN) $(CONFIGS)
-CFLAGS += $(filter -DVX_CFG_FPU_TYPE_%,$(XCONFIGS))
+CFLAGS += $(filter -DVX_CFG_FPU_TYPE_% -DVX_CFG_TCU_TYPE_%,$(XCONFIGS))
 CFLAGS += -I$(ROOT_DIR)/hw -I$(RTL_DIR) -I$(RTL_DIR)/libs -I$(RTL_DIR)/interfaces
 CFLAGS += -I$(RTL_DIR)/core -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/cache
 CFLAGS += -I$(RTL_DIR)/fpu -I$(RTL_DIR)/cp -I$(RTL_DIR)/afu/common -I$(RTL_DIR)/afu/xrt
 RTL_PKGS := $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv
+ifneq (,$(filter -DVX_CFG_EXT_TCU_ENABLE,$(XCONFIGS)))
+CFLAGS += -I$(RTL_DIR)/tcu -I$(RTL_DIR)/tcu/tfr
+RTL_PKGS += $(RTL_DIR)/tcu/VX_tcu_pkg.sv
+endif
 
 .PHONY: sources open-sv2v open-synth frontend-test frontend-slang-test open-slang-import open-slang-synth ddr-sources ddr-host-config ddr-host-test ddr-synth cdc-sources cdc-test wb-cdc-sources wb-cdc-test memory-test pio-test pio-host-test pio-memory-test pio-synth pcie-test pcie-synth control-test control-synth control-mapped-test ddr-control-test ddr-control-synth startup-test startup-host-test startup-synth scrub-test elaborate synth
 .PHONY: afu-control-test board-sv2v board-bind board-constraints board-afu board-synth board-pcie

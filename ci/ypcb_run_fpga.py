@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import shlex
 import signal
 import socket
 import statistics
@@ -65,6 +66,34 @@ def example_checks(name, log):
     return result
 
 
+def tensor_configuration(image):
+    flags = set(shlex.split((image / 'afu/config.flags').read_text()))
+    required = {'-DVX_CFG_EXT_TCU_ENABLE', '-DVX_CFG_TCU_TYPE=TFR', '-DVX_CFG_TCU_TYPE_TFR',
+                '-DVX_CFG_TCU_FP16_ENABLE', '-DVX_CFG_TCU_INT8_ENABLE',
+                '-DVX_CFG_NUM_THREADS=8', '-DVX_CFG_TCU_LATENCY=5', '-DVX_CFG_TCU_USE_DSP=1'}
+    disabled = {'-DVX_CFG_EXT_TCU_DISABLE', '-DVX_CFG_TCU_FP16_DISABLE', '-DVX_CFG_TCU_INT8_DISABLE'}
+    if not required.issubset(flags) or disabled.intersection(flags):
+        raise ValueError('Tensor tests require the frozen dual-format, eight-thread TFR image')
+    return sorted(required)
+
+
+def tensor_checks(log, input_type, output_type):
+    formats = {'fp16': ('fp16', 2), 'fp32': ('fp32', 0), 'int8': ('i8', 17), 'int32': ('i32', 16)}
+    source, source_id = formats[input_type]
+    target, target_id = formats[output_type]
+    if (f'input data type: {source} (id={source_id})' not in log
+            or f'output data type: {target} (id={target_id})' not in log
+            or 'PASSED!' not in log):
+        raise ValueError('Tensor kernel did not verify the requested input/output formats')
+    iterations = re.findall(r'^\[iter (\d+)\] match \(0 errors\)$', log, re.M)
+    counters = re.findall(r'PERF: instrs=(\d+), cycles=(\d+)', log)
+    if (iterations != ['0', '1'] or len(counters) != 3
+            or any(min(map(int, pair)) <= 0 for pair in counters)):
+        raise ValueError('Tensor kernel lacks repeated numerical and retirement evidence')
+    return {'input_type': input_type, 'output_type': output_type, 'verified_iterations': 2,
+            **dict(zip(('instructions', 'cycles'), map(int, counters[-1])))}
+
+
 def producer_receipt(image, inputs):
     name = 'finalize-exit.json' if 'routed_finalization' in inputs else 'implement-exit.json'
     path = image / name
@@ -101,11 +130,13 @@ def main():
     parser.add_argument('--vivado-bin', type=Path, required=True)
     parser.add_argument('--hardware-lease', type=Path, required=True)
     parser.add_argument('--crc-checker', type=Path, required=True)
-    parser.add_argument('--stage', choices=('probe', 'kernels'), default='probe')
+    parser.add_argument('--stage', choices=('probe', 'kernels', 'tensor-kernels'), default='probe')
     parser.add_argument('--tck-hz', type=int, choices=(3000000, 6000000), default=3000000)
     parser.add_argument('--server-port', type=int, default=3122)
     parser.add_argument('--jtag-port', type=int, default=3124)
     args = parser.parse_args()
+    run_kernels = args.stage in ('kernels', 'tensor-kernels')
+    run_tensor = args.stage == 'tensor-kernels'
     if (not 0 < args.server_port < 65536 or not 0 < args.jtag_port < 65536
             or args.server_port == args.jtag_port):
         parser.error('Hardware server and JTAG MMIO ports must be distinct valid TCP ports')
@@ -179,6 +210,8 @@ def main():
         configuration = (build / 'config.mk').read_text()
         if 'MEMORY_SIZE ?= 2147483648' not in configuration or 'XLEN ?= 32' not in configuration:
             raise ValueError('FPGA examples require the configured RV32, 2 GiB YPCB build')
+        if run_tensor and not re.search(r'^PROFILE\s*\?=\s*ypcb_tcu\s*$', configuration, re.M):
+            raise ValueError('Tensor kernels require the configured ypcb_tcu profile')
         root = Path(configuration.split('VORTEX_HOME ?= ', 1)[1].splitlines()[0]).resolve()
         qualification = json.loads((image / 'report-qualification.json').read_text())
         required = {'setup', 'hold', 'pulse', 'gray_skew', 'route', 'internal_coverage', 'drc'}
@@ -212,7 +245,7 @@ def main():
         if crc['status'] != 'ALL_PRESENT_CRC_CHECKPOINTS_MATCH' or crc['known_answer_vectors'] != 4:
             raise ValueError('Bitstream integrity check did not pass')
         state['crc'] = crc
-        if args.stage == 'kernels':
+        if run_kernels:
             basic_ops = ('simple_add', 'elementwise', 'gemm', 'conv', 'pooling')
             artifacts = ['sw/runtime/libvortex.so', 'sw/runtime/libvortex-ypcb.so',
                          'tests/ypcb/memory_map/memory_map', 'tests/regression/demo/demo',
@@ -220,6 +253,10 @@ def main():
                          'tests/regression/sgemm/kernel.vxbin', 'config.mk', 'sw/VX_types.h']
             for name in basic_ops:
                 artifacts.append(f'examples/kernels/{name}/kernel.vxbin')
+            if run_tensor:
+                state['tensor_configuration'] = tensor_configuration(image)
+                for name in ('fp16', 'int8'):
+                    artifacts += [f'tensor-apps/{name}/sgemm_tcu', f'tensor-apps/{name}/kernel.vxbin']
             artifact_sources = {name: build / name for name in artifacts}
             for name in ('common', *basic_ops):
                 relative = f'examples/{name}.py'
@@ -322,10 +359,13 @@ def main():
                                      'scope': 'PIO register data window only; no DDR command issued by this probe'}
         state['status'] = 'SRAM_AND_JTAG_MMIO_PASS_DDR_KERNELS_NOT_TESTED'
         save()
-        if args.stage == 'kernels':
+        if run_kernels:
             environment = dict(os.environ, VORTEX_DRIVER='ypcb', VORTEX_YPCB_INTERFACE='jtag',
                                VORTEX_YPCB_JTAG_PORT=str(args.jtag_port), VORTEX_CP_POLL_TIMEOUT_S='120',
+                               PYTHONUNBUFFERED='1',
                                LD_LIBRARY_PATH=str(host / 'sw/runtime') + ':' + os.environ.get('LD_LIBRARY_PATH', ''))
+            state['status'] = 'FPGA_MEMORY_AND_KERNEL_SUITE_RUNNING'
+            save()
             for name, relative, arguments in (
                 ('memory', 'tests/ypcb/memory_map', ['memory_map']),
                 ('demo', 'tests/regression/demo', ['demo', '-n64']),
@@ -357,11 +397,26 @@ def main():
                 if ecc != [1, 0, 0]:
                     raise ValueError(name + ' did not retain enabled, clean CH1 ECC')
             state['status'] = 'FPGA_MEMORY_DEMO_SGEMM_AND_BASIC_EXAMPLES_PASS'
+            if run_tensor:
+                for input_type, output_type in (('fp16', 'fp32'), ('int8', 'int32')):
+                    directory = host / 'tensor-apps' / input_type
+                    for shape, cols in (('square', 16), ('rectangular', 32)):
+                        name = 'tcu-' + input_type + '-' + shape
+                        depth = 32 if input_type == 'int8' else 16
+                        log = step(name, [directory / 'sgemm_tcu', '-m16', '-n' + str(cols), '-k' + str(depth), '-r2'],
+                                   directory, timeout=1200, environment=environment)
+                        state[name + '_checks'] = tensor_checks(log, input_type, output_type)
+                        ecc, _ = read_words(ecc_offsets)
+                        state[name + '_ecc'] = dict(zip(ecc_names, ecc))
+                        save()
+                        if ecc != [1, 0, 0]:
+                            raise ValueError(name + ' did not retain enabled, clean CH1 ECC')
+                state['status'] = 'FPGA_MEMORY_SCALAR_FP16_AND_INT8_TENSOR_KERNELS_PASS'
     except BaseException as error:
         state.update(status='FAIL', error=repr(error), interrupted=interrupted)
         if bridge_ready and bridge is not None and bridge.poll() is None:
             try:
-                offsets = [0x3000, 0x3004, 0x3008] + (ecc_offsets if args.stage == 'kernels' else [])
+                offsets = [0x3000, 0x3004, 0x3008] + (ecc_offsets if run_kernels else [])
                 values, _ = read_words(offsets, timeout=3)
                 state['failure_register_snapshot'] = dict(zip(map(hex, offsets), values))
             except BaseException as snapshot_error:

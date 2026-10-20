@@ -21,7 +21,7 @@ module VX_tcu_tfr_mul_f16 import VX_tcu_pkg::*;
     parameter W     = 25,
     parameter WA    = 28,
     parameter EXP_W = 10,
-    parameter USE_DSP = 0,  // map the 11x11 mantissa multiply onto a DSP48 slice
+    parameter DSP_ENABLE = 0,  // map the 11x11 mantissa multiply onto a DSP48 slice
     parameter PROD_REG = 0  // product/flag register stages (multiply-stage seam)
 ) (
     input wire                      clk,
@@ -249,12 +249,12 @@ module VX_tcu_tfr_mul_f16 import VX_tcu_pkg::*;
         wire [EXP_W-1:0] exp_final = EXP_W'(bias_sel) + EXP_W'(ea_sel) + EXP_W'(eb_sel);
         assign result_exp[i] = (~zero_sel && lane_valid) ? exp_final : '0;
 
-        // Mantissa product: 11x11 -> 22. USE_DSP maps it to a DSP48 (the 22-bit
+        // Mantissa product: 11x11 -> 22. DSP_ENABLE maps it to a DSP48 (the 22-bit
         // product fits one DSP48E2 27x18); PROD_REG lands in its PREG.
         wire [21:0] man_prod;
         VX_tcu_tfr_wmul #(
             .N (11),
-            .USE_DSP (USE_DSP),
+            .DSP_ENABLE (DSP_ENABLE),
             .OUT_REG (PROD_REG)
         ) wtmul (
             .clk    (clk),
