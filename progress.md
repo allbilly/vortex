@@ -31,9 +31,11 @@ missing-implementation sentinel in the preprocessed tensor core.
 
 Build directory: `build_ypcb_tcu32/`; proposal:
 [FP16 and INT8 tensor kernels](docs/proposals/ypcb_tcu_proposal.md).
-The board-level model passed memory, demo, scalar SGEMM and both tensor formats
-through both PCIe and JTAG. Each tensor matrix case verified two launches.
-Evidence: `build_ypcb_tcu32/integration-build-20261021-v2/manifest.json`, field
+The freshly rebuilt board-level model passed memory, demo, scalar SGEMM and
+both tensor formats through modeled PCIe and JTAG after the DMA RTL change.
+Each tensor matrix case verified two launches. The compiled model contains the
+new DMA reference registers. Evidence:
+`build_ypcb_tcu32/integration-build-20261021-v4/manifest.json`, field
 `board_integration_status=FP16_INT8_SCALAR_MEMORY_PCIE_AND_JTAG_RTL_PASS`.
 DDR/PHY responses in these board tests remain oracles.
 
@@ -78,15 +80,18 @@ regression cases failed before that change and passed afterward; receipts are
 in `model-dependency-validation-20261021-v1/`. The v4 integration runner
 rebuilds both interfaces and checks for the new DMA registers in the compiled
 model before numerical testing. Its receipts are in
-`integration-build-20261021-v4/`. After those tests pass, the job runs fresh
-synthesis/routing in `tcu-ch1-jtag-pcie-20261021-v2/`. Then require all report/CRC gates and physical memory/ECC,
+`integration-build-20261021-v4/`. Those tests passed and fresh synthesis is
+active under `vortex-tcu-integration-build-20261021-v4.service`, image directory
+`tcu-ch1-jtag-pcie-20261021-v2/`. All 811 frozen inputs match; its preprocessed
+DMA RTL contains the validated data/strobe reference and both tensor formats
+remain selected. Then require all report/CRC gates and physical memory/ECC,
 scalar and FP16/INT8 tests. The unchanged DDR block still needs qualification
 in the newly routed tensor image.
-Prepared build-local launchers are `run-hardware-preparation-20261021-v1.py`
-(requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v1.sh`
-and `audit-fpga-completion-20261021-v1.py`. Capture the hardware service's owned
+Prepared build-local launchers are `run-hardware-preparation-20261021-v2.py`
+(requires successful producer and reports), `run-fpga-tensor-kernels-20261021-v2.sh`
+and `audit-fpga-completion-20261021-v2.py`. Capture the hardware service's owned
 process identities during the physical run for the cleanup audit.
-These unexecuted launchers must be bound to the new qualified image before use.
+These syntax-checked, unexecuted launchers are bound to the new v2 image.
 The hardware runner reports `FPGA_TENSOR_KERNEL_SUITE_RUNNING` until both
 formats finish. All 71 runner checks passed after regenerating the build tree.
 The source flow now checkpoints initial routing and each post-route optimization
