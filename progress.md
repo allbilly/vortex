@@ -72,6 +72,14 @@ SHA-256 to v13's exact compiled controller. Commands, exit codes and artifact
 hashes are in `build_ypcb_native32/native-fpga-host-20261020-v3.json`; this is
 build evidence, with no physical DDR or kernel execution yet.
 
+The final ABI 2 native shell simulation now passes memory-map transfers, `demo`
+and SGEMM over both PCIe and JTAG, including stopped PCIe clock in JTAG mode.
+Both interfaces retire 2,444 instructions in 6,237 GPU cycles for `demo` and
+7,632 instructions in 18,440 cycles for SGEMM. CH0 sees no DDR traffic. The
+model uses real AFU/GPU RTL with memory and PHY status oracles; it does not
+qualify physical DDR. Logs and exits are in
+`build_ypcb_native32/native-shell-abi2-20261020-v1/manifest.json`.
+
 Before host-driven DDR training, measure actual JTAG MMIO transaction latency
 against the 6,942-probe training workload. If it prevents bounded initialization,
 adapt the reference FPGA-side calibration design to CH1's PHY and CSR map;
