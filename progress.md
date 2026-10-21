@@ -24,6 +24,13 @@ A fresh `git fetch origin master` found no upstream advancement: local `master`
 and `origin/master` remain `7b67f0210c95`. The `ypcb` branch descends from that
 commit, so no rebase is needed for this resume.
 
+The next authorized work is a separate Blackwell-inspired Vortex variant and
+study kernels, after the FP16/INT8 image passes offline qualification. The
+feature set, build isolation and validation sequence are recorded in
+[the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
+That variant's builds have not started; physical testing still waits on the
+OpenTPU JTAG priority release.
+
 [Exact owner/service and interruption evidence](build_ypcb_tcu32/opentpu-priority-return-c0184809-20261021/NOTICE.md).
 The build-local `offline-build-authorization-20261021-v1.json` and
 `OPENTPU_PRIORITY_NOTICE.md` record the clarified scope. No tensor FPGA pass is
