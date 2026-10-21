@@ -16,6 +16,13 @@ completed successfully in 612 seconds (10 min 12 s), and routing is now active.
 Routed timing remains unqualified. Evidence:
 `build_ypcb_tcu32/offline-resume-placement-20261021-v2.json`.
 Routing observation: `build_ypcb_tcu32/offline-resume-routing-20261021-v1.json`.
+Initial routing completed in 2,042 seconds (34 min 2 s), with zero unrouted
+or partially routed nets and zero node overlaps. Post-routing timing has
+setup -0.055 ns and hold +0.018 ns; intermediate positive estimates did not
+survive the final router timing calculation. The initial routed checkpoint
+is preserved and the first post-route physical optimization is running.
+The image remains unqualified. Receipt and checkpoint hash:
+`build_ypcb_tcu32/initial-route-timing-20261021-v3.json`.
 The v3 preparation, hardware launcher, ownership capture and completion auditor
 are bound to that image. Their provenance check verified the original fresh
 synthesis, its reused checkpoint, all frozen inputs and all 14 completed board
