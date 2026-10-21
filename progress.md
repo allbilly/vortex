@@ -1,14 +1,106 @@
-# Current Vortex status — October 21, 2026
+# Current Vortex status — October 22, 2026
 
 **Active goal: the full Blackwell-inspired FPGA suite and every example.**
+The second Blackwell implementation finished and failed final setup timing:
+**-1.061 ns**, TNS -4716.820 ns, 13,512 failing endpoints. Hold passes at
++0.021 ns. The implementation exited 1 without interruption after 4 h 04 min
+53 s. Its final reports and checkpoints are preserved. The v3 hardware queue
+and audit monitor stopped on that real failure; no Blackwell image was programmed.
+
+The next FP4 repair is now applied: fold per-term negation corrections into
+carry-save reduction, and detect exact zero directly from the carry-save
+outputs instead of waiting for the final addition. Eight universal lemmas and
+all eight scale-aware RTL variants pass: 800,000 frames, 4.8 million lane checks.
+All formats, five tensor stages and the 125 MHz target are unchanged. Full GPU
+revalidation and another qualified image remain required. Repair evidence:
+`build_ypcb_blackwell32/fp4-carry-save-zero-study-20261022-v1/validation-audit.json`.
+An isolated whole-PE timing comparison is running at its initial routed stage
+under a 2 GiB cap. The previous diagnostic's optional post-route optimization
+hit a Vivado segmentation fault (exit 139), not a memory-limit kill. The failed
+run and crash report remain preserved; both comparison variants now use the
+same initial-route measurement stage. Whole-board qualification gates are unchanged.
+
+The following model and CAD results describe the preceding `5525e40af` image,
+before the newly applied repair.
 The first Blackwell candidate missed routed setup timing by 2.481 ns. Its
 verified checkpoint is preserved; it was never programmed. Timing repairs now
 pass formal equivalence, 1.6 million before/after FP4 component frames,
 139,616 metadata-index cases, both public unit entry points, catalog lint and
-eight Python checks. Full GPU revalidation and a replacement bitstream are
-next. All formats, the five-cycle TFR pipeline and 125 MHz target are retained.
-The complete 53-command physical suite remains required. Earlier Blackwell
-model receipts below describe the first candidate, before these timing repairs.
+eight Python checks. Fresh repaired SimX/XRT validation now passes all 21
+studies per driver, 44 format cases and all five basic examples per driver
+(26 CPU reference checks, 944 outputs). The freshly compiled board model also
+passes all 48 modeled JTAG/PCIe interface cases, including 46 GPU cases.
+These are modeled results; DDR/PHY responses are oracles.
+
+The failed replacement image is preserved in
+`build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v2/` from commit
+`5525e40afaaa414d1b0d3b95881f234342a14d18`. Synthesis passed in 26 min 16 s;
+placement passed in 33 min 43 s without warnings/errors. Post-placement physical
+optimization, routing and all three post-route optimization passes completed.
+Placement estimates setup -2.573 ns and hold -0.550 ns;
+the worst setup path crosses the L2/AXI request-ready chain, including write
+hazard matching, arbitration and the upstream register enable. These are
+pre-route estimates, not final routed results. The extracted paths are saved in
+`build_ypcb_blackwell32/replacement-placement-timing-20261021-v1.json`.
+After physical optimization, pre-route setup improved to -1.297 ns; hold is
+-0.550 ns. The worst pre-route setup path is NVFP4 alignment/signed reduction
+through exponent selection, with 24 logic levels and 9.423 ns data delay.
+The estimate and exact paths are saved in
+`build_ypcb_blackwell32/replacement-preroute-timing-20261022-v1.json`.
+Final routed timing, including post-route hold repair, remains required.
+Initial routing completed in 72 min 24 s. Routed setup is -1.402 ns and hold
++0.021 ns. The saved checkpoint passed archive integrity; SHA-256 is
+`d166b76111dc9d382e5388190a070385fb67741a305e46fa2f2f8d7abe23390a`.
+Post-route optimization finished at -1.061 ns setup; the image is not qualified.
+Evidence: `build_ypcb_blackwell32/replacement-initial-route-timing-20261022-v1.json`.
+
+An isolated follow-up arithmetic candidate folds each negative term's +1 into
+one carry-save correction operand, removing the per-term negation adders from
+the diagnosed FP4 reduction cone. Six universal algebraic lemmas prove signed
+sum equivalence and correction counting at both 18 and 25 bits. The initial
+monolithic solver queries timed out; their `unknown` results are preserved.
+All eight scale-aware RTL variants now pass: 800,000 frames and 4.8 million lane
+checks across two word counts, both register settings and both DSP settings.
+The isolated worker used a 1.5 GiB cap and has exited. A separate audit checked
+the exact eight compiled variants, proof/log hashes and that only the intended
+RTL file differs in the isolated source tree. The first setup attempt omitted the established prebuilt OS target and
+failed before compilation; the corrected v2 run preserves that failure.
+That first isolated candidate was extended with direct carry-save zero detection;
+the combined repair is now applied for fresh GPU validation. Neither isolated
+candidate is included in the preceding failed image. Whole-board timing of the
+combined repair remains unverified. Evidence:
+`build_ypcb_blackwell32/fp4-complement-reduction-study-20261022-v1/validation-audit.json`.
+All formats, the five-cycle TFR
+pipeline and 125 MHz target are retained. The complete 53-command physical
+suite and independent audit must be rebound to the next frozen image after fresh validation.
+No Blackwell image has been programmed. Current receipts:
+
+- `build_ypcb_blackwell32/repaired-integration-20261021-v1/manifest.json`
+- `build_ypcb_blackwell32/board-validation-20261021-v4/manifest.json`
+- `build_ypcb_blackwell32/vivado-build-20261021-v3/manifest.json`
+- `build_ypcb_blackwell32/hardware-queue-20261021-v3/manifest.json`
+- `build_ypcb_blackwell32/hardware-audit-monitor-20261021-v3/manifest.json`
+
+The completed CAD worker used one synthesis/general thread and an 8 GiB
+memory cap. The prepared v3 runtime is bound to the failed image's frozen
+inputs. A fresh 52-check readiness audit verifies all 826 frozen image inputs,
+87 runtime artifacts, 39 kernel layouts and the unchanged 53-command plan:
+`build_ypcb_blackwell32/full-suite-plan-20261022-v3.json`. CAD qualification
+and physical execution remain pending. Historical first-candidate receipts and stopped v2 queues below are
+retained as history; they are not current workers.
+
+**OpenTPU comparison:** the existing Vortex CH1 controller already incorporates
+OpenTPU's WL7 PHY, clock control, registered command injector, calibration and
+traffic checker. Its PHY currently differs from OpenTPU only in the Vivado
+reset-source filter selecting FDRE cells. The donor's physical TinyStories
+receipt and the Vortex FP16/INT8 physical audit were rechecked. OpenTPU's new
+CH0 spare-lane write-publication repair is outside this CH1 ECC/AXI path.
+Its staged arithmetic, final flip-flop outputs and local register copies are
+useful timing references; they do not replace Vortex's FP4/scale arithmetic.
+The diagnosed Blackwell timing failure is inside that tensor datapath, and
+the new implementation must establish whether the validated repair meets
+125 MHz. Comparison evidence:
+`build_ypcb_blackwell32/opentpu-design-review-20261021-v2.json`.
 
 **The FP16/INT8 image passed physical JTAG, CH1 DDR, scalar and tensor tests.**
 The bitstream is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/vortex_ypcb.bit`.
@@ -180,17 +272,18 @@ The normal CI catalog has 668 cases in 36 categories. Eight generated-tree
 Python checks passed. The generic FEDP float generator does not model FP4
 scales; the dedicated scale-aware component test supplies all scale factors,
 masks and stalls. Its old/new RTL comparisons passed all sixteen variants.
-Fresh model integration and a fresh implementation remain pending.
+Fresh repaired model integration passed; its current receipts are listed above.
+The replacement implementation remains in progress.
 Intermediate placement, pre-route and initial-route timing reports will now be
 saved before long optimization stages to make any remaining path visible.
 
 The full Blackwell runtime is prepared without hardware access:
-`build_ypcb_blackwell32/hardware-preparation-20261021-v2/manifest.json`.
+`build_ypcb_blackwell32/hardware-preparation-20261021-v3/manifest.json`.
 Its 87 immutable host artifacts contain 39 kernel images: both scalar tests,
 all five basic example kernels, all 21 study applications and the 11 format
 applications. Every copied hash and kernel address range was checked. The
 runtime uses the exact frozen DDR controller/CSR/firmware. The full plan is
-`build_ypcb_blackwell32/full-suite-plan-20261021-v2.json`:
+`build_ypcb_blackwell32/full-suite-plan-20261022-v3.json`:
 
 - Program/CRC, memory/DMA, scalar demo and SGEMM.
 - All five basic Python examples, with 13 CPU reference checks and 472 outputs.
@@ -209,21 +302,21 @@ This preflight accessed no hardware; the new image's physical results remain
 pending. The host currently enumerates no matching Xilinx/Vortex FPGA PCIe
 device; the planned physical compute run uses JTAG.
 The full runner rejects an unqualified image before JTAG access/programming.
-`vortex-blackwell-qualified-image-and-fpga-20261021-v2.service` requires the
+`vortex-blackwell-qualified-image-and-fpga-20261021-v3.service` requires the
 successful CAD, all routed-report gates and CRC receipts before acquiring
 the shared lease. It checks enabled clean ECC after every application and
 preserves the validated workloads and numerical criteria. Its receipt is
-`build_ypcb_blackwell32/hardware-queue-20261021-v2/manifest.json`; physical
-results will be saved in `build_ypcb_blackwell32/fpga-study-kernels-20261021-v2/`.
+`build_ypcb_blackwell32/hardware-queue-20261021-v3/manifest.json`; physical
+results will be saved in `build_ypcb_blackwell32/fpga-study-kernels-20261021-v3/`.
 The earlier queue exited when the unqualified CAD run stopped, without JTAG access.
-A replacement queue will bind the repaired image after fresh validation.
+The v3 queue binds the repaired image and waits for fresh validation and CAD.
 
-The read-only `vortex-blackwell-hardware-audit-20261021-v2.service` waits for
+The read-only `vortex-blackwell-hardware-audit-20261021-v3.service` waits for
 the real physical suite exit and process cleanup, then independently checks
 all 53 command receipts, all example/format workloads and validated binaries,
 the selected compute features, routed reports, CRCs, DDR binding, clean ECC
 and release of owned leases. Its monitor receipt is
-`build_ypcb_blackwell32/hardware-audit-monitor-20261021-v2/manifest.json`.
+`build_ypcb_blackwell32/hardware-audit-monitor-20261021-v3/manifest.json`.
 Physical PCIe, a full-capacity DDR soak and complete external DDR I/O timing
 qualification remain outside the JTAG compute result.
 

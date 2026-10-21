@@ -181,7 +181,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .data_out ({term_valid_r, term_sign_r, shift_amt_r})
         );
 
-        wire [3:0][SUM_W-1:0] term_signed;
+        wire [3:0][SUM_W-1:0] term_complement;
         for (genvar j = 0; j < 4; ++j) begin : g_align
             VX_ks_adder #(
                 .N(EXP_TERM_W_MXFP4),
@@ -199,28 +199,19 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
                 ? '0 : (term_mag_shifted[j] >> shift_amt_r[j][$clog2(TERM_W)-1:0]);
             wire [SUM_W-1:0] aligned_ext = SUM_W'(aligned_mag);
 
-            wire [SUM_W-1:0] neg_term;
-            VX_ks_adder #(
-                .N(SUM_W),
-                .BYPASS(`FORCE_BUILTIN_ADDER(SUM_W))
-            ) term_neg_ksa (
-                .dataa(~aligned_ext),
-                .datab(SUM_W'(0)),
-                .cin(1'b1),
-                .sum(neg_term),
-                `UNUSED_PIN(cout)
-            );
-
-            assign term_signed[j] = term_sign_r[j] ? neg_term : aligned_ext;
+            assign term_complement[j] = aligned_ext ^ {SUM_W{term_sign_r[j]}};
         end
 
+        wire [1:0] negatives_01 = {1'b0, term_sign_r[0]} + {1'b0, term_sign_r[1]};
+        wire [1:0] negatives_23 = {1'b0, term_sign_r[2]} + {1'b0, term_sign_r[3]};
+        wire [2:0] negative_count = {1'b0, negatives_01} + {1'b0, negatives_23};
         wire [SUM_W-1:0] sum_vec, carry_vec;
         VX_csa_tree #(
-            .N(4),
+            .N(5),
             .W(SUM_W),
             .S(SUM_W)
         ) term_csa (
-            .operands (term_signed),
+            .operands ({SUM_W'(negative_count), term_complement}),
             .sum      (sum_vec),
             .carry    (carry_vec)
         );
@@ -252,7 +243,10 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
 
         wire [MAG_W-1:0] abs_sum = sum_sign ? neg_sum_raw : signed_sum[MAG_W-1:0];
         // Negation preserves zero, so exponent selection need not wait for it.
-        wire is_zero_out = ~|signed_sum[MAG_W-1:0];
+        // A zero sum fixes each carry from the preceding operand bits.
+        wire [MAG_W-1:0] zero_terms = sum_vec[MAG_W-1:0] ^ carry_vec[MAG_W-1:0]
+            ^ ((sum_vec[MAG_W-1:0] | carry_vec[MAG_W-1:0]) << 1);
+        wire is_zero_out = ~|zero_terms;
 
         assign result_sig_mxfp4[i] = {sum_sign & ~is_zero_out, 24'(abs_sum)};
         assign sig_zero_mxfp4[i]   = is_zero_out;
@@ -444,7 +438,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .data_out ({term_valid_r, term_sign_r, shift_amt_r})
         );
 
-        wire [3:0][SUM_W-1:0] term_signed;
+        wire [3:0][SUM_W-1:0] term_complement;
         for (genvar j = 0; j < 4; ++j) begin : g_align
             VX_ks_adder #(
                 .N(6),
@@ -462,28 +456,19 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
                 ? '0 : (term_mag_shifted[j] >> shift_amt_r[j][$clog2(TERM_W)-1:0]);
             wire [SUM_W-1:0] aligned_ext = SUM_W'(aligned_mag);
 
-            wire [SUM_W-1:0] neg_term;
-            VX_ks_adder #(
-                .N(SUM_W),
-                .BYPASS(`FORCE_BUILTIN_ADDER(SUM_W))
-            ) term_neg_ksa (
-                .dataa(~aligned_ext),
-                .datab(SUM_W'(0)),
-                .cin(1'b1),
-                .sum(neg_term),
-                `UNUSED_PIN(cout)
-            );
-
-            assign term_signed[j] = term_sign_r[j] ? neg_term : aligned_ext;
+            assign term_complement[j] = aligned_ext ^ {SUM_W{term_sign_r[j]}};
         end
 
+        wire [1:0] negatives_01 = {1'b0, term_sign_r[0]} + {1'b0, term_sign_r[1]};
+        wire [1:0] negatives_23 = {1'b0, term_sign_r[2]} + {1'b0, term_sign_r[3]};
+        wire [2:0] negative_count = {1'b0, negatives_01} + {1'b0, negatives_23};
         wire [SUM_W-1:0] sum_vec, carry_vec;
         VX_csa_tree #(
-            .N(4),
+            .N(5),
             .W(SUM_W),
             .S(SUM_W)
         ) term_csa (
-            .operands (term_signed),
+            .operands ({SUM_W'(negative_count), term_complement}),
             .sum      (sum_vec),
             .carry    (carry_vec)
         );
@@ -514,7 +499,10 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         );
 
         wire [MAG_W-1:0] abs_sum = sum_sign ? neg_sum_raw : signed_sum[MAG_W-1:0];
-        wire is_zero_out = ~|signed_sum[MAG_W-1:0];
+        // A zero sum fixes each carry from the preceding operand bits.
+        wire [MAG_W-1:0] zero_terms = sum_vec[MAG_W-1:0] ^ carry_vec[MAG_W-1:0]
+            ^ ((sum_vec[MAG_W-1:0] | carry_vec[MAG_W-1:0]) << 1);
+        wire is_zero_out = ~|zero_terms;
 
         assign result_sig_nvfp4[i] = {sum_sign & ~is_zero_out, 24'(abs_sum)};
         assign sig_zero_nvfp4[i]   = is_zero_out;
