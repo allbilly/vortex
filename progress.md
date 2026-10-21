@@ -1,7 +1,7 @@
 # Current Vortex status — October 21, 2026
 
 **Active goal: the full Blackwell-inspired FPGA suite and every example.**
-Vivado physical optimization is running after successful placement. Blackwell
+Vivado routing is running after successful placement and physical optimization. Blackwell
 physical execution remains pending;
 the new full-suite queue covers 53 commands on the exact new image.
 
@@ -155,7 +155,9 @@ Synthesis exited zero, uninterrupted, in 1,879.930 seconds (31 min 20 s),
 with zero errors and zero critical warnings. It uses 244,919 LUTs (82.02%),
 509 block-RAM tiles (53.30%) and 392 DSPs (20.42%); routed timing is pending.
 Placement completed successfully in 33 min 03 s with zero warnings, critical
-warnings or errors. Pre-route physical optimization is now running.
+warnings or errors. Pre-route physical optimization completed in 24 min 25 s;
+routing is now running. Its last pre-route estimate is setup -2.102 ns and
+hold -0.550 ns; these are estimates, and final routed timing is pending.
 Its initial estimated setup slack is -2.288 ns, improving to about -2.26 ns
 during optimization; final routed timing remains unresolved. The current TFR
 implementation supports latency 4 or 5, so a larger configuration value alone
