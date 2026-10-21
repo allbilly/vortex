@@ -36,6 +36,10 @@ All 14 command exit receipts are zero. The independent completion audit,
 `build_ypcb_tcu32/completion-audit-20261021-v3.json`, passed all 83 checks,
 including image/runtime/source provenance, numerical results, positive GPU
 retirement, clean ECC, process cleanup and release of both leases.
+The original tensor-image goal is complete. A fresh 83-check final audit is
+saved in `build_ypcb_tcu32/goal-completion-audit-20261021-v1.json`; the explicit
+requirement-to-evidence mapping is
+`build_ypcb_tcu32/goal-requirements-audit-20261021-v1.json`.
 
 The physical memory/DMA test passed four 8 KiB regions across CH1's 2 GiB
 address window, including byte-exact upload/download/copy and no aliasing.
