@@ -23,9 +23,9 @@ the frozen controller, CSR and firmware metadata. Vendor bitstream-header
 the actual runtime binding checks use the controller/CSR/firmware hashes.
 The exact baseline, limitations and artifact hashes are saved in
 `build_ypcb_tcu32/offline-baseline-20261021-v3/manifest.json` and the image's
-`SHA256SUMS`. FPGA programming, tensor kernels on physical hardware, physical
-PCIe and a full-capacity DDR soak remain untested for this image. External
-DDR I/O timing is not fully qualified by the internal report gates.
+`SHA256SUMS`. SRAM programming has now passed; physical tensor tests are in
+progress. Physical PCIe and a full-capacity DDR soak remain untested for this
+image. External DDR I/O timing is not fully qualified by the internal report gates.
 
 **The user handed JTAG access to Vortex: "Use JTAG for Vortex now".** The
 FP16/INT8 SRAM image has been programmed successfully: INIT=1, DONE=1,
@@ -34,9 +34,16 @@ lanes, including ECC lane 8. The physical memory and kernel suite is running
 under `vortex-tcu-fpga-kernels-20261021-v3.service`; its manifest is
 `build_ypcb_tcu32/fpga-tensor-kernels-20261021-v3/manifest.json`. Memory
 transfers are active; no tensor FPGA pass is claimed before their result.
-The shared JTAG lease is owned by this runner, PID 2578811. Ten owned
-process identities were captured for subsequent cleanup verification in
-`ownership-observation.json` inside that run. No permanent flash is written.
+The memory/DMA test has passed all four 8 KiB regions across CH1's 2 GiB
+address window, including byte-exact upload/download/copy and no aliasing.
+ECC is enabled with zero correctable and uncorrectable errors. Scalar and
+tensor tests continue. The shared JTAG lease is owned by this runner,
+PID 2578811. Ten owned process identities were captured for cleanup checking
+in `ownership-observation.json` inside that run. A read-only completion
+monitor, `vortex-tcu-hardware-audit-20261021-v3.service`, waits for all 14
+steps and real process cleanup before auditing the results. Its auditor was
+corrected to check this v3 service and captured cgroup; it previously retained
+a stale v2 unit name. No permanent flash is written.
 
 Authorization: `build_ypcb_tcu32/jtag-handover-20261021-v1.json`. This
 supersedes the earlier OpenTPU reservation. Offline Blackwell validation
