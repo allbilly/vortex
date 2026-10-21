@@ -27,9 +27,21 @@ The exact baseline, limitations and artifact hashes are saved in
 PCIe and a full-capacity DDR soak remain untested for this image. External
 DDR I/O timing is not fully qualified by the internal report gates.
 
-**OpenTPU retains JTAG priority; offline Vortex work is authorized.** No JTAG
-access occurred. The current authorization is in
-`build_ypcb_tcu32/offline-build-authorization-20261021-v1.json`.
+**The user handed JTAG access to Vortex: "Use JTAG for Vortex now".** The
+FP16/INT8 SRAM image has been programmed successfully: INIT=1, DONE=1,
+IDCODE=0x23751093. CH1 calibration reports result=0/error=0 for all nine
+lanes, including ECC lane 8. The physical memory and kernel suite is running
+under `vortex-tcu-fpga-kernels-20261021-v3.service`; its manifest is
+`build_ypcb_tcu32/fpga-tensor-kernels-20261021-v3/manifest.json`. Memory
+transfers are active; no tensor FPGA pass is claimed before their result.
+The shared JTAG lease is owned by this runner, PID 2578811. Ten owned
+process identities were captured for subsequent cleanup verification in
+`ownership-observation.json` inside that run. No permanent flash is written.
+
+Authorization: `build_ypcb_tcu32/jtag-handover-20261021-v1.json`. This
+supersedes the earlier OpenTPU reservation. Offline Blackwell validation
+continues independently. The earlier idle-cable availability probe is
+historical; the current Vortex run now owns the cable.
 
 The separate `ypcb_blackwell_like` profile is configured in
 `build_ypcb_blackwell32/`. It inherits the board baseline, uses eight threads
