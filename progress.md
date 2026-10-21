@@ -36,8 +36,11 @@ under `vortex-tcu-fpga-kernels-20261021-v3.service`; its manifest is
 transfers are active; no tensor FPGA pass is claimed before their result.
 The memory/DMA test has passed all four 8 KiB regions across CH1's 2 GiB
 address window, including byte-exact upload/download/copy and no aliasing.
-ECC is enabled with zero correctable and uncorrectable errors. Scalar and
-tensor tests continue. The shared JTAG lease is owned by this runner,
+ECC is enabled with zero correctable and uncorrectable errors. The physical
+scalar demo and SGEMM now pass too, with positive retirement counters:
+2,444 instructions/80,439 cycles and 3,824 instructions/9,722 cycles,
+respectively. The remaining basic examples and tensor cases continue.
+The shared JTAG lease is owned by this runner,
 PID 2578811. Ten owned process identities were captured for cleanup checking
 in `ownership-observation.json` inside that run. A read-only completion
 monitor, `vortex-tcu-hardware-audit-20261021-v3.service`, waits for all 14
