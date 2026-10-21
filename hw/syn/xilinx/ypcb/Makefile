@@ -43,6 +43,10 @@ ifneq (,$(filter -DVX_CFG_EXT_TCU_ENABLE,$(XCONFIGS)))
 CFLAGS += -I$(RTL_DIR)/tcu -I$(RTL_DIR)/tcu/tfr
 RTL_PKGS += $(RTL_DIR)/tcu/VX_tcu_pkg.sv
 endif
+ifneq (,$(filter -DVX_CFG_EXT_DXA_ENABLE,$(XCONFIGS)))
+CFLAGS += -I$(RTL_DIR)/dxa
+RTL_PKGS += $(RTL_DIR)/dxa/VX_dxa_pkg.sv
+endif
 
 .PHONY: sources open-sv2v open-synth frontend-test frontend-slang-test open-slang-import open-slang-synth ddr-sources ddr-host-config ddr-host-test ddr-synth cdc-sources cdc-test wb-cdc-sources wb-cdc-test memory-test pio-test pio-host-test pio-memory-test pio-synth pcie-test pcie-synth control-test control-synth control-mapped-test ddr-control-test ddr-control-synth startup-test startup-host-test startup-synth scrub-test elaborate synth
 .PHONY: afu-control-test board-sv2v board-bind board-constraints board-afu board-synth board-pcie

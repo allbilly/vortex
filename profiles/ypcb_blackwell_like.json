@@ -1,0 +1,26 @@
+{
+  "name": "ypcb_blackwell_like",
+  "extends": "ypcb_tcu",
+  "description": "YPCB RV32 compute study with low-precision tensors, block scaling, structured sparsity, shared-memory MMA and asynchronous copies. Not Blackwell ISA emulation.",
+  "core": {
+    "VX_CFG_NUM_WARPS": 8,
+    "VX_CFG_TCU_TF32_ENABLE": true,
+    "VX_CFG_TCU_FP8_ENABLE": true,
+    "VX_CFG_TCU_FP4_ENABLE": true,
+    "VX_CFG_TCU_MX_ENABLE": true,
+    "VX_CFG_TCU_MXFP4_ENABLE": true,
+    "VX_CFG_TCU_NVFP4_ENABLE": true,
+    "VX_CFG_TCU_SPARSE_ENABLE": true,
+    "VX_CFG_TCU_WGMMA_ENABLE": true,
+    "VX_CFG_EXT_DXA_ENABLE": true,
+    "VX_CFG_EXT_A_ENABLE": true,
+    "VX_CFG_EXT_ZACAS_ENABLE": true
+  },
+  "chip": {
+    "VX_CFG_L2_ENABLE": true
+  },
+  "sources": {
+    "core": "ci/testcases/tensor.yaml, tensor_mx.yaml, tensor_sp_mx.yaml and tensor_wg.yaml; eight threads and eight warps retain a compact study geometry rather than copying RTX 5080 device counts.",
+    "platform": "Inherits the YPCB CH1 2 GiB ECC, independent 125 MHz clock, TFR DSP inference and five-stage pipeline from ypcb_tcu. Geometry and implementation remain subject to simulation and FPGA qualification."
+  }
+}

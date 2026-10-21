@@ -22,6 +22,15 @@ including inherited profiles, require `configure` so generated headers and
 compiler flags describe the same machine. Unchanged generated contents retain
 their timestamps. Existing scalar hardware results do not qualify this image.
 
+Optional extensions also need their packages and module search paths in both
+the standalone export and board model. DXA requires `hw/rtl/dxa` and
+`VX_dxa_pkg.sv`; its types import the core package. `gen_sources.sh` retains
+the explicit package argument order before packages discovered through include
+directories and emits each source once. Source export alone does not elaborate
+imports or parameterized interfaces. Check the generated file list with the
+selected configuration before synthesis; `ci/test_gen_sources_order.py` covers
+original, copied and preprocessed lists with an interface parameter override.
+
 The JTAG AXI core has sixteen entries in both transaction queues. Software
 batches the sixteen PIO data-window words into distinct AXI Lite transactions,
 then executes them with [AMD's `run_hw_axi -queue`](https://docs.amd.com/r/2024.1-English/ug835-vivado-tcl-commands/run_hw_axi).

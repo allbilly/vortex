@@ -1,55 +1,59 @@
-# Vortex offline build — OpenTPU retains JTAG priority
+# Current Vortex status — October 21, 2026
 
-The user clarified that OpenTPU priority applies to JTAG access only and that
-Vortex's offline build may continue. The interrupted TCU build and its successful
-DMA-fixed synthesis checkpoint are preserved. Offline implementation is running
-in `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/` under
-`vortex-tcu-offline-resume-20261021-v1.service`. The reuse gate verified 705
-hardware inputs, identical synthesis configuration and the checkpoint hash;
-four reuse checks passed. The new run freezes 814 inputs and committed source
-`81e473df8`. Both Vivado worker limits remain one, with an 8 GiB service memory
-cap. FPGA programming and physical tensor tests wait for JTAG access to be
-released. Receipt: `build_ypcb_tcu32/offline-resume-observation-20261021-v1.json`.
-Placement completed successfully in 1,304 seconds (21 min 44 s), with zero
-warnings or errors in that stage. Pre-route physical optimization then
-completed successfully in 612 seconds (10 min 12 s), and routing is now active.
-Routed timing remains unqualified. Evidence:
-`build_ypcb_tcu32/offline-resume-placement-20261021-v2.json`.
-Routing observation: `build_ypcb_tcu32/offline-resume-routing-20261021-v1.json`.
-Initial routing completed in 2,042 seconds (34 min 2 s), with zero unrouted
-or partially routed nets and zero node overlaps. Post-routing timing has
-setup -0.055 ns and hold +0.018 ns; intermediate positive estimates did not
-survive the final router timing calculation. The initial routed checkpoint
-is preserved and the first post-route physical optimization is running.
-The image remains unqualified. Receipt and checkpoint hash:
-`build_ypcb_tcu32/initial-route-timing-20261021-v3.json`.
-The v3 preparation, hardware launcher, ownership capture and completion auditor
-are bound to that image. Their provenance check verified the original fresh
-synthesis, its reused checkpoint, all frozen inputs and all 14 completed board
-model cases; the original interrupted CAD status is retained. Receipt:
-`build_ypcb_tcu32/offline-provenance-check-20261021-v3.json`.
-The launcher rejects hardware access while the OpenTPU priority flags remain
-set; this guard was exercised without invoking the hardware runner.
-Offline host preparation remains gated on a successful implementation receipt,
-all seven report checks and bitstream CRC validation.
+**The FP16/INT8 image passed its offline implementation and integrity checks.**
+The bitstream is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/vortex_ypcb.bit`.
+Its SHA-256 is
+`3b9decedf8af64836870c6b7f688b7e09dfd66983313470b0ad8cdf39516b2a0`.
+It retains the full GPU, both JTAG/PCIe interfaces, CH1-only 2 GiB DDR3 with
+all nine byte lanes and enabled ECC, and the 125 MHz GPU target.
 
-A fresh `git fetch origin master` found no upstream advancement: local `master`
-and `origin/master` remain `7b67f0210c95`. The `ypcb` branch descends from that
-commit, so no rebase is needed for this resume.
+Implementation exited zero, uninterrupted, in 5,635.700 seconds
+(1 h 33 min 56 s), reusing the verified DMA-fixed synthesis checkpoint.
+All seven internal report gates passed: setup +0.055 ns, hold +0.018 ns,
+zero failing setup/hold/pulse endpoints, 251,833 fully routed nets, zero
+routing errors, 14 design Gray buses and 12 vendor skew constraints.
+Internal clock coverage is complete. The first route's -0.055 ns setup miss
+was repaired by one post-route physical optimization in 275 seconds.
+Both bitstream CRC checkpoints and four known-answer vectors passed.
+All 814 frozen inputs and the synthesis/model provenance checks passed.
 
-The next authorized work is a separate Blackwell-inspired Vortex variant and
-study kernels, after the FP16/INT8 image passes offline qualification. The
-feature set, build isolation and validation sequence are recorded in
-[the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
-That variant's builds have not started; physical testing still waits on the
-OpenTPU JTAG priority release.
+The runtime, memory/scalar tests and basic examples are prepared and bound to
+the frozen controller, CSR and firmware metadata. Vendor bitstream-header
+`SW_HDR_SHA256` is a different field from the DDR runtime C++ header digest;
+the actual runtime binding checks use the controller/CSR/firmware hashes.
+The exact baseline, limitations and artifact hashes are saved in
+`build_ypcb_tcu32/offline-baseline-20261021-v3/manifest.json` and the image's
+`SHA256SUMS`. FPGA programming, tensor kernels on physical hardware, physical
+PCIe and a full-capacity DDR soak remain untested for this image. External
+DDR I/O timing is not fully qualified by the internal report gates.
 
-[Exact owner/service and interruption evidence](build_ypcb_tcu32/opentpu-priority-return-c0184809-20261021/NOTICE.md).
-The build-local `offline-build-authorization-20261021-v1.json` and
-`OPENTPU_PRIORITY_NOTICE.md` record the clarified scope. No tensor FPGA pass is
-claimed, and no JTAG access is authorized by the offline resume.
+**OpenTPU retains JTAG priority; offline Vortex work is authorized.** No JTAG
+access occurred. The current authorization is in
+`build_ypcb_tcu32/offline-build-authorization-20261021-v1.json`.
 
-## Preserved status before the priority interruption
+The separate `ypcb_blackwell_like` profile is configured in
+`build_ypcb_blackwell32/`. It inherits the board baseline, uses eight threads
+and eight warps, and selects TF32, FP8, MXFP8/MXBF8, MXFP4/NVFP4, structured
+sparsity, WGMMA, DXA, integer atomics/CAS and L2 alongside FP16/BF16 and INT8.
+Native and FPGA qualification of this combined profile is pending. The first
+frontend check found missing DXA source paths; the next exposed file-list
+package ordering. The exporter and board model now include DXA, and source
+lists retain explicit package order. Three package-order/interface checks
+pass. The full-profile preflight passed RTL export, actual elaboration and
+100,000 FP16 arithmetic cases under
+`vortex-blackwell-preflight-20261021-v3.service`. Expanded arithmetic and
+dense/scaled SimX/XRT numerical validation is running under
+`vortex-blackwell-native-20261021-v1.service`; receipt:
+`build_ypcb_blackwell32/native-validation-20261021-v1/manifest.json`.
+See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
+Both Vivado worker limits remain one, with an 8 GiB service memory cap.
+
+The latest `git fetch origin master` found no upstream advancement:
+`master` and `origin/master` are `7b67f0210c95`; `ypcb` descends from it.
+No rebase was needed. Historical interrupted runs and their receipts remain
+preserved below and in their original directories.
+
+## Earlier build history
 
 # Current Vortex status — October 21, 2026
 

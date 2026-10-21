@@ -28,6 +28,10 @@ RTL_PKGS := $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv
 ifneq ($(findstring -DVX_CFG_EXT_TCU_ENABLE,$(BOARD_CONFIGS)),)
 RTL_PKGS += $(RTL_DIR)/tcu/VX_tcu_pkg.sv
 endif
+ifneq (,$(filter -DVX_CFG_EXT_DXA_ENABLE,$(BOARD_XCONFIGS)))
+RTL_FLAGS += -I$(RTL_DIR)/dxa
+RTL_PKGS += $(RTL_DIR)/dxa/VX_dxa_pkg.sv
+endif
 RTL_PKGS += $(RTL_DIR)/VX_trace_pkg.sv $(RTL_DIR)/cp/VX_cp_pkg.sv
 RTL_SRCS := $(shell find "$(RTL_DIR)" -type f \( -name '*.sv' -o -name '*.v' -o -name '*.vh' \))
 ifneq ($(.SHELLSTATUS),0)

@@ -51,6 +51,7 @@ See [docs/install_vortex.md](docs/install_vortex.md) for the full recipe. The no
   make -s
   ```
 - **Separate build dirs per major variant** (`build32/`, `build64/`, `build_fpga64/`, ...) to avoid config/tool contamination. Never reuse one build dir for incompatible configurations.
+- **RTL exports must retain explicit package order and every selected extension's source paths.** Directory enumeration can put an importer before its prerequisites even when source export succeeds; require elaboration of the selected configuration before a long build. See [docs/fpga_setup.md](docs/fpga_setup.md).
 - **Standalone FPGA RTL exports must select the target toolchain explicitly and load its timing constraints.** LiteX defaults to ISE, which omits Vivado CDC attributes even when the exported logic is unchanged; see [docs/fpga_setup.md](docs/fpga_setup.md).
 - **Vivado worker limits are separate.** Set both `general.maxThreads` and `synth.maxThreads` when limiting host memory use; the general limit alone does not bound synthesis workers. See [docs/fpga_setup.md](docs/fpga_setup.md).
 - **Match Vivado IP commands to the build mode.** `synth_ip` requires the non-project flow; a disk-backed project must use IP runs. Mixing the modes produces a critical warning even if synthesis continues. See [docs/fpga_setup.md](docs/fpga_setup.md).

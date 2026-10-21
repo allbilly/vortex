@@ -210,6 +210,20 @@ list_non_packages() {
     done
 }
 
+list_explicit_packages() {
+    local file package_file
+    for file in "${source_files[@]}"; do
+        if [ -n "$copy_folder" ]; then
+            package_file="$(realpath "$copy_folder")/$(basename -- "$file")"
+        else
+            package_file="$(realpath "$file")"
+        fi
+        if is_package_file "$package_file"; then
+            echo "$package_file"
+        fi
+    done
+}
+
 if [ "$output_file" != "" ]; then
     {
         # If we didn't generate a header, push +define+ into the filelist
@@ -242,6 +256,8 @@ if [ "$output_file" != "" ]; then
         if [ "$copy_folder" != "" ]; then
             # All files have been copied; just point to the copy folder
             echo "+incdir+$(realpath "$copy_folder")"
+            # Explicit package arguments define dependency order before discovery.
+            list_explicit_packages
             list_packages "$copy_folder"
             list_non_packages "$copy_folder" | { grep -e '_if\.sv$' || true; }
             list_non_packages "$copy_folder" | { grep -v -e '_if\.sv$' || true; }
@@ -251,6 +267,7 @@ if [ "$output_file" != "" ]; then
                 echo "+incdir+$(realpath "$dir")"
             done
 
+            list_explicit_packages
             # packages, then *_if.sv (interfaces), then remaining .v/.sv from include dirs
             for dir in ${includes[@]}; do
                 list_packages "$dir"
@@ -267,5 +284,5 @@ if [ "$output_file" != "" ]; then
                 echo "$(realpath "$file")"
             done
         fi
-    } > "$output_file"
+    } | awk 'substr($0, 1, 1) != "/" || !seen[$0]++' > "$output_file"
 fi
