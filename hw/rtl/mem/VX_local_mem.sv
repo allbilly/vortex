@@ -474,16 +474,11 @@ module VX_local_mem import VX_gpu_pkg::*; #(
                 assign amo_rhs_lane = 64'(amo_wb_rhs_r);
                 assign amo_wb_data  = amo_new_word[WORD_WIDTH-1:0];
             end
-            // VX_CFG_AMO_RS_SIZE sizes ONE shared LLC bank's contention; deployed
-            // per lmem bank it multiplies by NUM_LMEM_BANKS x NUM_CORES. After the
-            // holder-credit protocol a hot word maps to exactly one station, so
-            // depth only reduces false eviction between distinct reserved words
-            // aliasing in one bank -- and a spurious SC failure is architecturally
-            // legal. Clamp the depth and shorten the credit budget to the local
-            // round trip instead of inheriting the L1-miss sizing.
+            // All resident harts can serialize an LR through one bank before
+            // the holder's warp receives its operands and issues its SC.
             VX_amo_unit #(
                 .NUM_RES_ENTRIES  (`MIN(`VX_CFG_AMO_RS_SIZE, 4)),
-                .HOLD_CREDIT_BITS (3),
+                .HOLD_CREDIT_BITS (`LOG2UP(`VX_CFG_NUM_WARPS * `VX_CFG_NUM_THREADS)),
                 .LINE_ADDR_BITS   (BANK_ADDR_WIDTH),
                 .DATA_WIDTH       (WORD_WIDTH)
             ) amo_unit (

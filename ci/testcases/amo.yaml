@@ -45,6 +45,11 @@ tests:
     drivers: [simx, rtlsim]
     shape: {threads: 8}
     args: "-n1"
+  - id: lmem-lrsc64
+    app: amo
+    drivers: [simx, rtlsim]
+    shape: {threads: 8, warps: 8}
+    args: "-t lrsc_lmem -n8"
   # Multi-core AMO across a shared cache hierarchy (atomics resolve at the LLC).
   # 4x L1 -> 1x L2 (multi-core base configuration).
   - id: mc-l2

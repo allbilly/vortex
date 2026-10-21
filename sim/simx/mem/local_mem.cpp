@@ -21,7 +21,7 @@
 #include "types.h"
 #if VX_CFG_EXT_A_ENABLED
 #include "amo_ops.h"
-#include "amo_unit.h"
+#include "reservation_set.h"
 #endif
 
 using namespace vortex;
@@ -33,7 +33,7 @@ protected:
 	RAM       ram_;
 	uint32_t 	addr_bits_;
 #if VX_CFG_EXT_A_ENABLED
-	AmoUnit   amo_unit_;
+	std::vector<ReservationSet> reservations_;
 	// Per-bank atomic occupancy. A bank has a single port and the value read out
 	// is registered before the update is computed, so an atomic owns its bank
 	// for three cycles -- read, capture, write back -- and it accepts nothing
@@ -65,6 +65,14 @@ protected:
 	uint64_t bank_word(uint64_t addr) {
 		return to_local_addr(addr) >> log2ceil(config_.line_size);
 	}
+
+	ReservationSet& reservations(uint64_t addr) {
+		return reservations_[bank_word(addr) & (reservations_.size() - 1)];
+	}
+
+	uint64_t reservation_word(uint64_t addr) {
+		return bank_word(addr) >> config_.B;
+	}
 #endif
 
 public:
@@ -74,7 +82,8 @@ public:
 		, ram_(config.capacity)
 		, addr_bits_(log2ceil(config.capacity))
 #if VX_CFG_EXT_A_ENABLED
-		, amo_unit_(VX_CFG_AMO_RS_SIZE < 2 ? 2u : (uint32_t)VX_CFG_AMO_RS_SIZE)
+		, reservations_(1 << config.B, ReservationSet(std::max(2u, std::min(uint32_t(VX_CFG_AMO_RS_SIZE), 4u)),
+		    (1u << log2ceil(std::max(2u, uint32_t(VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS)))) - 1))
 		, amo_busy_(1 << config.B, 0)
 		, amo_rdw_addr_(1 << config.B, 0)
 		, amo_rdw_valid_(1 << config.B, false)
@@ -101,7 +110,8 @@ public:
 	void reset() {
 		perf_stats_ = PerfStats();
 #if VX_CFG_EXT_A_ENABLED
-		amo_unit_.reset();
+		for (auto& bank : reservations_)
+			bank.reset();
 		std::fill(amo_busy_.begin(), amo_busy_.end(), 0);
 		std::fill(amo_rdw_valid_.begin(), amo_rdw_valid_.end(), false);
 		std::fill(amo_rdw_pending_.begin(), amo_rdw_pending_.end(), false);
@@ -151,7 +161,7 @@ public:
 						}
 					}
 #if VX_CFG_EXT_A_ENABLED
-					amo_unit_.invalidate(to_local_addr(req.addr), req.hart_id);
+					reservations(req.addr).invalidate(reservation_word(req.addr));
 #endif
 					++perf_stats_.writes;
 				} else {
@@ -214,12 +224,8 @@ public:
 				continue;
 			}
 
-			// Shared-memory atomics: read-modify-write in place and ALWAYS
-			// return the old word. An AMO has a destination register, so the
-			// LSU reserved a response slot; a missing response hangs the warp
-			// (this was the prior behaviour — LMEM had no AMO path). LR/SC
-			// reservations are tracked per hart for correct contended
-			// compare-swap, mirroring the dcache AMO path used for global/SSBO.
+			// The bank's bounded reservation policy determines SC results and
+			// retry instructions, so it must match the RTL even in a timing model.
 			if (memop_is_atomic(bank_req.op)) {
 				const uint32_t bmask   = VX_CFG_MEM_BLOCK_SIZE - 1;
 				const uint64_t la      = to_local_addr(bank_req.addr);
@@ -230,7 +236,9 @@ public:
 				const MemOp    op      = bank_req.op;
 				const bool     is_lr   = (op == MemOp::AMO_LR);
 				const bool     is_sc   = (op == MemOp::AMO_SC);
-				const bool     sc_fail = is_sc && !amo_unit_.check(bank_req.hart_id, la);
+				auto& reservation = reservations(la);
+				const auto word = reservation_word(la);
+				const bool     sc_fail = is_sc && !reservation.check(bank_req.hart_id, word);
 				const bool     do_store = !is_lr && !sc_fail;
 
 				uint8_t obuf[8] = {0};
@@ -256,8 +264,8 @@ public:
 				// An SC gives up its own reservation whether it succeeds or
 				// fails; an LR claims one. Everything else is a plain RMW,
 				// whose commit breaks the other harts' reservations below.
-				if (is_lr)      amo_unit_.reserve(bank_req.hart_id, la);
-				else if (is_sc) amo_unit_.clear(bank_req.hart_id, la);
+				if (is_lr)      reservation.reserve(bank_req.hart_id, word);
+				else if (is_sc) reservation.clear(bank_req.hart_id, word);
 				if (do_store) {
 					uint8_t sbuf[8];
 					amo_store_word(sbuf, 0, width, rmw.new_word);
@@ -266,7 +274,7 @@ public:
 					// on the word. Without this a second hart's stale
 					// reservation survives the first hart's successful SC, so
 					// both report success and one update is lost.
-					amo_unit_.invalidate(la, bank_req.hart_id);
+					reservation.invalidate(word);
 				}
 				perf_stats_.reads  += !do_store;
 				perf_stats_.writes += do_store;
@@ -293,7 +301,7 @@ public:
 				// same as an atomic's commit does; otherwise a store between a
 				// hart's load-reserved and its store-conditional would go
 				// unnoticed and the conditional would wrongly succeed.
-				amo_unit_.invalidate(to_local_addr(bank_req.addr), bank_req.hart_id);
+				reservations(bank_req.addr).invalidate(reservation_word(bank_req.addr));
 #endif
 			}
 
