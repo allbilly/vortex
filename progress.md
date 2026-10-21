@@ -39,11 +39,12 @@ address window, including byte-exact upload/download/copy and no aliasing.
 ECC is enabled with zero correctable and uncorrectable errors. The physical
 scalar demo and SGEMM now pass too, with positive retirement counters:
 2,444 instructions/80,439 cycles and 3,824 instructions/9,722 cycles,
-respectively. All five basic examples now pass as well. The first physical FP16-to-FP32
-TCU case, M=16/N=16/K=16, passed two launches with zero numerical errors
-and clean ECC. Its final counters are 1,088 instructions and 4,290 cycles.
-The rectangular FP16 and two INT8 cases remain in progress; full tensor
-qualification is still pending their results and cleanup audit.
+respectively. All five basic examples now pass as well. Both physical FP16-to-FP32 TCU
+cases, M=16/K=16 with N=16 and N=32, passed two launches each with zero
+numerical errors and clean ECC. Final counters are 1,088 instructions/4,290
+cycles and 2,144 instructions/7,017 cycles, respectively. The two INT8 cases
+remain in progress; full tensor qualification is still pending their results
+and the cleanup audit.
 The shared JTAG lease is owned by this runner,
 PID 2578811. Ten owned process identities were captured for cleanup checking
 in `ownership-observation.json` inside that run. A read-only completion
