@@ -10,6 +10,10 @@ four reuse checks passed. The new run freezes 814 inputs and committed source
 `81e473df8`. Both Vivado worker limits remain one, with an 8 GiB service memory
 cap. FPGA programming and physical tensor tests wait for JTAG access to be
 released. Receipt: `build_ypcb_tcu32/offline-resume-observation-20261021-v1.json`.
+Placement completed successfully in 1,304 seconds (21 min 44 s), with zero
+warnings or errors in that stage. Pre-route physical optimization is now
+running; routed timing remains unqualified. Evidence:
+`build_ypcb_tcu32/offline-resume-placement-20261021-v2.json`.
 The v3 preparation, hardware launcher, ownership capture and completion auditor
 are bound to that image. Their provenance check verified the original fresh
 synthesis, its reused checkpoint, all frozen inputs and all 14 completed board
