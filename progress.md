@@ -83,8 +83,11 @@ all 84 binary hashes across those 42 study cases. Evidence:
 These are functional study results; the parity claim above covers its named
 local-memory test, not every contended atomic workload's timing.
 
-The full board model is compiling for both modeled PCIe and JTAG interface
-suites under `vortex-blackwell-combined-validation-20261021-v3.service`:
+The full board model compiled successfully. Its modeled PCIe interface has
+passed the CH1 2 GiB memory-map/DMA test, scalar demo and SGEMM, and FP16 and
+INT8 tensor tests with two verified launches each. The remaining format,
+copy and atomic cases and the modeled JTAG interface continue under
+`vortex-blackwell-combined-validation-20261021-v3.service`:
 `build_ypcb_blackwell32/combined-validation-20261021-v3/manifest.json`.
 Board-model receipt: `build_ypcb_blackwell32/board-validation-20261021-v2/manifest.json`.
 DDR/PHY responses in that model are oracles; these tests do not access JTAG
