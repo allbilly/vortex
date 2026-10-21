@@ -141,7 +141,11 @@ unchanged. All 48 modeled interface cases now pass, including 46 GPU cases.
 Board and combined receipts: `build_ypcb_blackwell32/board-validation-20261021-v3/manifest.json`
 and `build_ypcb_blackwell32/combined-validation-20261021-v4/manifest.json`.
 
-**Fresh Blackwell-profile Vivado synthesis is running.** The automatic build
+**Fresh Blackwell-profile synthesis passed; Vivado implementation is running.**
+Synthesis exited zero, uninterrupted, in 1,879.930 seconds (31 min 20 s),
+with zero errors and zero critical warnings. It uses 244,919 LUTs (82.02%),
+509 block-RAM tiles (53.30%) and 392 DSPs (20.42%); routed timing is pending.
+The automatic build
 receipt is `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`;
 output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
 Its live synthesis process and cgroup were captured in
@@ -167,6 +171,12 @@ the physical results will be saved under
 `build_ypcb_blackwell32/fpga-study-kernels-20261021-v1/`.
 The waiting service has not acquired JTAG. It writes SRAM only and leaves
 completion auditing pending until the actual physical run finishes.
+The read-only `vortex-blackwell-hardware-audit-20261021-v1.service` waits for
+the real physical suite exit and process cleanup, then independently checks
+all 26 command receipts, all 21 study workloads/binaries, the selected compute
+features, routed reports, CRCs, DDR binding, clean ECC and lease release.
+Its monitor receipt is
+`build_ypcb_blackwell32/hardware-audit-monitor-20261021-v1/manifest.json`.
 
 The latest `git fetch origin master` found no upstream advancement:
 `master` and `origin/master` are `7b67f0210c95`; `ypcb` descends from it.
