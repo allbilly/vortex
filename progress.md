@@ -151,6 +151,23 @@ inputs, and verifies bitstream CRCs. Both Vivado worker limits remain one,
 with an 8 GiB service memory cap. CAD does not access JTAG.
 See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
 
+The matching Blackwell runtime is prepared without hardware access:
+`build_ypcb_blackwell32/hardware-preparation-20261021-v1/manifest.json`.
+Its 54 immutable host artifacts include all 21 already-validated study
+applications and 23 kernel images. Every copied hash and kernel address range
+was checked. The runtime uses the exact frozen DDR controller/CSR/firmware.
+A preflight check confirmed that the new runner rejects an unqualified image
+before JTAG access or programming. The waiting service,
+`vortex-blackwell-qualified-image-and-fpga-20261021-v1.service`, will require
+the successful CAD, routed-report and CRC receipts before acquiring the shared
+lease and running memory, scalar demo/SGEMM and all 21 study cases. It preserves
+the complete 17-test atomic suite and checks clean enabled ECC after every app.
+Its receipt is `build_ypcb_blackwell32/hardware-queue-20261021-v1/manifest.json`;
+the physical results will be saved under
+`build_ypcb_blackwell32/fpga-study-kernels-20261021-v1/`.
+The waiting service has not acquired JTAG. It writes SRAM only and leaves
+completion auditing pending until the actual physical run finishes.
+
 The latest `git fetch origin master` found no upstream advancement:
 `master` and `origin/master` are `7b67f0210c95`; `ypcb` descends from it.
 No rebase was needed. Historical interrupted runs and their receipts remain
