@@ -2,11 +2,18 @@
 
 The user clarified that OpenTPU priority applies to JTAG access only and that
 Vortex's offline build may continue. The interrupted TCU build and its successful
-DMA-fixed synthesis checkpoint are preserved. Offline implementation will resume
-in `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/`, reusing synthesis only after
-the input, configuration and checkpoint checks pass. Both Vivado worker limits
-remain one, with an 8 GiB service memory cap. FPGA programming and physical
-tensor tests wait for JTAG access to be released.
+DMA-fixed synthesis checkpoint are preserved. Offline implementation is running
+in `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/` under
+`vortex-tcu-offline-resume-20261021-v1.service`. The reuse gate verified 705
+hardware inputs, identical synthesis configuration and the checkpoint hash;
+four reuse checks passed. The new run freezes 814 inputs and committed source
+`81e473df8`. Both Vivado worker limits remain one, with an 8 GiB service memory
+cap. FPGA programming and physical tensor tests wait for JTAG access to be
+released. Receipt: `build_ypcb_tcu32/offline-resume-observation-20261021-v1.json`.
+
+A fresh `git fetch origin master` found no upstream advancement: local `master`
+and `origin/master` remain `7b67f0210c95`. The `ypcb` branch descends from that
+commit, so no rebase is needed for this resume.
 
 [Exact owner/service and interruption evidence](build_ypcb_tcu32/opentpu-priority-return-c0184809-20261021/NOTICE.md).
 The build-local `offline-build-authorization-20261021-v1.json` and
