@@ -156,6 +156,13 @@ with zero errors and zero critical warnings. It uses 244,919 LUTs (82.02%),
 509 block-RAM tiles (53.30%) and 392 DSPs (20.42%); routed timing is pending.
 Placement completed successfully in 33 min 03 s with zero warnings, critical
 warnings or errors. Pre-route physical optimization is now running.
+Its initial estimated setup slack is -2.288 ns, improving to about -2.26 ns
+during optimization; final routed timing remains unresolved. The current TFR
+implementation supports latency 4 or 5, so a larger configuration value alone
+cannot add a valid pipeline stage. Source inspection and estimates are saved in
+`build_ypcb_blackwell32/pre-route-timing-analysis-20261021-v1.json`.
+The current run continues with all selected features and its frozen inputs;
+any timing repair will be based on the actual final timing paths.
 The automatic build
 receipt is `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`;
 output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
