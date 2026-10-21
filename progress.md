@@ -35,16 +35,61 @@ The separate `ypcb_blackwell_like` profile is configured in
 `build_ypcb_blackwell32/`. It inherits the board baseline, uses eight threads
 and eight warps, and selects TF32, FP8, MXFP8/MXBF8, MXFP4/NVFP4, structured
 sparsity, WGMMA, DXA, integer atomics/CAS and L2 alongside FP16/BF16 and INT8.
-Native and FPGA qualification of this combined profile is pending. The first
-frontend check found missing DXA source paths; the next exposed file-list
-package ordering. The exporter and board model now include DXA, and source
-lists retain explicit package order. Three package-order/interface checks
-pass. The full-profile preflight passed RTL export, actual elaboration and
-100,000 FP16 arithmetic cases under
-`vortex-blackwell-preflight-20261021-v3.service`. Expanded arithmetic and
-dense/scaled SimX/XRT numerical validation is running under
-`vortex-blackwell-native-20261021-v1.service`; receipt:
-`build_ypcb_blackwell32/native-validation-20261021-v1/manifest.json`.
+The full-profile frontend and 700,000 arithmetic cases passed. Eleven dense
+and scaled formats passed square and rectangular SimX/XRT tests: 44 cases,
+72 verified launches. The DXA address-width fix passed 480 before/after cases
+at 31, 32 and 48 bits with identical address, delta and setup-cycle traces.
+Evidence: `build_ypcb_blackwell32/native-validation-20261021-v3/manifest.json`
+and `dxa-width-validation-20261021-v3/manifest.json`.
+
+The new `examples/blackwell_like/` contains 21 reference-checked studies.
+All 21 originally passed SimX; 19 passed XRT before local-memory LR/SC
+stalled. The exact owned service was stopped for diagnosis; its old RUNNING
+fields do not indicate a live process. A seven-event holder budget could not
+protect a reservation across this profile's 64 harts. The budget now scales
+with resident concurrency; SimX models the same bounded per-bank policy.
+A focused regression passed 6,605 events at 16/64/128 harts with exact RTL/SimX
+trace agreement. The original 64-hart XRT local-memory test now passes at both
+one and eight iterations; one iteration took 1.59 seconds versus the prior
+60-second diagnostic timeout. The DXA public Makefile all/run paths also pass.
+
+The full eight-iteration XRT atomic suite now passes all 17 cases, including
+both global/local-memory CAS ladders: 165.78 seconds. The second failure was
+a simulation watchdog false positive: greedy issue let one warp wait while
+other warps completed CAS operations and cache fences. The monitor now resets
+on actual issue progress. Its regression reproduces the old false alarm,
+accepts 128 progressing ALU operations during another warp's wait, and still
+triggers when all issue progress stops. This monitor change is simulation-only;
+the datapath and numerical checks are unchanged. The fixed 64-hart LR/SC
+case also passes separately in 1.60 seconds. No stall limit was increased.
+Receipts: `build_ypcb_blackwell32/lrsc-investigation-20261021-v3/manifest.json`,
+`build_ypcb_bw_parity32/scoreboard-progress-20261021-v1/manifest.json` and
+`scoreboard-before-20261021-v1/manifest.json`.
+
+The application fingerprint now includes device linker flags; switching
+`STARTUP_ADDR` relinks the kernel without cleaning. Both 0x40010000 and
+0x40000000 ELF entry points were verified; the latter was restored. The
+new one-hart parity test also exposed intentionally unused upper bits of the
+fixed 64-bit AMO output on a 32-bit cache lane; that adapter now explicitly
+marks just those discarded bits.
+All three public unit compile/run targets pass. Local-memory model parity has
+exactly 14,388 retired instructions on both drivers and a 0.62% cycle gap,
+within the existing 5% threshold. All 21 fresh study cases passed SimX.
+The fresh full-profile XRT study sweep is building its backend; both modeled
+PCIe and JTAG board-interface suites follow it. The single active validation
+pipeline is `vortex-blackwell-combined-validation-20261021-v3.service`:
+`build_ypcb_blackwell32/combined-validation-20261021-v3/manifest.json`.
+
+Fresh synthesis and implementation are queued under
+`vortex-blackwell-vivado-queued-20261021-v1.service`. The queue waits for every
+native and modeled-board check to pass before starting CAD; failed checks
+prevent CAD from starting. Its receipt is
+`build_ypcb_blackwell32/vivado-queue-20261021-v1/manifest.json`; the future
+build receipt is `build_ypcb_blackwell32/vivado-build-20261021-v1/manifest.json`
+and output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
+The driver freezes committed sources, uses fresh synthesis, checks all seven
+report gates and frozen inputs, and verifies bitstream CRCs. It never opens
+JTAG. Both Vivado worker limits remain one, with an 8 GiB service memory cap.
 See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
 Both Vivado worker limits remain one, with an 8 GiB service memory cap.
 
