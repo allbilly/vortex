@@ -1,3 +1,20 @@
+# Vortex offline build — OpenTPU retains JTAG priority
+
+The user clarified that OpenTPU priority applies to JTAG access only and that
+Vortex's offline build may continue. The interrupted TCU build and its successful
+DMA-fixed synthesis checkpoint are preserved. Offline implementation will resume
+in `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/`, reusing synthesis only after
+the input, configuration and checkpoint checks pass. Both Vivado worker limits
+remain one, with an 8 GiB service memory cap. FPGA programming and physical
+tensor tests wait for JTAG access to be released.
+
+[Exact owner/service and interruption evidence](build_ypcb_tcu32/opentpu-priority-return-c0184809-20261021/NOTICE.md).
+The build-local `offline-build-authorization-20261021-v1.json` and
+`OPENTPU_PRIORITY_NOTICE.md` record the clarified scope. No tensor FPGA pass is
+claimed, and no JTAG access is authorized by the offline resume.
+
+## Preserved status before the priority interruption
+
 # Current Vortex status — October 21, 2026
 
 **The separate FP16 and INT8 tensor image is in progress.** The `ypcb_tcu`
