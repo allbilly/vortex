@@ -31,6 +31,18 @@ tests:
     via: script
     run: "make -C hw/unittest run-tcu-dsp"
     touches: [hw/rtl/tcu, hw/unittest/tcu_fedp]
+  - id: hw-dxa-setup
+    via: script
+    run: "make -j1 -C hw/unittest/dxa_setup run"
+    touches: [hw/rtl/dxa/VX_dxa_setup.sv, hw/rtl/libs/VX_multiplier.sv, hw/unittest/dxa_setup]
+  - id: hw-amo-reservation
+    via: script
+    run: "make -j1 -C hw/unittest/amo_reservation run"
+    touches: [hw/rtl/cache/VX_amo_unit.sv, hw/rtl/mem/VX_local_mem.sv, sim/simx/amo/reservation_set.h, hw/unittest/amo_reservation]
+  - id: hw-scoreboard-progress
+    via: script
+    run: "make -j1 -C hw/unittest/scoreboard_progress run"
+    touches: [hw/rtl/core/VX_scoreboard.sv, hw/unittest/scoreboard_progress]
   # Texel blend (VX_tex_lerp, both forms the sampler uses) against the C model
   # the SW sampler and SimX share, and the exact Vulkan f/256 blend, over every
   # input.

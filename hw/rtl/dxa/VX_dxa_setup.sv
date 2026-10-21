@@ -59,6 +59,7 @@ module VX_dxa_setup import VX_gpu_pkg::*, VX_dxa_pkg::*; (
     output wire [31:0]                 active_smem_stride
 );
     localparam MUL_LATENCY = 2;
+    localparam OFFSET_WIDTH = `MIN(32, `VX_CFG_MEM_ADDR_WIDTH);
 
     // ════════════════════════════════════════════════════════════════════
     // Transfer state: TS_IDLE / TS_ACTIVE.
@@ -142,7 +143,7 @@ module VX_dxa_setup import VX_gpu_pkg::*, VX_dxa_pkg::*; (
     // variable shifts — no DSP, resolved combinationally at launch. Only the
     // coordN×strideN offsets and the wrap deltas remain genuine multiplies.
     wire [31:0] dec_row_len_bytes = dec_tile0 << esize_enc;
-    wire [31:0] dec_dim0_offset   = req_data.coords[0][31:0] << esize_enc;
+    wire [OFFSET_WIDTH-1:0] dec_dim0_offset = OFFSET_WIDTH'(req_data.coords[0]) << esize_enc;
 
     // dec_elem_bytes is now only consumed as a 4-bit value (s_elem_bytes); the
     // former 32-bit multiplier use is gone (it is a shift amount now).
@@ -274,7 +275,8 @@ module VX_dxa_setup import VX_gpu_pkg::*, VX_dxa_pkg::*; (
     // coordN×stride(N-1); mul_dlt computes the wrap deltas (tileN-1)×stride(N-1).
     // The phase-0 ×elem_bytes products are launch-time shifts (see
     // dec_row_len_bytes / dec_dim0_offset), so no third multiplier is needed.
-    wire [31:0] mul_off_result, mul_dlt_result;
+    wire [OFFSET_WIDTH-1:0] mul_off_result;
+    wire [31:0] mul_dlt_result;
     reg  [31:0] mul_off_a, mul_off_b, mul_dlt_a, mul_dlt_b;
     // Registered operands: gives each DSP an input-register stage so the
     // operand-mux + (tile-1) subtract is not in the same combinational cone
@@ -289,7 +291,7 @@ module VX_dxa_setup import VX_gpu_pkg::*, VX_dxa_pkg::*; (
     VX_multiplier #(
         .A_WIDTH (32),
         .B_WIDTH (32),
-        .R_WIDTH (32),
+        .R_WIDTH (OFFSET_WIDTH),
         .LATENCY (MUL_LATENCY)
     ) mul_off (
         .clk    (clk),

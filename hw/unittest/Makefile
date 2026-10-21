@@ -5,11 +5,14 @@ all:
 	$(MAKE) -C core
 	$(MAKE) -C issue
 	$(MAKE) -C local_mem
+	$(MAKE) -C amo_reservation
+	$(MAKE) -C scoreboard_progress
 	$(MAKE) -C mem_unit
 	$(MAKE) -C tcu_fedp
 	$(MAKE) -C cta_dispatcher
 	$(MAKE) -C kmu
 	$(MAKE) -C dxa_core
+	$(MAKE) -C dxa_setup
 	$(MAKE) -C tcu_unit
 	$(MAKE) -C cp_arbiter
 	$(MAKE) -C cp_engine
@@ -36,11 +39,14 @@ run:
 	$(MAKE) -C core run
 	$(MAKE) -C issue run
 	$(MAKE) -C local_mem run
+	$(MAKE) -C amo_reservation run
+	$(MAKE) -C scoreboard_progress run
 	$(MAKE) -C mem_unit run
 	$(MAKE) -C tcu_fedp run
 	$(MAKE) -C cta_dispatcher run
 	$(MAKE) -C kmu run
 	$(MAKE) -C dxa_core run
+	$(MAKE) -C dxa_setup run
 	$(MAKE) -C tcu_unit run
 	$(MAKE) -C cp_arbiter run
 	$(MAKE) -C cp_engine run
