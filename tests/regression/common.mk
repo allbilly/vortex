@@ -166,7 +166,7 @@ all: $(if $(strip $(SRCS)),$(APP)) kernel.vxbin kernel.dump
 # Makefiles + blackbox.sh-driven runtime builds (mv -f).
 $(CONFIG_STAMP): FORCE
 	@TMP=$@.tmp.$$$$ ; \
-	 printf '%s\n' '$(VX_CFLAGS)' '$(CXXFLAGS)' '$(LDFLAGS)' > $$TMP ; \
+	 printf '%s\n' '$(VX_CFLAGS)' '$(VX_LDFLAGS)' '$(CXXFLAGS)' '$(LDFLAGS)' > $$TMP ; \
 	 if ! cmp -s $$TMP $@ 2>/dev/null; then \
 	   mv -f $$TMP $@ ; \
 	 else \
