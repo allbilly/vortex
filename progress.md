@@ -1,6 +1,6 @@
 # Current Vortex status — October 21, 2026
 
-**The FP16/INT8 image passed its offline implementation and integrity checks.**
+**The FP16/INT8 image passed physical JTAG, CH1 DDR, scalar and tensor tests.**
 The bitstream is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/vortex_ypcb.bit`.
 Its SHA-256 is
 `3b9decedf8af64836870c6b7f688b7e09dfd66983313470b0ad8cdf39516b2a0`.
@@ -23,40 +23,44 @@ the frozen controller, CSR and firmware metadata. Vendor bitstream-header
 the actual runtime binding checks use the controller/CSR/firmware hashes.
 The exact baseline, limitations and artifact hashes are saved in
 `build_ypcb_tcu32/offline-baseline-20261021-v3/manifest.json` and the image's
-`SHA256SUMS`. SRAM programming has now passed; physical tensor tests are in
-progress. Physical PCIe and a full-capacity DDR soak remain untested for this
-image. External DDR I/O timing is not fully qualified by the internal report gates.
+`SHA256SUMS`. Physical PCIe and a full-capacity DDR soak remain untested for
+this image. External DDR I/O timing is not fully qualified by the internal
+report gates.
 
-**The user handed JTAG access to Vortex: "Use JTAG for Vortex now".** The
-FP16/INT8 SRAM image has been programmed successfully: INIT=1, DONE=1,
-IDCODE=0x23751093. CH1 calibration reports result=0/error=0 for all nine
-lanes, including ECC lane 8. The physical memory and kernel suite is running
-under `vortex-tcu-fpga-kernels-20261021-v3.service`; its manifest is
-`build_ypcb_tcu32/fpga-tensor-kernels-20261021-v3/manifest.json`. Memory
-transfers are active; no tensor FPGA pass is claimed before their result.
-The memory/DMA test has passed all four 8 KiB regions across CH1's 2 GiB
+**The user handed JTAG access to Vortex: "Use JTAG for Vortex now".** SRAM
+programming passed: INIT=1, DONE=1, IDCODE=0x23751093. CH1 calibration reported
+result=0/error=0 for all nine lanes, including ECC lane 8. The completed
+physical run is `build_ypcb_tcu32/fpga-tensor-kernels-20261021-v3/manifest.json`,
+with terminal status `FPGA_MEMORY_SCALAR_FP16_AND_INT8_TENSOR_KERNELS_PASS`.
+All 14 command exit receipts are zero. The independent completion audit,
+`build_ypcb_tcu32/completion-audit-20261021-v3.json`, passed all 83 checks,
+including image/runtime/source provenance, numerical results, positive GPU
+retirement, clean ECC, process cleanup and release of both leases.
+
+The physical memory/DMA test passed four 8 KiB regions across CH1's 2 GiB
 address window, including byte-exact upload/download/copy and no aliasing.
-ECC is enabled with zero correctable and uncorrectable errors. The physical
-scalar demo and SGEMM now pass too, with positive retirement counters:
+The scalar demo and SGEMM passed with positive retirement counters:
 2,444 instructions/80,439 cycles and 3,824 instructions/9,722 cycles,
-respectively. All five basic examples now pass as well. Both physical FP16-to-FP32 TCU
-cases, M=16/K=16 with N=16 and N=32, passed two launches each with zero
-numerical errors and clean ECC. Final counters are 1,088 instructions/4,290
-cycles and 2,144 instructions/7,017 cycles, respectively. INT8-to-INT32 square
-GEMM, M=N=16/K=32, also passed twice, with 1,088 instructions/4,391 cycles
-and clean ECC. The rectangular INT8 case and cleanup audit remain pending.
-The shared JTAG lease is owned by this runner,
-PID 2578811. Ten owned process identities were captured for cleanup checking
-in `ownership-observation.json` inside that run. A read-only completion
-monitor, `vortex-tcu-hardware-audit-20261021-v3.service`, waits for all 14
-steps and real process cleanup before auditing the results. Its auditor was
-corrected to check this v3 service and captured cgroup; it previously retained
-a stale v2 unit name. No permanent flash is written.
+respectively. Five basic examples passed 13 NumPy checks covering 472 outputs.
+Each tensor case below passed two launches against the CPU reference:
 
-Authorization: `build_ypcb_tcu32/jtag-handover-20261021-v1.json`. This
-supersedes the earlier OpenTPU reservation. Offline Blackwell validation
-continues independently. The earlier idle-cable availability probe is
-historical; the current Vortex run now owns the cable.
+| Physical tensor case | M / N / K | Checked outputs | Final instructions / cycles |
+| --- | --- | --- | --- |
+| FP16 to FP32 square | 16 / 16 / 16 | 512 | 1,088 / 4,290 |
+| FP16 to FP32 rectangular | 16 / 32 / 16 | 1,024 | 2,144 / 7,017 |
+| INT8 to INT32 square | 16 / 16 / 32 | 512 | 1,088 / 4,391 |
+| INT8 to INT32 rectangular | 16 / 32 / 32 | 1,024 | 2,144 / 6,668 |
+
+All 3,072 tensor outputs matched. ECC was enabled with zero correctable and
+uncorrectable errors after every application. No permanent flash was written.
+The physical runner and its JTAG servers exited; the completion audit checked
+all ten captured process identities and both lock releases. The cable had no
+USB owner after cleanup. Vortex is authorized to reacquire the shared lease
+for the next qualified image, but no JTAG lease is currently held by this run.
+
+Authorization: `build_ypcb_tcu32/jtag-handover-20261021-v1.json`. This supersedes
+the earlier OpenTPU reservation. The Blackwell-inspired image has not been
+programmed or physically tested; its validation and CAD continue separately.
 
 The separate `ypcb_blackwell_like` profile is configured in
 `build_ypcb_blackwell32/`. It inherits the board baseline, uses eight threads
@@ -110,13 +114,12 @@ all 84 binary hashes across those 42 study cases. Evidence:
 These are functional study results; the parity claim above covers its named
 local-memory test, not every contended atomic workload's timing.
 
-The full board model compiled successfully. Its modeled PCIe interface has
-passed the CH1 2 GiB memory-map/DMA test, scalar demo and SGEMM, and FP16 and
-INT8 tensor tests with two verified launches each. The remaining format,
-copy and atomic cases and the modeled JTAG interface continue under
-`vortex-blackwell-combined-validation-20261021-v3.service`:
-`build_ypcb_blackwell32/combined-validation-20261021-v3/manifest.json`.
-Board-model receipt: `build_ypcb_blackwell32/board-validation-20261021-v2/manifest.json`.
+The full board model compiled successfully. Both modeled interfaces now
+pass the CH1 2 GiB memory-map/DMA test, scalar demo and SGEMM, and all 21
+study cases. The successful combined receipt is
+`build_ypcb_blackwell32/combined-validation-20261021-v4/manifest.json`;
+board-model receipt:
+`build_ypcb_blackwell32/board-validation-20261021-v3/manifest.json`.
 DDR/PHY responses in that model are oracles; these tests do not access JTAG
 or qualify the physical DRAM interface.
 
@@ -147,7 +150,6 @@ The driver freezes committed sources, checks all seven routed gates and frozen
 inputs, and verifies bitstream CRCs. Both Vivado worker limits remain one,
 with an 8 GiB service memory cap. CAD does not access JTAG.
 See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
-Both Vivado worker limits remain one, with an 8 GiB service memory cap.
 
 The latest `git fetch origin master` found no upstream advancement:
 `master` and `origin/master` are `7b67f0210c95`; `ypcb` descends from it.
