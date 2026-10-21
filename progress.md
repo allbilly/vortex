@@ -10,6 +10,15 @@ four reuse checks passed. The new run freezes 814 inputs and committed source
 `81e473df8`. Both Vivado worker limits remain one, with an 8 GiB service memory
 cap. FPGA programming and physical tensor tests wait for JTAG access to be
 released. Receipt: `build_ypcb_tcu32/offline-resume-observation-20261021-v1.json`.
+The v3 preparation, hardware launcher, ownership capture and completion auditor
+are bound to that image. Their provenance check verified the original fresh
+synthesis, its reused checkpoint, all frozen inputs and all 14 completed board
+model cases; the original interrupted CAD status is retained. Receipt:
+`build_ypcb_tcu32/offline-provenance-check-20261021-v3.json`.
+The launcher rejects hardware access while the OpenTPU priority flags remain
+set; this guard was exercised without invoking the hardware runner.
+Offline host preparation remains gated on a successful implementation receipt,
+all seven report checks and bitstream CRC validation.
 
 A fresh `git fetch origin master` found no upstream advancement: local `master`
 and `origin/master` remain `7b67f0210c95`. The `ypcb` branch descends from that
