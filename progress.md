@@ -74,11 +74,21 @@ fixed 64-bit AMO output on a 32-bit cache lane; that adapter now explicitly
 marks just those discarded bits.
 All three public unit compile/run targets pass. Local-memory model parity has
 exactly 14,388 retired instructions on both drivers and a 0.62% cycle gap,
-within the existing 5% threshold. All 21 fresh study cases passed SimX.
-The fresh full-profile XRT study sweep is building its backend; both modeled
-PCIe and JTAG board-interface suites follow it. The single active validation
-pipeline is `vortex-blackwell-combined-validation-20261021-v3.service`:
+within the existing 5% threshold. All 21 fresh study cases now pass both SimX
+and XRT, including the complete 17-test atomic suite. An independent audit
+verified the exact profile/app flags, arguments, positive GPU counters and
+all 84 binary hashes across those 42 study cases. Evidence:
+`build_ypcb_blackwell32/study-validation-20261021-v2/manifest.json` and
+`build_ypcb_blackwell32/study-audit-20261021-v2.json`.
+These are functional study results; the parity claim above covers its named
+local-memory test, not every contended atomic workload's timing.
+
+The full board model is compiling for both modeled PCIe and JTAG interface
+suites under `vortex-blackwell-combined-validation-20261021-v3.service`:
 `build_ypcb_blackwell32/combined-validation-20261021-v3/manifest.json`.
+Board-model receipt: `build_ypcb_blackwell32/board-validation-20261021-v2/manifest.json`.
+DDR/PHY responses in that model are oracles; these tests do not access JTAG
+or qualify the physical DRAM interface.
 
 Fresh synthesis and implementation are queued under
 `vortex-blackwell-vivado-queued-20261021-v1.service`. The queue waits for every
