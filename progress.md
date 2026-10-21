@@ -88,9 +88,18 @@ Synthesis estimates 149,180 LUTs (49.96%), 105,839 registers (17.72%),
 194 block-RAM tiles (20.31%) and 144 DSPs (7.50%). These are synthesis
 figures; routed timing is still unqualified. Evidence:
 `build_ypcb_tcu32/synthesis-observation-20261021-v2.json`.
-Implementation is now active under
-`vortex-tcu-integration-build-20261021-v4.service`, image directory
-`tcu-ch1-jtag-pcie-20261021-v2/`. All 811 frozen inputs match; its preprocessed
+Implementation was interrupted at 07:58 HKT on October 21 by an explicit
+OpenTPU priority switch. The service
+`vortex-tcu-integration-build-20261021-v4.service` is stopped and its CAD
+processes are gone. The last logged phase was physical-synthesis
+initialization during post-placement optimization. No implementation exit
+receipt or new bitstream exists; no Vortex design failure is inferred.
+Preserve `tcu-ch1-jtag-pcie-20261021-v2/` and its successful synthesis
+checkpoint. The scheduling hold is recorded in the build-local
+`OPENTPU_PRIORITY_NOTICE.md` and
+`opentpu-priority-return-c0184809-20261021/manifest.json`; its release or an
+explicit priority decision is required before restarting.
+All 811 frozen inputs matched at synthesis completion; its preprocessed
 DMA RTL contains the validated data/strobe reference and both tensor formats
 remain selected. Require all report/CRC gates and physical memory/ECC,
 scalar and FP16/INT8 tests. The unchanged DDR block still needs qualification
