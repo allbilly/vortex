@@ -1,9 +1,14 @@
 # Current Vortex status — October 21, 2026
 
 **Active goal: the full Blackwell-inspired FPGA suite and every example.**
-Vivado routing is running after successful placement and physical optimization. Blackwell
-physical execution remains pending;
-the new full-suite queue covers 53 commands on the exact new image.
+The first Blackwell candidate missed routed setup timing by 2.481 ns. Its
+verified checkpoint is preserved; it was never programmed. Timing repairs now
+pass formal equivalence, 1.6 million before/after FP4 component frames,
+139,616 metadata-index cases, both public unit entry points, catalog lint and
+eight Python checks. Full GPU revalidation and a replacement bitstream are
+next. All formats, the five-cycle TFR pipeline and 125 MHz target are retained.
+The complete 53-command physical suite remains required. Earlier Blackwell
+model receipts below describe the first candidate, before these timing repairs.
 
 **The FP16/INT8 image passed physical JTAG, CH1 DDR, scalar and tensor tests.**
 The bitstream is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/vortex_ypcb.bit`.
@@ -150,30 +155,34 @@ unchanged. All 48 modeled interface cases now pass, including 46 GPU cases.
 Board and combined receipts: `build_ypcb_blackwell32/board-validation-20261021-v3/manifest.json`
 and `build_ypcb_blackwell32/combined-validation-20261021-v4/manifest.json`.
 
-**Fresh Blackwell-profile synthesis passed; Vivado implementation is running.**
-Synthesis exited zero, uninterrupted, in 1,879.930 seconds (31 min 20 s),
-with zero errors and zero critical warnings. It uses 244,919 LUTs (82.02%),
-509 block-RAM tiles (53.30%) and 392 DSPs (20.42%); routed timing is pending.
-Placement completed successfully in 33 min 03 s with zero warnings, critical
-warnings or errors. Pre-route physical optimization completed in 24 min 25 s;
-routing is now running. Its last pre-route estimate is setup -2.102 ns and
-hold -0.550 ns; these are estimates, and final routed timing is pending.
-Its initial estimated setup slack is -2.288 ns, improving to about -2.26 ns
-during optimization; final routed timing remains unresolved. The current TFR
-implementation supports latency 4 or 5, so a larger configuration value alone
-cannot add a valid pipeline stage. Source inspection and estimates are saved in
-`build_ypcb_blackwell32/pre-route-timing-analysis-20261021-v1.json`.
-The current run continues with all selected features and its frozen inputs;
-any timing repair will be based on the actual final timing paths.
-The automatic build
-receipt is `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`;
-output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
-Its live implementation process and cgroup were captured in
-`build_ypcb_blackwell32/cad-process-observation-20261021-v2.json`.
-The driver freezes committed sources, checks all seven routed gates and frozen
-inputs, and verifies bitstream CRCs. Both Vivado worker limits remain one,
-with an 8 GiB service memory cap. CAD does not access JTAG.
-See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
+**The first Blackwell candidate is unqualified; timing repairs are validated at component level.**
+Its synthesis took 31 min 20 s; placement took 33 min 03 s, pre-route physical
+optimization 24 min 25 s and routing 61 min 22 s. All 400,099 routable nets
+were routed with zero routing errors. Setup slack was -2.481 ns and hold
++0.010 ns. The owned implementation was stopped after its routed checkpoint
+passed archive integrity and all 826 frozen-input hashes. Its interrupted exit
+receipt remains a failure, and no hardware programming occurred.
+
+Checkpoint: `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/routed-initial.dcp`,
+SHA-256 `711bf989dddb000a033b60cd18316ad98302d286b4416972c8ca98208be05963`.
+The sequential, read-only diagnosis completed successfully. Exact failing
+paths are in `build_ypcb_blackwell32/routed-timing-diagnosis-20261021-v1/setup-paths.rpt`.
+They identify FP4 cancellation/magnitude serialization before maximum-exponent
+selection and variable division in scale-metadata indexing.
+
+The repairs use power-of-two indexing, bounded FP4 sum widths and early exact
+cancellation detection. Pipeline cycles and configured features are unchanged.
+Validation: `build_ypcb_blackwell32/timing-repair-validation-20261021-v4/manifest.json`
+plus its `additional-formal-proofs/manifest.json`,
+`public-f4-matrix-check-20261021-v2/manifest.json` and
+`default-unit-validation-20261021-v1/manifest.json` in that build directory.
+The normal CI catalog has 668 cases in 36 categories. Eight generated-tree
+Python checks passed. The generic FEDP float generator does not model FP4
+scales; the dedicated scale-aware component test supplies all scale factors,
+masks and stalls. Its old/new RTL comparisons passed all sixteen variants.
+Fresh model integration and a fresh implementation remain pending.
+Intermediate placement, pre-route and initial-route timing reports will now be
+saved before long optimization stages to make any remaining path visible.
 
 The full Blackwell runtime is prepared without hardware access:
 `build_ypcb_blackwell32/hardware-preparation-20261021-v2/manifest.json`.
@@ -206,7 +215,8 @@ the shared lease. It checks enabled clean ECC after every application and
 preserves the validated workloads and numerical criteria. Its receipt is
 `build_ypcb_blackwell32/hardware-queue-20261021-v2/manifest.json`; physical
 results will be saved in `build_ypcb_blackwell32/fpga-study-kernels-20261021-v2/`.
-The waiting service has not acquired JTAG. It writes SRAM only.
+The earlier queue exited when the unqualified CAD run stopped, without JTAG access.
+A replacement queue will bind the repaired image after fresh validation.
 
 The read-only `vortex-blackwell-hardware-audit-20261021-v2.service` waits for
 the real physical suite exit and process cleanup, then independently checks

@@ -58,6 +58,28 @@ RTL dependency enumeration must work in the build service's environment.
 Treat discovery errors and empty file lists as fatal; otherwise source edits
 can leave an existing model unchanged while Make reports success.
 
+Put unit-specific configuration flags before including `config.mk` so profile
+resolution sees them as explicit overrides. Profile resolution uses
+`override CONFIGS`; a normal assignment after that include is ignored. A unit
+that varies its word count must select matching geometry for both its RTL and
+C++ reference, and rebuild between variants.
+
+Scaled FP4 has scale-factor inputs that the generic `tcu_fedp` floating-point
+generator does not model. Use the scale-aware multiplier test:
+
+```bash
+make -j1 -C hw/unittest/tcu_f4_mul run-matrix
+make -j1 -C hw/unittest/tcu_mx_index run
+```
+
+The multiplier matrix checks MXFP4/NVFP4 products, exact cancellation, lane
+masks and enable stalls at two/four words, zero/one product-register stages
+and LUT/DSP multiplication. Each variant checks 100,000 frames against an
+independent integer reference. The indexing test checks all 32 format codes,
+small tile sizes and full-width overflow boundaries against division-based
+formulas. The scaled GEMM cases in `ci/testcases/tensor_mx.yaml` cover full
+GPU integration.
+
 ## Creating Your Own Regression Test
 
 Inside `tests/regression` you will find a series of folders which are named based on what they test.

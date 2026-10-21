@@ -90,8 +90,12 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
 
     for (genvar i = 0; i < TCK; ++i) begin : g_lane_mxfp4
         localparam K_WORD = i / 2;
+        localparam TERM_W = 4 + SIG_SHIFT_MXFP4;
+        // Four aligned magnitudes need two carry bits and one sign bit.
+        localparam SUM_W = TERM_W + 3;
+        localparam MAG_W = SUM_W - 1;
 
-        wire [3:0][23:0] term_mag_shifted;
+        wire [3:0][TERM_W-1:0] term_mag_shifted;
         wire [3:0][EXP_TERM_W_MXFP4-1:0] term_exp_biased;
         wire [3:0] term_valid;
         wire [3:0] term_sign;
@@ -177,7 +181,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .data_out ({term_valid_r, term_sign_r, shift_amt_r})
         );
 
-        wire [3:0][26:0] term_signed;
+        wire [3:0][SUM_W-1:0] term_signed;
         for (genvar j = 0; j < 4; ++j) begin : g_align
             VX_ks_adder #(
                 .N(EXP_TERM_W_MXFP4),
@@ -190,17 +194,18 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
                 `UNUSED_PIN(cout)
             );
 
-            assign term_mag_shifted[j] = term_valid_r[j] ? (24'(f4_man_prod[j]) << SIG_SHIFT_MXFP4) : 24'd0;
-            wire [23:0] aligned_mag = (shift_amt_r[j] >= EXP_TERM_W_MXFP4'(24)) ? 24'd0 : (term_mag_shifted[j] >> shift_amt_r[j][4:0]);
-            wire [26:0] aligned_ext = {3'b0, aligned_mag};
+            assign term_mag_shifted[j] = term_valid_r[j] ? (TERM_W'(f4_man_prod[j]) << SIG_SHIFT_MXFP4) : '0;
+            wire [TERM_W-1:0] aligned_mag = (shift_amt_r[j] >= EXP_TERM_W_MXFP4'(TERM_W))
+                ? '0 : (term_mag_shifted[j] >> shift_amt_r[j][$clog2(TERM_W)-1:0]);
+            wire [SUM_W-1:0] aligned_ext = SUM_W'(aligned_mag);
 
-            wire [26:0] neg_term;
+            wire [SUM_W-1:0] neg_term;
             VX_ks_adder #(
-                .N(27),
-                .BYPASS(`FORCE_BUILTIN_ADDER(27))
+                .N(SUM_W),
+                .BYPASS(`FORCE_BUILTIN_ADDER(SUM_W))
             ) term_neg_ksa (
                 .dataa(~aligned_ext),
-                .datab(27'd0),
+                .datab(SUM_W'(0)),
                 .cin(1'b1),
                 .sum(neg_term),
                 `UNUSED_PIN(cout)
@@ -209,21 +214,21 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             assign term_signed[j] = term_sign_r[j] ? neg_term : aligned_ext;
         end
 
-        wire [26:0] sum_vec, carry_vec;
+        wire [SUM_W-1:0] sum_vec, carry_vec;
         VX_csa_tree #(
             .N(4),
-            .W(27),
-            .S(27)
+            .W(SUM_W),
+            .S(SUM_W)
         ) term_csa (
             .operands (term_signed),
             .sum      (sum_vec),
             .carry    (carry_vec)
         );
 
-        wire [26:0] signed_sum;
+        wire [SUM_W-1:0] signed_sum;
         VX_ks_adder #(
-            .N(27),
-            .BYPASS(`FORCE_BUILTIN_ADDER(27))
+            .N(SUM_W),
+            .BYPASS(`FORCE_BUILTIN_ADDER(SUM_W))
         ) sum_ksa (
             .dataa(sum_vec),
             .datab(carry_vec),
@@ -232,23 +237,24 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             `UNUSED_PIN(cout)
         );
 
-        wire sum_sign = signed_sum[26];
-        wire [25:0] neg_sum_raw;
+        wire sum_sign = signed_sum[SUM_W-1];
+        wire [MAG_W-1:0] neg_sum_raw;
         VX_ks_adder #(
-            .N(26),
-            .BYPASS(`FORCE_BUILTIN_ADDER(26))
+            .N(MAG_W),
+            .BYPASS(`FORCE_BUILTIN_ADDER(MAG_W))
         ) sum_neg_ksa (
-            .dataa(~signed_sum[25:0]),
-            .datab(26'd0),
+            .dataa(~signed_sum[MAG_W-1:0]),
+            .datab(MAG_W'(0)),
             .cin(1'b1),
             .sum(neg_sum_raw),
             `UNUSED_PIN(cout)
         );
 
-        wire [25:0] abs_sum = sum_sign ? neg_sum_raw : signed_sum[25:0];
-        wire is_zero_out = ~|abs_sum;
+        wire [MAG_W-1:0] abs_sum = sum_sign ? neg_sum_raw : signed_sum[MAG_W-1:0];
+        // Negation preserves zero, so exponent selection need not wait for it.
+        wire is_zero_out = ~|signed_sum[MAG_W-1:0];
 
-        assign result_sig_mxfp4[i] = {sum_sign & ~is_zero_out, abs_sum[23:0]};
+        assign result_sig_mxfp4[i] = {sum_sign & ~is_zero_out, 24'(abs_sum)};
         assign sig_zero_mxfp4[i]   = is_zero_out;
         assign result_exp_mxfp4[i] = EXP_W'(max_exp_biased) + EXP_W'(EXP_BASE_BIASED_MXFP4);
 
@@ -284,6 +290,9 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
 
     for (genvar i = 0; i < TCK; ++i) begin : g_lane_nvfp4
         localparam K_WORD = i / 2;
+        localparam TERM_W = 11 + SIG_SHIFT;
+        localparam SUM_W = TERM_W + 3;
+        localparam MAG_W = SUM_W - 1;
         `UNUSED_VAR ({sf_a[7], sf_b[7]})
 
         // e4m3 scale factor mantissa mul
@@ -304,7 +313,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .p(sf_man_prod)
         );
 
-        wire [3:0][23:0] term_mag_shifted;
+        wire [3:0][TERM_W-1:0] term_mag_shifted;
         wire [3:0][5:0]  term_exp_biased;
         wire [3:0]       term_valid;
         wire [3:0]       term_sign;
@@ -435,7 +444,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             .data_out ({term_valid_r, term_sign_r, shift_amt_r})
         );
 
-        wire [3:0][26:0] term_signed;
+        wire [3:0][SUM_W-1:0] term_signed;
         for (genvar j = 0; j < 4; ++j) begin : g_align
             VX_ks_adder #(
                 .N(6),
@@ -448,17 +457,18 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
                 `UNUSED_PIN(cout)
             );
 
-            assign term_mag_shifted[j] = term_valid_r[j] ? (24'(term_man_prod[j][10:0]) << SIG_SHIFT) : 24'd0;
-            wire [23:0] aligned_mag = (shift_amt_r[j] >= 6'd24) ? 24'd0 : (term_mag_shifted[j] >> shift_amt_r[j][4:0]);
-            wire [26:0] aligned_ext = {3'b0, aligned_mag};
+            assign term_mag_shifted[j] = term_valid_r[j] ? (TERM_W'(term_man_prod[j][10:0]) << SIG_SHIFT) : '0;
+            wire [TERM_W-1:0] aligned_mag = (shift_amt_r[j] >= 6'(TERM_W))
+                ? '0 : (term_mag_shifted[j] >> shift_amt_r[j][$clog2(TERM_W)-1:0]);
+            wire [SUM_W-1:0] aligned_ext = SUM_W'(aligned_mag);
 
-            wire [26:0] neg_term;
+            wire [SUM_W-1:0] neg_term;
             VX_ks_adder #(
-                .N(27),
-                .BYPASS(`FORCE_BUILTIN_ADDER(27))
+                .N(SUM_W),
+                .BYPASS(`FORCE_BUILTIN_ADDER(SUM_W))
             ) term_neg_ksa (
                 .dataa(~aligned_ext),
-                .datab(27'd0),
+                .datab(SUM_W'(0)),
                 .cin(1'b1),
                 .sum(neg_term),
                 `UNUSED_PIN(cout)
@@ -467,21 +477,21 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             assign term_signed[j] = term_sign_r[j] ? neg_term : aligned_ext;
         end
 
-        wire [26:0] sum_vec, carry_vec;
+        wire [SUM_W-1:0] sum_vec, carry_vec;
         VX_csa_tree #(
             .N(4),
-            .W(27),
-            .S(27)
+            .W(SUM_W),
+            .S(SUM_W)
         ) term_csa (
             .operands (term_signed),
             .sum      (sum_vec),
             .carry    (carry_vec)
         );
 
-        wire [26:0] signed_sum;
+        wire [SUM_W-1:0] signed_sum;
         VX_ks_adder #(
-            .N(27),
-            .BYPASS(`FORCE_BUILTIN_ADDER(27))
+            .N(SUM_W),
+            .BYPASS(`FORCE_BUILTIN_ADDER(SUM_W))
         ) sum_ksa (
             .dataa(sum_vec),
             .datab(carry_vec),
@@ -490,23 +500,23 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             `UNUSED_PIN(cout)
         );
 
-        wire sum_sign = signed_sum[26];
-        wire [25:0] neg_sum_raw;
+        wire sum_sign = signed_sum[SUM_W-1];
+        wire [MAG_W-1:0] neg_sum_raw;
         VX_ks_adder #(
-            .N(26),
-            .BYPASS(`FORCE_BUILTIN_ADDER(26))
+            .N(MAG_W),
+            .BYPASS(`FORCE_BUILTIN_ADDER(MAG_W))
         ) sum_neg_ksa (
-            .dataa(~signed_sum[25:0]),
-            .datab(26'd0),
+            .dataa(~signed_sum[MAG_W-1:0]),
+            .datab(MAG_W'(0)),
             .cin(1'b1),
             .sum(neg_sum_raw),
             `UNUSED_PIN(cout)
         );
 
-        wire [25:0] abs_sum = sum_sign ? neg_sum_raw : signed_sum[25:0];
-        wire is_zero_out = ~|abs_sum;
+        wire [MAG_W-1:0] abs_sum = sum_sign ? neg_sum_raw : signed_sum[MAG_W-1:0];
+        wire is_zero_out = ~|signed_sum[MAG_W-1:0];
 
-        assign result_sig_nvfp4[i] = {sum_sign & ~is_zero_out, abs_sum[23:0]};
+        assign result_sig_nvfp4[i] = {sum_sign & ~is_zero_out, 24'(abs_sum)};
         assign sig_zero_nvfp4[i]   = is_zero_out;
         assign result_exp_nvfp4[i] = EXP_W'(max_exp_biased) + EXP_W'(EXP_BASE_BIASED);
 

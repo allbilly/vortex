@@ -9,6 +9,8 @@ all:
 	$(MAKE) -C scoreboard_progress
 	$(MAKE) -C mem_unit
 	$(MAKE) -C tcu_fedp
+	$(MAKE) -C tcu_mx_index
+	$(MAKE) -C tcu_f4_mul
 	$(MAKE) -C cta_dispatcher
 	$(MAKE) -C kmu
 	$(MAKE) -C dxa_core
@@ -43,6 +45,8 @@ run:
 	$(MAKE) -C scoreboard_progress run
 	$(MAKE) -C mem_unit run
 	$(MAKE) -C tcu_fedp run
+	$(MAKE) -C tcu_mx_index run
+	$(MAKE) -C tcu_f4_mul run
 	$(MAKE) -C cta_dispatcher run
 	$(MAKE) -C kmu run
 	$(MAKE) -C dxa_core run
@@ -141,6 +145,8 @@ clean:
 	$(MAKE) -C local_mem clean
 	$(MAKE) -C mem_unit clean
 	$(MAKE) -C tcu_fedp clean
+	$(MAKE) -C tcu_mx_index clean
+	$(MAKE) -C tcu_f4_mul clean
 	$(MAKE) -C cta_dispatcher clean
 	$(MAKE) -C kmu clean
 	$(MAKE) -C dxa_core clean

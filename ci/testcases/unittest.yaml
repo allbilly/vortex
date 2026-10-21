@@ -35,6 +35,14 @@ tests:
     via: script
     run: "make -j1 -C hw/unittest/dxa_setup run"
     touches: [hw/rtl/dxa/VX_dxa_setup.sv, hw/rtl/libs/VX_multiplier.sv, hw/unittest/dxa_setup]
+  - id: hw-tcu-mx-index
+    via: script
+    run: "make -j1 -C hw/unittest/tcu_mx_index run"
+    touches: [hw/rtl/tcu/VX_tcu_pkg.sv, hw/rtl/tcu/VX_tcu_core.sv, hw/unittest/tcu_mx_index]
+  - id: hw-tcu-f4-mul
+    via: script
+    run: "make -j1 -C hw/unittest/tcu_f4_mul run-matrix"
+    touches: [hw/rtl/tcu/tfr/VX_tcu_tfr_mul_f4.sv, hw/rtl/tcu/tfr/VX_tcu_tfr_wmul.sv, hw/unittest/tcu_f4_mul]
   - id: hw-amo-reservation
     via: script
     run: "make -j1 -C hw/unittest/amo_reservation run"

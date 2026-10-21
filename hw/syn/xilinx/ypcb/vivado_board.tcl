@@ -96,9 +96,15 @@ source [file join $board_dir vivado_wl_clock.tcl]
 source [file join $board_dir vivado_pcie_clock.tcl]
 write_checkpoint -force [file join $output_dir optimized.dcp]
 place_design -directive Explore
+report_timing_summary -delay_type min_max -max_paths 30 \
+    -file [file join $output_dir timing-placed.rpt]
 phys_opt_design -directive AggressiveExplore
+report_timing_summary -delay_type min_max -max_paths 30 \
+    -file [file join $output_dir timing-preroute.rpt]
 route_design -directive Explore
 write_checkpoint -force [file join $output_dir routed-initial.dcp]
+report_timing_summary -delay_type min_max -max_paths 30 \
+    -file [file join $output_dir timing-initial-route.rpt]
 # Post-route physical optimization maintains routing; rerouting can undo its gains.
 for {set iteration 0} {$iteration < 3} {incr iteration} {
     set setup [get_timing_paths -delay_type max -max_paths 1]

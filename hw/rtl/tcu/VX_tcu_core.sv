@@ -346,7 +346,7 @@ module VX_tcu_core import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
         logic [`LOG2UP(TCU_BLOCK_CAP)-1:0] word_idx;
         logic [1:0] byte_idx;
         begin
-            scale_k = MX_SCALE_IDX_W'(k_base_idx / mx_scale_block_size(fmt));
+            scale_k = MX_SCALE_IDX_W'(mx_scale_block_index(fmt, 32'(k_base_idx)));
             scale_idx = MX_SCALE_IDX_W'(mn_idx) * scale_blocks_k + scale_k;
             word_idx = `LOG2UP(TCU_BLOCK_CAP)'(scale_idx >> 2);
             byte_idx = scale_idx[1:0];
@@ -356,7 +356,7 @@ module VX_tcu_core import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
 
     wire [TCU_TC_M-1:0][FEDP_SF-1:0][7:0] mx_sf_a;
     wire [TCU_TC_N-1:0][FEDP_SF-1:0][7:0] mx_sf_b;
-    wire [3:0] mx_elems_per_word = 4'(32 / tcu_fmt_width(fmt_s));
+    wire [3:0] mx_elems_per_word = 4'(tcu_fmt_elts_per_word(fmt_s));
     wire [MX_SCALE_IDX_W-1:0] mx_scale_blocks_k_eff =
     `ifdef VX_CFG_TCU_WGMMA_ENABLE
         is_wgmma ? MX_SCALE_IDX_W'(mx_scale_blocks_k_words(fmt_s, TCU_WG_K_STEPS * TCU_WG_FEDP_K))

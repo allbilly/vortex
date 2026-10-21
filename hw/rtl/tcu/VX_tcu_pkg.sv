@@ -295,6 +295,16 @@ package VX_tcu_pkg;
         endcase
     endfunction
 
+    function automatic int unsigned tcu_fmt_elts_per_word(input logic [TCU_FMT_WIDTH-1:0] fmt);
+        case (tcu_fmt_width(fmt))
+            4:  return 8;
+            8:  return 4;
+            16: return 2;
+            32: return 1;
+            default: return 'x;
+        endcase
+    endfunction
+
     function automatic logic tcu_fmt_is_int(input logic [TCU_FMT_WIDTH-1:0] fmt);
         return fmt[TCU_FMT_WIDTH-1];
     endfunction
@@ -324,14 +334,31 @@ package VX_tcu_pkg;
         endcase
     endfunction
 
+    function automatic int unsigned mx_scale_block_index(
+        input logic [TCU_FMT_WIDTH-1:0] fmt,
+        input int unsigned elem_index
+    );
+        case (fmt)
+            TCU_MXFP8_ID, TCU_MXBF8_ID, TCU_MXFP4_ID: return elem_index >> 5;
+            TCU_NVFP4_ID: return elem_index >> 4;
+            default: return elem_index;
+        endcase
+    endfunction
+
     function automatic int unsigned mx_scale_blocks_k_words(
         input logic [TCU_FMT_WIDTH-1:0] fmt,
         input int unsigned tile_k_words
     );
-        automatic int unsigned data_bits = tcu_fmt_width(fmt);
-        automatic int unsigned block_elems = mx_scale_block_size(fmt);
-        automatic int unsigned tile_elems = (data_bits != 0) ? tile_k_words * (32 / data_bits) : 0;
-        return (tile_elems + block_elems - 1) / block_elems;
+        case (fmt)
+            TCU_MXFP8_ID, TCU_MXBF8_ID: return ((tile_k_words << 2) + 32'd31) >> 5;
+            TCU_MXFP4_ID: return ((tile_k_words << 3) + 32'd31) >> 5;
+            TCU_NVFP4_ID: return ((tile_k_words << 3) + 32'd15) >> 4;
+            TCU_FP16_ID, TCU_BF16_ID: return tile_k_words << 1;
+            TCU_I4_ID, TCU_U4_ID: return tile_k_words << 3;
+            TCU_FP8_ID, TCU_BF8_ID, TCU_I8_ID, TCU_U8_ID: return tile_k_words << 2;
+            TCU_FP32_ID, TCU_I32_ID, TCU_TF32_ID: return tile_k_words;
+            default: return 0;
+        endcase
     endfunction
 
     function automatic int unsigned mx_scale_blocks_k(input logic [TCU_FMT_WIDTH-1:0] fmt);
