@@ -1,7 +1,8 @@
 # Current Vortex status — October 21, 2026
 
 **Active goal: the full Blackwell-inspired FPGA suite and every example.**
-Vivado placement is running. Blackwell physical execution remains pending;
+Vivado physical optimization is running after successful placement. Blackwell
+physical execution remains pending;
 the new full-suite queue covers 53 commands on the exact new image.
 
 **The FP16/INT8 image passed physical JTAG, CH1 DDR, scalar and tensor tests.**
@@ -153,6 +154,8 @@ and `build_ypcb_blackwell32/combined-validation-20261021-v4/manifest.json`.
 Synthesis exited zero, uninterrupted, in 1,879.930 seconds (31 min 20 s),
 with zero errors and zero critical warnings. It uses 244,919 LUTs (82.02%),
 509 block-RAM tiles (53.30%) and 392 DSPs (20.42%); routed timing is pending.
+Placement completed successfully in 33 min 03 s with zero warnings, critical
+warnings or errors. Pre-route physical optimization is now running.
 The automatic build
 receipt is `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`;
 output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
