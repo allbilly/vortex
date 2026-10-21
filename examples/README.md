@@ -18,6 +18,10 @@ floor output dimensions and `padding < kernel`. Defaults are deliberately
 small; non-multiple vector and matrix sizes exercise the last partial warp.
 These are scalar-FPU teaching kernels; they do not require tensor extensions.
 
+For low-precision tensors, structured sparsity, WGMMA, asynchronous copy and
+atomic studies, use the separate [compute-study examples](blackwell_like/README.md)
+with a matching hardware profile.
+
 ## Build and run
 
 First complete the [Vortex setup](../docs/install_vortex.md), including the

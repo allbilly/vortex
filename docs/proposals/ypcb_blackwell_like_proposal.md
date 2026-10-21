@@ -19,7 +19,7 @@ PCIe interfaces, CH1-only 2 GiB DDR3, all nine byte lanes and enabled ECC.
 Use the existing native toolchain. Keep one heavy Vortex stage at a time,
 both Vivado worker limits at one and the 8 GiB service memory cap.
 
-## Proposed feature set
+## Feature set
 
 All configuration names below have the `VX_CFG_` prefix. Select TFR with DSP
 inference and matching RTL/SimX latency as the FPGA arithmetic backend.
@@ -34,8 +34,8 @@ inference and matching RTL/SimX latency as the FPGA arithmetic backend.
 | Structured 2:4 sparsity | `TCU_SPARSE_ENABLE` |
 | Shared-memory matrix operands | `TCU_WGMMA_ENABLE` |
 | Asynchronous global-to-shared copies | `EXT_DXA_ENABLE` |
-| Integer atomic operations | `EXT_A_ENABLE`; evaluate `EXT_ZACAS_ENABLE` for CAS studies |
-| Memory hierarchy | Retain L1/shared memory; evaluate `L2_ENABLE` with memory-reuse kernels |
+| Integer atomic operations | `EXT_A_ENABLE`, `EXT_ZACAS_ENABLE` |
+| Memory hierarchy | Retain L1/shared memory and enable `L2_ENABLE` |
 
 Choose warp count, thread count and shared-memory geometry from the canonical
 cases in `ci/testcases/tensor*.yaml` and the DXA tests. A 32-thread warp is an
@@ -52,7 +52,11 @@ studies must include scale packing and any tensor-level scaling in software.
 
 ## Study kernels and evidence
 
-Add runnable examples with a CPU reference, deterministic inputs, dimensions,
+The [study launcher](../../examples/blackwell_like/README.md) reuses the
+reference-checked device kernels and records configurations, binary hashes,
+numerical checks and retirement counters. It provides these studies:
+
+Runnable examples use a CPU reference, deterministic inputs, dimensions,
 format/scale descriptions and a clear numerical result:
 
 1. Dense FP16 and BF16 GEMM with FP32 accumulation as the baseline.
