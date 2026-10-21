@@ -1,5 +1,9 @@
 # Current Vortex status — October 21, 2026
 
+**Active goal: the full Blackwell-inspired FPGA suite and every example.**
+Vivado placement is running. Blackwell physical execution remains pending;
+the new full-suite queue covers 53 commands on the exact new image.
+
 **The FP16/INT8 image passed physical JTAG, CH1 DDR, scalar and tensor tests.**
 The bitstream is `build_ypcb_tcu32/tcu-ch1-jtag-pcie-20261021-v3/vortex_ypcb.bit`.
 Its SHA-256 is
@@ -45,7 +49,7 @@ The physical memory/DMA test passed four 8 KiB regions across CH1's 2 GiB
 address window, including byte-exact upload/download/copy and no aliasing.
 The scalar demo and SGEMM passed with positive retirement counters:
 2,444 instructions/80,439 cycles and 3,824 instructions/9,722 cycles,
-respectively. Five basic examples passed 13 NumPy checks covering 472 outputs.
+respectively. Five basic examples passed 13 CPU reference checks covering 472 outputs.
 Each tensor case below passed two launches against the CPU reference:
 
 | Physical tensor case | M / N / K | Checked outputs | Final instructions / cycles |
@@ -152,35 +156,46 @@ with zero errors and zero critical warnings. It uses 244,919 LUTs (82.02%),
 The automatic build
 receipt is `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`;
 output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
-Its live synthesis process and cgroup were captured in
-`build_ypcb_blackwell32/cad-process-observation-20261021-v1.json`.
+Its live implementation process and cgroup were captured in
+`build_ypcb_blackwell32/cad-process-observation-20261021-v2.json`.
 The driver freezes committed sources, checks all seven routed gates and frozen
 inputs, and verifies bitstream CRCs. Both Vivado worker limits remain one,
 with an 8 GiB service memory cap. CAD does not access JTAG.
 See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
 
-The matching Blackwell runtime is prepared without hardware access:
-`build_ypcb_blackwell32/hardware-preparation-20261021-v1/manifest.json`.
-Its 54 immutable host artifacts include all 21 already-validated study
-applications and 23 kernel images. Every copied hash and kernel address range
-was checked. The runtime uses the exact frozen DDR controller/CSR/firmware.
-A preflight check confirmed that the new runner rejects an unqualified image
-before JTAG access or programming. The waiting service,
-`vortex-blackwell-qualified-image-and-fpga-20261021-v1.service`, will require
-the successful CAD, routed-report and CRC receipts before acquiring the shared
-lease and running memory, scalar demo/SGEMM and all 21 study cases. It preserves
-the complete 17-test atomic suite and checks clean enabled ECC after every app.
-Its receipt is `build_ypcb_blackwell32/hardware-queue-20261021-v1/manifest.json`;
-the physical results will be saved under
-`build_ypcb_blackwell32/fpga-study-kernels-20261021-v1/`.
-The waiting service has not acquired JTAG. It writes SRAM only and leaves
-completion auditing pending until the actual physical run finishes.
-The read-only `vortex-blackwell-hardware-audit-20261021-v1.service` waits for
+The full Blackwell runtime is prepared without hardware access:
+`build_ypcb_blackwell32/hardware-preparation-20261021-v2/manifest.json`.
+Its 87 immutable host artifacts contain 39 kernel images: both scalar tests,
+all five basic example kernels, all 21 study applications and the 11 format
+applications. Every copied hash and kernel address range was checked. The
+runtime uses the exact frozen DDR controller/CSR/firmware. The full plan is
+`build_ypcb_blackwell32/full-suite-plan-20261021-v2.json`:
+
+- Program/CRC, memory/DMA, scalar demo and SGEMM.
+- All five basic Python examples, with 13 CPU reference checks and 472 outputs.
+- All 21 Blackwell studies, including the unchanged full 17-test atomic suite.
+- All 11 dense/scaled formats, square and rectangular: 22 matrix cases,
+  36 verified launches and 13,824 checked tensor outputs when complete.
+
+The earlier waiting v1 queue was stopped without hardware access so that all
+basic examples run on the new image too. Its receipts remain preserved.
+The full runner rejects an unqualified image before JTAG access/programming.
+`vortex-blackwell-qualified-image-and-fpga-20261021-v2.service` requires the
+successful CAD, all routed-report gates and CRC receipts before acquiring
+the shared lease. It checks enabled clean ECC after every application and
+preserves the validated workloads and numerical criteria. Its receipt is
+`build_ypcb_blackwell32/hardware-queue-20261021-v2/manifest.json`; physical
+results will be saved in `build_ypcb_blackwell32/fpga-study-kernels-20261021-v2/`.
+The waiting service has not acquired JTAG. It writes SRAM only.
+
+The read-only `vortex-blackwell-hardware-audit-20261021-v2.service` waits for
 the real physical suite exit and process cleanup, then independently checks
-all 26 command receipts, all 21 study workloads/binaries, the selected compute
-features, routed reports, CRCs, DDR binding, clean ECC and lease release.
-Its monitor receipt is
-`build_ypcb_blackwell32/hardware-audit-monitor-20261021-v1/manifest.json`.
+all 53 command receipts, all example/format workloads and validated binaries,
+the selected compute features, routed reports, CRCs, DDR binding, clean ECC
+and release of owned leases. Its monitor receipt is
+`build_ypcb_blackwell32/hardware-audit-monitor-20261021-v2/manifest.json`.
+Physical PCIe, a full-capacity DDR soak and complete external DDR I/O timing
+qualification remain outside the JTAG compute result.
 
 The latest `git fetch origin master` found no upstream advancement:
 `master` and `origin/master` are `7b67f0210c95`; `ypcb` descends from it.
