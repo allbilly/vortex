@@ -184,3 +184,10 @@ tests:
   via: blackbox
   app: raycast
   configs: -DVX_CFG_NUM_THREADS=16 -DVX_CFG_NUM_WARPS=16
+- id: parity-lmem-lrsc
+  check: model_parity
+  via: blackbox
+  app: amo
+  configs: -DVX_CFG_EXT_A_ENABLE
+  shape: {threads: 1, warps: 1}
+  args: -t lrsc_lmem -n1024

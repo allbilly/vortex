@@ -539,6 +539,9 @@ module VX_cache_amo import VX_gpu_pkg::*; #(
         // ready for the response. ret_word is unused — the response old value
         // comes straight from S1 (no ALU).
         wire [63:0] new_word;
+        if (LANE_WIDTH < 64) begin : g_narrow_compute
+            `UNUSED_VAR (new_word[63:LANE_WIDTH])
+        end
         wire [63:0] ret_word_unused;
         VX_amo_unit #(
             .NUM_RES_ENTRIES (NUM_RES_ENTRIES),

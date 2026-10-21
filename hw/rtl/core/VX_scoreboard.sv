@@ -235,7 +235,8 @@ module VX_scoreboard import VX_gpu_pkg::*; #(
         reg [31:0] timeout_ctr;
 
         always @(posedge clk) begin
-            if (reset) begin
+            // Greedy issue can leave a warp waiting while other warps advance.
+            if (reset || issue_fire || ibuffer_fire) begin
                 timeout_ctr <= '0;
             end else begin
                 if (staging_if[w].valid && ~staging_if[w].ready) begin
@@ -245,8 +246,6 @@ module VX_scoreboard import VX_gpu_pkg::*; #(
                         operands_busy, xregs_busy, staging_if[w].data.uuid))
                 `endif
                     timeout_ctr <= timeout_ctr + 1;
-                end else if (ibuffer_fire) begin
-                    timeout_ctr <= '0;
                 end
             end
         end
