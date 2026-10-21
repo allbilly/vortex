@@ -179,6 +179,14 @@ runtime uses the exact frozen DDR controller/CSR/firmware. The full plan is
 
 The earlier waiting v1 queue was stopped without hardware access so that all
 basic examples run on the new image too. Its receipts remain preserved.
+All five immutable basic examples now pass on the full Blackwell profile in
+both SimX and XRT: 26 CPU reference checks and 944 outputs. Both backend builds
+and every application exited zero, the frozen kernels were unchanged, and an
+independent check verified the logs and simulated backend links. Evidence:
+`build_ypcb_blackwell32/basic-model-validation-20261021-v1/manifest.json`.
+This preflight accessed no hardware; the new image's physical results remain
+pending. The host currently enumerates no matching Xilinx/Vortex FPGA PCIe
+device; the planned physical compute run uses JTAG.
 The full runner rejects an unqualified image before JTAG access/programming.
 `vortex-blackwell-qualified-image-and-fpga-20261021-v2.service` requires the
 successful CAD, all routed-report gates and CRC receipts before acquiring
