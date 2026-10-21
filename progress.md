@@ -39,7 +39,11 @@ address window, including byte-exact upload/download/copy and no aliasing.
 ECC is enabled with zero correctable and uncorrectable errors. The physical
 scalar demo and SGEMM now pass too, with positive retirement counters:
 2,444 instructions/80,439 cycles and 3,824 instructions/9,722 cycles,
-respectively. The remaining basic examples and tensor cases continue.
+respectively. All five basic examples now pass as well. The first physical FP16-to-FP32
+TCU case, M=16/N=16/K=16, passed two launches with zero numerical errors
+and clean ECC. Its final counters are 1,088 instructions and 4,290 cycles.
+The rectangular FP16 and two INT8 cases remain in progress; full tensor
+qualification is still pending their results and cleanup audit.
 The shared JTAG lease is owned by this runner,
 PID 2578811. Ten owned process identities were captured for cleanup checking
 in `ownership-observation.json` inside that run. A read-only completion
@@ -115,16 +119,30 @@ Board-model receipt: `build_ypcb_blackwell32/board-validation-20261021-v2/manife
 DDR/PHY responses in that model are oracles; these tests do not access JTAG
 or qualify the physical DRAM interface.
 
-Fresh synthesis and implementation are queued under
-`vortex-blackwell-vivado-queued-20261021-v1.service`. The queue waits for every
-native and modeled-board check to pass before starting CAD; failed checks
-prevent CAD from starting. Its receipt is
-`build_ypcb_blackwell32/vivado-queue-20261021-v1/manifest.json`; the future
-build receipt is `build_ypcb_blackwell32/vivado-build-20261021-v1/manifest.json`
-and output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
-The driver freezes committed sources, uses fresh synthesis, checks all seven
-report gates and frozen inputs, and verifies bitstream CRCs. It never opens
-JTAG. Both Vivado worker limits remain one, with an 8 GiB service memory cap.
+The original Blackwell board run stopped at a 90-second host polling limit
+in modeled JTAG `amomax`; its failed receipt and stopped CAD queue are retained.
+A bounded diagnostic with the exact same model and kernel passed both modeled
+interfaces: 696 instructions and approximately 1.31 million GPU cycles.
+The isolated PCIe/JTAG application runs took 242.46/143.65 seconds including
+startup and transport. Each of eight loop iterations issues two fences that
+walk the 1 MiB L2; this is slow emulation, rather than evidence of an infinite
+kernel. Evidence: `build_ypcb_blackwell32/board-atomic-deadline-analysis-20261021-v1.json`.
+
+The resumed pipeline, `vortex-blackwell-board-resume-and-vivado-20261021-v1.service`,
+reuses 53 successful steps (46 interface cases) only after checking the same
+model/library and application hashes, logs and retirement counters. It reruns
+the complete unchanged 17-test JTAG atomic suite and the final cache case with
+a 600-second host polling budget. RTL watchdogs, workloads and numerical
+criteria are unchanged. Receipt: `build_ypcb_blackwell32/resume-and-build-20261021-v1/manifest.json`.
+
+After both remaining cases pass, it writes the consolidated board and combined
+receipts under `board-validation-20261021-v3/` and `combined-validation-20261021-v4/`,
+then starts fresh synthesis and implementation automatically. The CAD receipt
+will be `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`; output
+remains `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
+The driver freezes committed sources, checks all seven routed gates and frozen
+inputs, and verifies bitstream CRCs. Both Vivado worker limits remain one,
+with an 8 GiB service memory cap. CAD does not access JTAG.
 See [the compute-study proposal](docs/proposals/ypcb_blackwell_like_proposal.md).
 Both Vivado worker limits remain one, with an 8 GiB service memory cap.
 
