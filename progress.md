@@ -42,9 +42,9 @@ scalar demo and SGEMM now pass too, with positive retirement counters:
 respectively. All five basic examples now pass as well. Both physical FP16-to-FP32 TCU
 cases, M=16/K=16 with N=16 and N=32, passed two launches each with zero
 numerical errors and clean ECC. Final counters are 1,088 instructions/4,290
-cycles and 2,144 instructions/7,017 cycles, respectively. The two INT8 cases
-remain in progress; full tensor qualification is still pending their results
-and the cleanup audit.
+cycles and 2,144 instructions/7,017 cycles, respectively. INT8-to-INT32 square
+GEMM, M=N=16/K=32, also passed twice, with 1,088 instructions/4,391 cycles
+and clean ECC. The rectangular INT8 case and cleanup audit remain pending.
 The shared JTAG lease is owned by this runner,
 PID 2578811. Ten owned process identities were captured for cleanup checking
 in `ownership-observation.json` inside that run. A read-only completion
@@ -130,17 +130,19 @@ walk the 1 MiB L2; this is slow emulation, rather than evidence of an infinite
 kernel. Evidence: `build_ypcb_blackwell32/board-atomic-deadline-analysis-20261021-v1.json`.
 
 The resumed pipeline, `vortex-blackwell-board-resume-and-vivado-20261021-v1.service`,
-reuses 53 successful steps (46 interface cases) only after checking the same
-model/library and application hashes, logs and retirement counters. It reruns
-the complete unchanged 17-test JTAG atomic suite and the final cache case with
-a 600-second host polling budget. RTL watchdogs, workloads and numerical
-criteria are unchanged. Receipt: `build_ypcb_blackwell32/resume-and-build-20261021-v1/manifest.json`.
+verified and reused 53 successful steps (46 interface cases) against the same
+model/library and application hashes, logs and counters. The complete unchanged
+17-test JTAG atomic suite and final cache case then passed with a 600-second
+host polling budget. RTL watchdogs, workloads and numerical criteria are
+unchanged. All 48 modeled interface cases now pass, including 46 GPU cases.
+Board and combined receipts: `build_ypcb_blackwell32/board-validation-20261021-v3/manifest.json`
+and `build_ypcb_blackwell32/combined-validation-20261021-v4/manifest.json`.
 
-After both remaining cases pass, it writes the consolidated board and combined
-receipts under `board-validation-20261021-v3/` and `combined-validation-20261021-v4/`,
-then starts fresh synthesis and implementation automatically. The CAD receipt
-will be `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`; output
-remains `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
+**Fresh Blackwell-profile Vivado synthesis is running.** The automatic build
+receipt is `build_ypcb_blackwell32/vivado-build-20261021-v2/manifest.json`;
+output is `build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261021-v1/`.
+Its live synthesis process and cgroup were captured in
+`build_ypcb_blackwell32/cad-process-observation-20261021-v1.json`.
 The driver freezes committed sources, checks all seven routed gates and frozen
 inputs, and verifies bitstream CRCs. Both Vivado worker limits remain one,
 with an 8 GiB service memory cap. CAD does not access JTAG.
