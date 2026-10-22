@@ -32,6 +32,11 @@ LocalMemSwitch::LocalMemSwitch(
   , delay_(delay)
 {}
 
+void LocalMemSwitch::on_reset() {
+  global_sent_ = false;
+  local_sent_ = false;
+}
+
 void LocalMemSwitch::on_tick() {
   // process outgoing responses
   if (!RspInLmem.empty()) {
@@ -63,6 +68,8 @@ void LocalMemSwitch::on_tick() {
     out_dc_req.op    = in_req.op;
     out_dc_req.flags = in_req.flags;
     out_dc_req.tids  = in_req.tids;
+    out_dc_req.amo_cmp = in_req.amo_cmp;
+    out_dc_req.amo_sc_fail = in_req.amo_sc_fail;
 
     LsuReq out_lmem_req(in_req.mask.size());
     out_lmem_req.tag   = in_req.tag;
@@ -75,14 +82,12 @@ void LocalMemSwitch::on_tick() {
     out_lmem_req.op    = in_req.op;
     out_lmem_req.flags = in_req.flags;
     out_lmem_req.tids  = in_req.tids;
+    out_lmem_req.amo_cmp = in_req.amo_cmp;
+    out_lmem_req.amo_sc_fail = in_req.amo_sc_fail;
 
     for (uint32_t i = 0; i < in_req.mask.size(); ++i) {
       if (in_req.mask.test(i)) {
         auto type = get_addr_type(in_req.addrs.at(i));
-        // An AMO whose address is Shared is executed by the LMEM bank here.
-        // The RTL has no such path -- VX_lmem_switch strips the AMO bits and
-        // asserts -- so the two models diverge on this op until the hardware
-        // path lands, and a Shared AMO cannot be run on FPGA.
         if (type == AddrType::Shared) {
           out_lmem_req.mask.set(i);
           out_lmem_req.addrs.at(i)  = in_req.addrs.at(i);
@@ -100,24 +105,22 @@ void LocalMemSwitch::on_tick() {
     bool send_to_dc = !out_dc_req.mask.none();
     bool send_to_lmem = !out_lmem_req.mask.none();
 
-    // check DC backpressure
-    if (send_to_dc && ReqOutDC.full())
-      return; // stall
-
-    // check LMem backpressure
-    if (send_to_lmem && ReqOutLmem.full())
-      return; // stall
-
-    if (send_to_dc) {
+    if (send_to_dc && !global_sent_ && !ReqOutDC.full()) {
       ReqOutDC.send(out_dc_req, delay_);
+      global_sent_ = true;
       DT(4, this->name() << " dc-req: " << out_dc_req);
     }
 
-    if (send_to_lmem) {
+    if (send_to_lmem && !local_sent_ && !ReqOutLmem.full()) {
       ReqOutLmem.send(out_lmem_req, delay_);
+      local_sent_ = true;
       DT(4, this->name() << " lmem-req: " << out_lmem_req);
     }
-    ReqIn.pop();
+    if ((!send_to_dc || global_sent_) && (!send_to_lmem || local_sent_)) {
+      ReqIn.pop();
+      global_sent_ = false;
+      local_sent_ = false;
+    }
   }
 
   // sleep when nothing is queued or in flight toward us (no cross-tick state).

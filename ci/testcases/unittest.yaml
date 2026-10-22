@@ -54,11 +54,19 @@ tests:
   - id: hw-amo-reservation
     via: script
     run: "make -j1 -C hw/unittest/amo_reservation run"
-    touches: [hw/rtl/cache/VX_amo_unit.sv, hw/rtl/mem/VX_local_mem.sv, sim/simx/amo/reservation_set.h, hw/unittest/amo_reservation]
+    touches: [hw/rtl/cache/VX_amo_unit.sv, hw/rtl/mem/VX_local_mem.sv, sim/simx/amo/reservation_set.h, sim/simx/amo/amo_unit.cpp, sim/simx/amo/amo_unit.h, sim/simx/mem/cache.cpp, hw/unittest/amo_reservation]
+  - id: hw-lmem-switch-split
+    via: script
+    run: "make -j1 -C hw/unittest/lmem_switch run"
+    touches: [hw/rtl/mem/VX_lmem_switch.sv, sim/simx/mem/local_mem_switch.cpp, hw/unittest/lmem_switch]
   - id: hw-scoreboard-progress
     via: script
     run: "make -j1 -C hw/unittest/scoreboard_progress run"
     touches: [hw/rtl/core/VX_scoreboard.sv, hw/unittest/scoreboard_progress]
+  - id: hw-lrsc-lifetime
+    via: script
+    run: "make -j1 -C hw/unittest/lrsc run-matrix"
+    touches: [hw/rtl/core/VX_lsu_lrsc.sv, hw/rtl/core/VX_lsu_slice.sv, sim/simx/amo/lrsc_tracker.h, hw/unittest/lrsc]
   # Texel blend (VX_tex_lerp, both forms the sampler uses) against the C model
   # the SW sampler and SimX share, and the exact Vulkan f/256 blend, over every
   # input.

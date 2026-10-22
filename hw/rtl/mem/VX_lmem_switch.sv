@@ -50,10 +50,28 @@ module VX_lmem_switch import VX_gpu_pkg::*; #(
 
     wire req_global_ready;
     wire req_local_ready;
+    reg global_sent, local_sent;
+
+    always @(posedge clk) begin
+        if (reset) begin
+            global_sent <= 0;
+            local_sent <= 0;
+        end else if (lsu_in_if.req_valid && lsu_in_if.req_ready) begin
+            global_sent <= 0;
+            local_sent <= 0;
+        end else begin
+            if (lsu_in_if.req_valid && is_addr_global && req_global_ready) begin
+                global_sent <= 1;
+            end
+            if (lsu_in_if.req_valid && is_addr_local && req_local_ready) begin
+                local_sent <= 1;
+            end
+        end
+    end
 
     // Both subsets must be accepted before we release the LSU input.
-    assign lsu_in_if.req_ready = (!is_addr_global || req_global_ready)
-                              && (!is_addr_local  || req_local_ready);
+    assign lsu_in_if.req_ready = (!is_addr_global || global_sent || req_global_ready)
+                              && (!is_addr_local || local_sent || req_local_ready);
 
     VX_elastic_buffer #(
         .DATAW   (REQ_DATAW),
@@ -62,7 +80,7 @@ module VX_lmem_switch import VX_gpu_pkg::*; #(
     ) req_global_buf (
         .clk       (clk),
         .reset     (reset),
-        .valid_in  (lsu_in_if.req_valid && is_addr_global),
+        .valid_in  (lsu_in_if.req_valid && is_addr_global && !global_sent),
         .data_in   ({
             global_mask,
             lsu_in_if.req_data.rw,
@@ -90,7 +108,7 @@ module VX_lmem_switch import VX_gpu_pkg::*; #(
     ) req_local_buf (
         .clk       (clk),
         .reset     (reset),
-        .valid_in  (lsu_in_if.req_valid && is_addr_local),
+        .valid_in  (lsu_in_if.req_valid && is_addr_local && !local_sent),
         .data_in   ({
             local_mask,
             lsu_in_if.req_data.rw,

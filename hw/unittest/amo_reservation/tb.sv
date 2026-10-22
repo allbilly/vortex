@@ -1,5 +1,8 @@
 `include "VX_define.vh"
-module reservation_tb;
+module reservation_tb #(
+    parameter NUM_RES_ENTRIES = 4,
+    parameter HOLD_CREDIT_BITS = `LOG2UP(`VX_CFG_NUM_WARPS * `VX_CFG_NUM_THREADS)
+);
     import VX_gpu_pkg::*;
     reg clk = 0;
     always #1 clk = ~clk;
@@ -12,8 +15,8 @@ module reservation_tb;
     reg [15:0] address = 0;
     wire matched;
     VX_amo_unit #(
-        .NUM_RES_ENTRIES(4),
-        .HOLD_CREDIT_BITS(`LOG2UP(`VX_CFG_NUM_WARPS * `VX_CFG_NUM_THREADS)),
+        .NUM_RES_ENTRIES(NUM_RES_ENTRIES),
+        .HOLD_CREDIT_BITS(HOLD_CREDIT_BITS),
         .LINE_ADDR_BITS(16), .DATA_WIDTH(32)
     ) dut (
         .clk(clk), .reset(reset), .pipe_stall(stall),

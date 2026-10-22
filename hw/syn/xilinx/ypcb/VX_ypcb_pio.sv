@@ -74,6 +74,7 @@ module VX_ypcb_pio (
     assign m_rready = state == READ_DATA;
 
     wire [31:0] register_mask;
+    wire [7:0] command_value = write_value[7:0];
     for (genvar byte_idx = 0; byte_idx < 4; ++byte_idx) begin : g_register_mask
         assign register_mask[byte_idx * 8 +: 8] = {8{write_enable[byte_idx]}};
     end
@@ -121,7 +122,7 @@ module VX_ypcb_pio (
                 s_bresp <= 2'b00;
                 if (write_address[1:0] != 0) begin
                     s_bresp <= 2'b11;
-                end else if (busy) begin
+                end else if (busy && (write_address != 12'h010 || write_enable[0])) begin
                     s_bresp <= 2'b10;
                 end else begin
                     case (write_address)
@@ -131,7 +132,7 @@ module VX_ypcb_pio (
                         12'h01c: byte_enable[63:32] <= (byte_enable[63:32] & ~register_mask) | (write_value & register_mask);
                         12'h010: begin
                             if (write_enable[0]) begin
-                                if (write_value == 1 || write_value == 2) begin
+                                if (command_value == 1 || command_value == 2) begin
                                     done <= 0;
                                     result <= 2'b00;
                                     if (address[63:31] != 0 || address[5:0] != 0) begin
@@ -145,7 +146,7 @@ module VX_ypcb_pio (
                                     end else begin
                                         aw_sent <= 0;
                                         w_sent <= 0;
-                                        state <= write_value == 1 ? READ_ADDR : WRITE;
+                                        state <= command_value == 1 ? READ_ADDR : WRITE;
                                     end
                                 end else begin
                                     s_bresp <= 2'b10;

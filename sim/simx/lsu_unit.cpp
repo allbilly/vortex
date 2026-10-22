@@ -105,6 +105,9 @@ bool LsuUnit::drained() const {
 }
 
 void LsuUnit::on_reset() {
+#if VX_CFG_EXT_A_ENABLED
+	lrsc_.reset();
+#endif
 	for (auto& state : states_) {
 		state.reset();
 	}
@@ -528,6 +531,17 @@ void LsuUnit::process_request_step(uint32_t b) {
 			// The lane's original thread index rides along so the adapter can
 			// recover hart_id = make_hart_id(cid, wid, tids[i]).
 			lsu_req.tids.at(i) = entry.tid;
+#if VX_CFG_EXT_A_ENABLED
+			if (is_amo) {
+				const uint32_t hart = trace->wid * VX_CFG_NUM_THREADS + entry.tid;
+				if (*amo_tag == AmoType::LR) {
+					lrsc_.reserve(hart, entry.addr);
+				} else if (*amo_tag == AmoType::SC) {
+					lsu_req.amo_sc_fail.at(i) = !lrsc_.matches(hart, entry.addr);
+					lrsc_.clear(hart);
+				}
+			}
+#endif
 		}
 		state.remain_addrs -= beat_n;
 

@@ -16,10 +16,10 @@
 
 using namespace vortex;
 
-AmoUnit::AmoUnit(uint32_t reservation_size) {
-  assert(reservation_size >= 2 && "VX_CFG_AMO_RS_SIZE must be >= 2");
-  reservations_.reserve(reservation_size);
-}
+AmoUnit::AmoUnit(uint32_t reservation_size, uint32_t line_bits, uint32_t bank_bits)
+  : address_shift_(line_bits + bank_bits)
+  , reservations_(reservation_size, HOLD_CREDITS)
+{}
 
 AmoComputeResult AmoUnit::compute(MemOp op, uint8_t width,
                                   uint64_t old_word, uint64_t rhs,
@@ -29,34 +29,21 @@ AmoComputeResult AmoUnit::compute(MemOp op, uint8_t width,
 }
 
 void AmoUnit::reserve(uint32_t hart_id, uint64_t line_addr) {
-  // One reservation per hart: a re-reserve overwrites the hart's own
-  // entry and never touches another hart's.
-  reservations_[hart_id] = line_addr;
+  reservations_.reserve(hart_id, line_addr >> address_shift_);
 }
 
 bool AmoUnit::check(uint32_t hart_id, uint64_t line_addr) const {
-  auto it = reservations_.find(hart_id);
-  return it != reservations_.end() && it->second == line_addr;
+  return reservations_.check(hart_id, line_addr >> address_shift_);
 }
 
-void AmoUnit::invalidate(uint64_t line_addr, uint32_t except_hart_id) {
-  // Break every other hart's reservation on this line.
-  for (auto it = reservations_.begin(); it != reservations_.end(); ) {
-    if (it->second == line_addr && it->first != except_hart_id) {
-      it = reservations_.erase(it);
-    } else {
-      ++it;
-    }
-  }
+void AmoUnit::invalidate(uint64_t line_addr) {
+  reservations_.invalidate(line_addr >> address_shift_);
 }
 
 void AmoUnit::clear(uint32_t hart_id, uint64_t line_addr) {
-  auto it = reservations_.find(hart_id);
-  if (it != reservations_.end() && it->second == line_addr) {
-    reservations_.erase(it);
-  }
+  reservations_.clear(hart_id, line_addr >> address_shift_);
 }
 
 void AmoUnit::reset() {
-  reservations_.clear();
+  reservations_.reset();
 }

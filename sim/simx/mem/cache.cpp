@@ -652,7 +652,7 @@ public:
             uint32_t bank_id)
       : SimObject<CacheBank>(ctx, name), core_req_in(this), core_rsp_out(this), mem_req_out(this), mem_rsp_in(this, config.mshr_size + AMO_PASSTHRU_CAP), config_(config), params_(params), bank_id_(bank_id), sets_(params.sets_per_bank, set_t(params.lines_per_set, params.sectors_per_line)), mshr_(config.mshr_size), pipe_req_(TFifo<bank_req_t>::Create("", config.latency, std::max<uint32_t>(2u, config.latency))), rand_ctr_(0), adm_seq_ctr_(0)
 #if VX_CFG_EXT_A_ENABLED
-      , amo_unit_(__MAX(2u, (uint32_t)VX_CFG_AMO_RS_SIZE))
+      , amo_unit_(__MAX(2u, (uint32_t)VX_CFG_AMO_RS_SIZE), config.L, config.B)
 #endif
   {
     this->on_reset();
@@ -1156,7 +1156,7 @@ private:
     // MIN/MAX signedness: signed by default, unsigned per flag.
     const bool unsigned_minmax = bank_req.flags.amo_unsigned;
 
-    const bool sc_fail  = (op == MemOp::AMO_SC) && !amo_unit_.check(hid, line_addr);
+    const bool sc_fail  = (op == MemOp::AMO_SC) && (bank_req.flags.amo_sc_fail || !amo_unit_.check(hid, line_addr));
     const bool do_store = (op != MemOp::AMO_LR) && !sc_fail;
 
     // Stall checks (collect all before mutating).
@@ -1213,8 +1213,8 @@ private:
         this->mem_req_out.send(w, MEM_REQ_DELAY);
         DT(3, this->name() << " amo-writethrough: " << w);
       }
-      // Break other harts' reservations on this line.
-      amo_unit_.invalidate(line_addr, /*except=*/hid);
+      // Break reservations on this line.
+      amo_unit_.invalidate(line_addr);
     }
 
     // Send AMO response.
@@ -1253,10 +1253,10 @@ private:
     this->mem_req_out.send(w, MEM_REQ_DELAY);
     DT(3, this->name() << " writethrough: " << w);
 #if VX_CFG_EXT_A_ENABLED
-    // Committed write: break other harts' reservations.
+    // Committed write: break reservations.
     if (config_.is_llc) {
       uint64_t line_addr = (full_addr >> config_.L) << config_.L;
-      amo_unit_.invalidate(line_addr, /*except=*/hart_id);
+      amo_unit_.invalidate(line_addr);
     }
 #endif
     if (need_rsp) {
@@ -1453,11 +1453,11 @@ private:
         }
 #if VX_CFG_EXT_A_ENABLED
         // Write-back write-miss replay reaching the LLC tag array:
-        // break other harts' reservations. For the WT wt-merge replay,
+        // break reservations. For the WT wt-merge replay,
         // invalidation already fired at miss time.
         if (config_.is_llc && config_.write_back) {
           uint64_t line_addr = (bank_req.addr >> config_.L) << config_.L;
-          amo_unit_.invalidate(line_addr, /*except=*/bank_req.hart_id);
+          amo_unit_.invalidate(line_addr);
         }
 #endif
       }
@@ -1563,18 +1563,18 @@ private:
             this->mem_req_out.send(w, MEM_REQ_DELAY);
             DT(3, this->name() << " writethrough: " << w);
 #if VX_CFG_EXT_A_ENABLED
-            // Writethrough commit: break other harts' reservations.
+            // Writethrough commit: break reservations.
             if (config_.is_llc) {
               uint64_t line_addr = (bank_req.addr >> config_.L) << config_.L;
-              amo_unit_.invalidate(line_addr, /*except=*/bank_req.hart_id);
+              amo_unit_.invalidate(line_addr);
             }
 #endif
           }
 #if VX_CFG_EXT_A_ENABLED
-          // Write-back write-hit at LLC: break other harts' reservations.
+          // Write-back write-hit at LLC: break reservations.
           if (config_.is_llc && config_.write_back) {
             uint64_t line_addr = (bank_req.addr >> config_.L) << config_.L;
-            amo_unit_.invalidate(line_addr, /*except=*/bank_req.hart_id);
+            amo_unit_.invalidate(line_addr);
           }
 #endif
         }

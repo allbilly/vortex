@@ -7,7 +7,7 @@ defaults:
   configs: "-DVX_CFG_EXT_A_ENABLE"
   xlen: [32, 64]
   tier: smoke
-  touches: [hw/rtl/cache, hw/rtl/mem, hw/rtl/core/VX_decode.sv, hw/rtl/core/VX_lsu_slice.sv, sim/simx/amo, sim/simx/mem]
+  touches: [hw/rtl/cache, hw/rtl/mem, hw/rtl/core/VX_decode.sv, hw/rtl/core/VX_lsu_slice.sv, hw/rtl/core/VX_lsu_lrsc.sv, sim/simx/amo, sim/simx/mem, sim/simx/lsu_unit.cpp, sim/simx/lsu_unit.h]
 tests:
   # RISC-V 'A' ISA conformance (rv{XLEN}ua-p-{amo*,lrsc}); shares the A-built sim.
   - id: isa-conformance
@@ -50,6 +50,29 @@ tests:
     drivers: [simx, rtlsim]
     shape: {threads: 8, warps: 8}
     args: "-t lrsc_lmem -n8"
+  - id: lrsc-lifetime
+    app: lrsc_order
+    drivers: [simx, xrt]
+    shape: {threads: 1, warps: 1}
+    args: "-n4"
+  - id: lrsc-lifetime-packets
+    app: lrsc_order
+    drivers: [simx, xrt]
+    shape: {threads: 8, warps: 4}
+    configs+: "-DVX_CFG_NUM_LSU_LANES=2 -DVX_CFG_SIMD_WIDTH=4"
+    args: "-n4"
+  - id: lrsc-lifetime-banks
+    app: lrsc_order
+    drivers: [simx, xrt]
+    shape: {threads: 8, warps: 4, cores: 2, l2cache: true}
+    configs+: "-DVX_CFG_L2_NUM_BANKS=2"
+    args: "-n4"
+  - id: lrsc-lifetime-zacas
+    app: lrsc_order
+    drivers: [simx, xrt]
+    shape: {threads: 8, warps: 4}
+    configs+: "-DVX_CFG_EXT_ZACAS_ENABLE"
+    args: "-c -n4"
   # Multi-core AMO across a shared cache hierarchy (atomics resolve at the LLC).
   # 4x L1 -> 1x L2 (multi-core base configuration).
   - id: mc-l2

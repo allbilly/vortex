@@ -131,6 +131,7 @@ module VX_lsu_slice import VX_gpu_pkg::*; #(
         amo_req_t lane_amo;
         assign lane_amo.amo_valid    = execute_if.data.op_args.lsu.amo_valid;
         assign lane_amo.amo_op       = execute_if.data.op_args.lsu.amo_op;
+        assign lane_amo.sc_fail      = lrsc_fail[i];
         // amo_unsigned distinguishes signed/unsigned AMOMIN/MAX variants
         // (decoder collapses MINU/MAXU into MIN/MAX + this bit).
         assign lane_amo.amo_unsigned = execute_if.data.op_args.lsu.amo_unsigned;
@@ -139,12 +140,7 @@ module VX_lsu_slice import VX_gpu_pkg::*; #(
         // operand slot for it; every other atomic leaves the slot unread.
         assign lane_amo.amo_cmp      = execute_if.data.rs3_data[i];
     `endif
-        // make_hart_id(cid, wid, tid) — packed concatenation, low bits = tid.
-        assign lane_amo.hart_id      = HART_ID_WIDTH'(
-            (HART_ID_WIDTH'(CORE_ID) << (NW_BITS + NT_BITS))
-          | (HART_ID_WIDTH'(execute_if.data.header.wid) << NT_BITS)
-          |  HART_ID_WIDTH'(i)
-        );
+        assign lane_amo.hart_id      = lrsc_hart_id[i];
         assign mem_req_attr_struct[i].amo = lane_amo;
     `else
         // EXT_A disabled: tie the AMO sideband to zero so the bits don't
@@ -175,6 +171,27 @@ module VX_lsu_slice import VX_gpu_pkg::*; #(
 
     wire mem_req_fire = mem_req_valid && mem_req_ready;
     wire mem_rsp_fire = mem_rsp_valid && mem_rsp_ready;
+
+`ifdef VX_CFG_EXT_A_ENABLE
+    wire [NUM_LANES-1:0][HART_ID_WIDTH-1:0] lrsc_hart_id;
+    wire [NUM_LANES-1:0] lrsc_fail;
+    VX_lsu_lrsc #(
+        .CORE_ID (CORE_ID),
+        .NUM_LANES (NUM_LANES)
+    ) lrsc (
+        .clk (clk),
+        .reset (reset),
+        .fire (mem_req_fire),
+        .is_lr (execute_if.data.op_args.lsu.amo_valid && execute_if.data.op_args.lsu.amo_op == AMO_OP_LR),
+        .is_sc (execute_if.data.op_args.lsu.amo_valid && execute_if.data.op_args.lsu.amo_op == AMO_OP_SC),
+        .mask (mem_req_mask),
+        .wid (execute_if.data.header.wid),
+        .pid (execute_if.data.header.pid),
+        .addr (full_addr),
+        .hart_id (lrsc_hart_id),
+        .sc_fail (lrsc_fail)
+    );
+`endif
 
     wire mem_rsp_sop_pkt, mem_rsp_eop_pkt;
     wire no_rsp_buf_valid, no_rsp_buf_ready;

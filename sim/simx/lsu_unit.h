@@ -19,6 +19,9 @@
 #include "func_unit.h"
 #include "instr.h"
 #include "VX_config.h"
+#if VX_CFG_EXT_A_ENABLED
+#include "amo/lrsc_tracker.h"
+#endif
 
 // The TCU metadata SRAM is present when any metadata-consuming mode (MX or
 // sparse) is enabled. Internal derived macro — not a VX_CFG_* knob; same
@@ -155,6 +158,9 @@ private:
 	};
 
 	std::array<lsu_state_t, VX_CFG_NUM_LSU_BLOCKS> states_;
+#if VX_CFG_EXT_A_ENABLED
+	LrscTracker lrsc_{VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS};
+#endif
 	uint64_t pending_loads_;
 };
 

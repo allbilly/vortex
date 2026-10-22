@@ -117,7 +117,7 @@ GPUs avoid.
 
 **Rejected: one reservation slot per hart.** It guarantees forward progress
 trivially, but it is `NUM_HARTS` line addresses and a `NUM_HARTS`-way compare
-in every LLC bank. SimX still models reservations this way
+in every LLC bank. Both RTL and SimX instead use bounded stations
 ([`atomic_memory_operations.md`](atomic_memory_operations.md) §8).
 
 ---
@@ -188,8 +188,8 @@ contending one word maps to the same reservation station, so if each `LR`
 overwrote the station, the holder's reservation would be gone before its
 `SC` arrived and no `SC` would ever succeed.
 
-The station therefore **refuses an `LR` from a different hart for a line it
-already holds**, for a bounded number of refusals. The holder's `SC` lands
+The station therefore **refuses an `LR` from a different hart while occupied,
+including a different line with the same station index**, for a bounded number of refusals. The holder's `SC` lands
 first and one hart wins each round. The bound — 63 refusals at a cache LLC —
 is sized for the miss round trip and frees a station whose holder abandoned
 its attempt. Mechanism and sizing are in
@@ -295,10 +295,11 @@ At `PIPE_EX = 0` every one of these collapses to the two-stage bank.
 | self-invalidate | tag-store `invalidate` | the probe invalidates the addressed sector on a hit |
 | a dirty copy at the probe | cannot occur — levels above the LLC are write-through | the probe writes it back first |
 | age ordering | registered MSHR probes | the probe is deferred in `processInputs` while the line has a pending fill |
-| reservations | bounded stations, holder protected | one reservation per hart |
+| reservations | bounded stations, holder protected | the same bounded table, address indexing and credits |
 
-The models agree on results and differ in `LR`/`SC` retry counts, so an
-application that uses `LR`/`SC` cannot host a `model_parity` case
+The LSU qualifies each SC against the hart's latest LR before local/global
+routing, and every SC consumes that eligibility. Single-hart `LR`/`SC` parity
+cases avoid scheduling-dependent contention retries
 ([`atomic_memory_operations.md`](atomic_memory_operations.md) §8).
 
 ---

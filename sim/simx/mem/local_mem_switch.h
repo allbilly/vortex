@@ -37,10 +37,13 @@ public:
   );
 
 protected:
+  void on_reset();
   void on_tick();
 
 private:
   uint32_t delay_;
+  bool global_sent_ = false;
+  bool local_sent_ = false;
 
   friend class SimObject<LocalMemSwitch>;
 };

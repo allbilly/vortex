@@ -7,6 +7,8 @@ all:
 	$(MAKE) -C issue
 	$(MAKE) -C local_mem
 	$(MAKE) -C amo_reservation
+	$(MAKE) -C lrsc
+	$(MAKE) -C lmem_switch
 	$(MAKE) -C scoreboard_progress
 	$(MAKE) -C mem_unit
 	$(MAKE) -C tcu_fedp
@@ -45,6 +47,8 @@ run:
 	$(MAKE) -C issue run
 	$(MAKE) -C local_mem run
 	$(MAKE) -C amo_reservation run
+	$(MAKE) -C lrsc run
+	$(MAKE) -C lmem_switch run
 	$(MAKE) -C scoreboard_progress run
 	$(MAKE) -C mem_unit run
 	$(MAKE) -C tcu_fedp run
@@ -144,6 +148,8 @@ clean:
 	$(MAKE) -C generic_queue clean
 	$(MAKE) -C mem_scheduler clean
 	$(MAKE) -C multiplier clean
+	$(MAKE) -C lrsc clean
+	$(MAKE) -C lmem_switch clean
 	$(MAKE) -C cache clean
 	$(MAKE) -C core clean
 	$(MAKE) -C issue clean

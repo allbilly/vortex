@@ -238,7 +238,7 @@ public:
 				const bool     is_sc   = (op == MemOp::AMO_SC);
 				auto& reservation = reservations(la);
 				const auto word = reservation_word(la);
-				const bool     sc_fail = is_sc && !reservation.check(bank_req.hart_id, word);
+				const bool     sc_fail = is_sc && (bank_req.flags.amo_sc_fail || !reservation.check(bank_req.hart_id, word));
 				const bool     do_store = !is_lr && !sc_fail;
 
 				uint8_t obuf[8] = {0};

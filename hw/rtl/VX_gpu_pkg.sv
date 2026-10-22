@@ -190,6 +190,7 @@ package VX_gpu_pkg;
     // bank for shared memory and the last-level bank for global memory.
     typedef struct packed {
         logic [HART_ID_WIDTH-1:0]   hart_id;
+        logic                        sc_fail;
     `ifdef VX_CFG_EXT_ZACAS_ENABLE
         logic [`VX_CFG_XLEN-1:0]     amo_cmp;
     `endif

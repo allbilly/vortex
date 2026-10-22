@@ -23,10 +23,9 @@
 // registered output lands the same cycle the SC commit decision is made; the
 // valid bits live in resettable flops (BRAM contents are not reset).
 //
-//   LR  : claim the slot for {hart, line}. A slot already held by a different
-//         hart for the same line is protected until it ages out (below); an
-//         empty slot, a same-hart refresh, or a different line (index conflict)
-//         always claims.
+//   LR  : claim the slot for {hart, line}. A slot held by a different hart is
+//         protected until it ages out, including a different-tag index conflict.
+//         An empty slot or same-hart replacement always claims.
 //   SC  : succeeds iff the slot still holds {hart, line}; the success store
 //         then clears it through the write path below.
 //   write: a committed store/RMW to a line clears the slot iff it holds that
@@ -38,8 +37,8 @@
 // where an LR->SC spans a full round-trip to this bank and a co-contending
 // hart's LR would otherwise overwrite the slot before the SC returns — a live
 // reservation resists a different hart's LR for a bounded age, so its own SC
-// lands first; the age still frees an abandoned slot. This removes the per-hart
-// table's O(NUM_HARTS) storage and CAM.
+// lands first; the age still frees an abandoned slot. This avoids a per-hart
+// table at every cache bank.
 module VX_amo_unit import VX_gpu_pkg::*; #(
     parameter NUM_RES_ENTRIES = 4,   // reservation stations per bank (NUM_RS)
     // Count foreign LR refusals, including resident-hart contention as well
@@ -175,10 +174,9 @@ module VX_amo_unit import VX_gpu_pkg::*; #(
     reg [RS_DEPTH-1:0][HOLD_CREDIT_BITS-1:0] rs_hold_r;
     wire hold_lapsed = (rs_hold_r[rs_idx] == '0);
 
-    // Refuse only a foreign hart on the same line. Re-reserving by the holder
-    // refreshes it, and a station holding a different line is displaced as
-    // before -- that is ordinary capacity behaviour, not the livelock.
-    wire res_held = res_reserve && en && line_match && ~own_match && ~hold_lapsed;
+    // Different tags can alias one station and livelock just like a hot word.
+    // The holder may replace its own tag; every foreign LR spends a credit.
+    wire res_held = res_reserve && en && e_valid && (e_hart != res_hart_id) && ~hold_lapsed;
 
     // LR installs the payload; a matching SC/store clears the valid bit.
     assign rs_we = res_reserve && en && ~res_held;

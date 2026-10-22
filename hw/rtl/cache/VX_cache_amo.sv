@@ -523,7 +523,7 @@ module VX_cache_amo import VX_gpu_pkg::*; #(
         // commit conditions (from the original AMO at S1; amo_st1.hart_id is
         // valid there, not on the compute/writeback cycle).
         wire amo_hit_w = amo_st1.amo_valid && is_hit_st1 && valid_st1 && is_creq_st1;
-        wire sc_fail_st1 = (amo_st1.amo_op == AMO_OP_SC) && ~res_check;
+        wire sc_fail_st1 = (amo_st1.amo_op == AMO_OP_SC) && (amo_st1.sc_fail || ~res_check);
         wire do_store_st1 = amo_hit_w && (amo_st1.amo_op != AMO_OP_LR) && ~sc_fail_st1;
         wire do_store_st0 = amo_st0.amo_valid && valid_st0 && is_creq_st0 && is_hit_st0
                          && (amo_st0.amo_op != AMO_OP_LR);

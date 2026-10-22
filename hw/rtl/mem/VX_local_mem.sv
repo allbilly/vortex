@@ -74,10 +74,8 @@ module VX_local_mem import VX_gpu_pkg::*; #(
     // carries the swap value, so the third operand needs its own room.
 `ifdef VX_CFG_EXT_ZACAS_ENABLE
     localparam AMO_CMP_WIDTH   = `VX_CFG_XLEN;
-`else
-    localparam AMO_CMP_WIDTH   = 0;
 `endif
-    localparam AMO_SB_WIDTH    = 1 + $bits(amo_op_e) + 1 + HART_ID_WIDTH + AMO_CMP_WIDTH;
+    localparam AMO_SB_WIDTH    = $bits(amo_req_t);
     localparam REQ_DATAW       = 1 + BANK_ADDR_WIDTH + WORD_SIZE + WORD_WIDTH + TAG_WIDTH + AMO_SB_WIDTH;
     localparam RSP_DATAW       = WORD_WIDTH + TAG_WIDTH;
 
@@ -105,6 +103,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
     wire [NUM_REQS-1:0]                  req_amo_valid;
     wire [NUM_REQS-1:0][$bits(amo_op_e)-1:0] req_amo_op;
     wire [NUM_REQS-1:0]                  req_amo_unsigned;
+    wire [NUM_REQS-1:0]                  req_amo_sc_fail;
     wire [NUM_REQS-1:0][HART_ID_WIDTH-1:0] req_amo_hart_id;
 `ifdef VX_CFG_EXT_ZACAS_ENABLE
     wire [NUM_REQS-1:0][AMO_CMP_WIDTH-1:0] req_amo_cmp;
@@ -117,6 +116,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
         assign req_amo_valid[i]    = AMO_ENABLE ? lane_attr.amo.amo_valid : 1'b0;
         assign req_amo_op[i]       = AMO_ENABLE ? lane_attr.amo.amo_op : '0;
         assign req_amo_unsigned[i] = AMO_ENABLE ? lane_attr.amo.amo_unsigned : 1'b0;
+        assign req_amo_sc_fail[i]  = AMO_ENABLE ? lane_attr.amo.sc_fail : 1'b0;
         assign req_amo_hart_id[i]  = AMO_ENABLE ? lane_attr.amo.hart_id : '0;
     `ifdef VX_CFG_EXT_ZACAS_ENABLE
         assign req_amo_cmp[i]      = AMO_ENABLE ? lane_attr.amo.amo_cmp : '0;
@@ -135,6 +135,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
     wire [NUM_BANKS-1:0]                    per_bank_req_amo_valid;
     wire [NUM_BANKS-1:0][$bits(amo_op_e)-1:0] per_bank_req_amo_op;
     wire [NUM_BANKS-1:0]                    per_bank_req_amo_unsigned;
+    wire [NUM_BANKS-1:0]                    per_bank_req_amo_sc_fail;
     wire [NUM_BANKS-1:0][HART_ID_WIDTH-1:0] per_bank_req_amo_hart_id;
 `ifdef VX_CFG_EXT_ZACAS_ENABLE
     wire [NUM_BANKS-1:0][AMO_CMP_WIDTH-1:0] per_bank_req_amo_cmp;
@@ -158,6 +159,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
             req_amo_valid[i],
             req_amo_op[i],
             req_amo_unsigned[i],
+            req_amo_sc_fail[i],
             req_amo_hart_id[i],
         `ifdef VX_CFG_EXT_ZACAS_ENABLE
             req_amo_cmp[i],
@@ -201,6 +203,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
             per_bank_req_amo_valid[i],
             per_bank_req_amo_op[i],
             per_bank_req_amo_unsigned[i],
+            per_bank_req_amo_sc_fail[i],
             per_bank_req_amo_hart_id[i],
         `ifdef VX_CFG_EXT_ZACAS_ENABLE
             per_bank_req_amo_cmp[i],
@@ -361,6 +364,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
             reg                       res_is_sc_r;
             reg                       res_is_amo_r;
             reg                       res_is_store_r;
+            reg                       res_sc_fail_r;
             reg [BANK_ADDR_WIDTH-1:0] res_addr_r;
             reg [HART_ID_WIDTH-1:0]   res_hart_id_r;
 
@@ -375,6 +379,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
                     res_is_sc_r    <= is_sc_in;
                     res_is_amo_r   <= per_bank_req_amo_valid[i];
                     res_is_store_r <= per_bank_req_rw[i];
+                    res_sc_fail_r  <= per_bank_req_amo_sc_fail[i];
                     res_addr_r     <= per_bank_req_addr[i];
                     res_hart_id_r  <= per_bank_req_amo_hart_id[i];
                 end
@@ -384,7 +389,8 @@ module VX_local_mem import VX_gpu_pkg::*; #(
             // known at the commit stage, one cycle before the write-back, so it can
             // both suppress the write and be returned as this request's response.
             wire res_check;
-            assign sc_fail = res_is_sc_r && ~res_check;
+            wire sc_success = res_check && ~res_sc_fail_r;
+            assign sc_fail = res_is_sc_r && ~sc_success;
             assign sc_resolving = res_valid_r && res_is_sc_r;
 
             // The SC outcome must land in the addressed lane: the LSU extracts
@@ -408,7 +414,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
             // the request flag), and a store-conditional that found its reservation.
             wire res_commits_store = res_is_store_r
                                   || (res_is_amo_r && ~res_is_lr_r && ~res_is_sc_r)
-                                  || (res_is_sc_r && res_check);
+                                  || (res_is_sc_r && sc_success);
 
             reg amo_wb_is_lr_r;
             reg amo_wb_sc_fail_r;
@@ -528,6 +534,7 @@ module VX_local_mem import VX_gpu_pkg::*; #(
             `UNUSED_VAR (per_bank_req_amo_valid[i])
             `UNUSED_VAR (per_bank_req_amo_op[i])
             `UNUSED_VAR (per_bank_req_amo_unsigned[i])
+            `UNUSED_VAR (per_bank_req_amo_sc_fail[i])
             `UNUSED_VAR (per_bank_req_amo_hart_id[i])
         `ifdef VX_CFG_EXT_ZACAS_ENABLE
             `UNUSED_VAR (per_bank_req_amo_cmp[i])

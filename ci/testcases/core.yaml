@@ -191,3 +191,10 @@ tests:
   configs: -DVX_CFG_EXT_A_ENABLE
   shape: {threads: 1, warps: 1}
   args: -t lrsc_lmem -n1024
+- id: parity-lrsc-lifetime
+  check: model_parity
+  via: blackbox
+  app: lrsc_order
+  configs: -DVX_CFG_EXT_A_ENABLE
+  shape: {threads: 1, warps: 1}
+  args: -n128

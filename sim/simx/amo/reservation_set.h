@@ -13,8 +13,9 @@ public:
       : credits_(credits) {
     assert(size >= 2);
     uint32_t depth = 2;
-    while (depth < size)
+    while (depth < size) {
       depth <<= 1;
+    }
     entries_.resize(depth);
   }
 
@@ -25,7 +26,7 @@ public:
 
   void reserve(uint32_t hart, uint64_t word) {
     auto& entry = entries_[word & (entries_.size() - 1)];
-    if (entry.valid && entry.word == word && entry.hart != hart && entry.credits) {
+    if (entry.valid && entry.hart != hart && entry.credits) {
       --entry.credits;
       return;
     }
@@ -33,14 +34,16 @@ public:
   }
 
   void clear(uint32_t hart, uint64_t word) {
-    if (check(hart, word))
+    if (check(hart, word)) {
       invalidate(word);
+    }
   }
 
   void invalidate(uint64_t word) {
     auto& entry = entries_[word & (entries_.size() - 1)];
-    if (entry.valid && entry.word == word)
+    if (entry.valid && entry.word == word) {
       entry = {};
+    }
   }
 
   void reset() {

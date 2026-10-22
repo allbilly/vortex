@@ -476,7 +476,49 @@ static void memory_host_test() {
 }
 #endif
 
+static void command_strobes() {
+  for (unsigned strobe = 0; strobe < 16; ++strobe) {
+    for (unsigned opcode : {1u, 2u}) {
+      Test command;
+      require(command.write(8, 0x1000) == 0, "Command address setup failed");
+      require(command.write(0x10, 0xa5a5a500u | opcode, strobe) == 0,
+          "Upper bytes changed the PIO command");
+      if (strobe & 1) {
+        command.wait();
+      }
+      require(command.reads == unsigned((strobe & 1) && opcode == 1)
+          && command.writes == unsigned((strobe & 1) && opcode == 2),
+          "Command byte enables changed the memory operation count");
+    }
+  }
+  for (unsigned strobe = 0; strobe < 16; strobe += 2) {
+    for (unsigned opcode : {1u, 2u}) {
+      Test command;
+      command.pause = true;
+      require(command.write(0x10, opcode) == 0, "Initial busy command failed");
+      const uint32_t status = command.read(4);
+      require(command.write(0x10, 0xffffff03u, strobe) == 0,
+          "Disabled command byte was rejected while busy");
+      require(command.read(4) == status && command.reads == 0 && command.writes == 0,
+          "Disabled command byte altered an active operation");
+      command.pause = false;
+      command.wait();
+      require(command.reads == unsigned(opcode == 1) && command.writes == unsigned(opcode == 2),
+          "Ignored command changed the active memory operation");
+    }
+  }
+  for (unsigned opcode : {0u, 3u, 255u}) {
+    Test command;
+    require(command.write(0x10, 0xaabbcc00u | opcode, 15) == 2,
+        "Invalid low command byte was accepted");
+    require(command.reads == 0 && command.writes == 0,
+        "Rejected command reached memory");
+  }
+  std::puts("PASSED: PIO command byte, all 16 strobes, upper-byte independence, busy no-ops and invalid opcodes");
+}
+
 int main() {
+  command_strobes();
   Test test;
   require(test.read(0) == 0x56595043, "Signature differs");
   require(test.read(4) == 0x20, "Reset status differs");
@@ -546,7 +588,7 @@ int main() {
     require(test.write(0x10, 2) == 0, "Error write command rejected");
     test.wait(response);
   }
-  std::printf("PASSED: PIO, %u writes, %u reads, both banks, byte masks, guards, independent AXI-Lite channels, stalls and error responses\n",
+  std::printf("PASSED: PIO, %u writes, %u reads, 2 GiB address bounds, byte masks, guards, independent AXI-Lite channels, stalls and error responses\n",
         test.writes, test.reads);
 #ifdef TEST_PIO_TRANSPORT
     host_test(test);

@@ -17,6 +17,10 @@ JTAG execution must work without a PCIe link or reference clock.
   normalizer timing optimization.
 - Build flag and destination-path tracking for runtime and simulator rebuilds.
 
+The PIO command register at offset `0x2010` uses byte 0: `1` reads a cache line
+and `2` writes one. Upper bytes do not affect the command. A write without
+`WSTRB[0]` is a no-op, including while a previous command is active.
+
 The standalone nextpnr routing/database patches and frame-assembly experiments
 are archived outside the checkout. Shared RTL export, Yosys frontend checks,
 LiteDRAM generation and board simulation targets remain available.

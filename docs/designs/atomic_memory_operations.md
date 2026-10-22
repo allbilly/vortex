@@ -204,8 +204,8 @@ carry 128 line addresses and a 128-way compare **per bank**.
 Every hart contending one word maps to the same station. If each `LR`
 overwrote it, no `SC` would ever find its own reservation and a contended
 retry loop would make no progress. So a live reservation is **not handed to
-another hart on demand**: an `LR` from a different hart for the same line is
-refused — it reserves nothing, and its `SC` fails.
+another hart on demand**: an `LR` from a different hart targeting the same station is
+refused, even when its line tag differs — it reserves nothing, and its `SC` fails.
 
 The protection is bounded. A retry loop is free to abandon an attempt, and a
 holder that never issues its `SC` would otherwise own the station forever.
@@ -215,7 +215,7 @@ next foreign `LR` takes the station.
 | deployment | stations | `HOLD_CREDIT_BITS` | budget | sized for |
 |---|---|---|---|---|
 | cache LLC bank | `VX_CFG_AMO_RS_SIZE` | 6 | 63 refusals | an `LR`→`SC` spanning an L1-miss round trip |
-| local-memory bank | `min(VX_CFG_AMO_RS_SIZE, 4)` | 3 | 7 refusals | a round trip of a few cycles |
+| local-memory bank | `min(VX_CFG_AMO_RS_SIZE, 4)` | `max(1, ceil(log2(NUM_WARPS × NUM_THREADS)))` | `2^HOLD_CREDIT_BITS - 1` | one local LR round across resident harts |
 
 ### 5.4 Why this is legal
 
@@ -359,22 +359,24 @@ reservation.
 | LLC commit | `VX_cache_amo`, commit role | `CacheBank::commitAmo()` |
 | above the LLC | `VX_cache_amo`, passthrough role | `AmoProbe` request type |
 | local memory | 3-cycle in-place RMW | same occupancy, modeled as a per-bank busy count |
-| reservations | bounded line-indexed stations with hold credit | one reservation **per hart** |
+| reservations | bounded line-indexed stations with hold credit | the same bounded station count, indexing and hold credit |
+| latest LR / every SC | one qualification entry per hart in the LSU slice | the same per-hart LSU tracker |
 
-Two of these differences matter when mirroring logic between the models:
+The request direction and reservation address units matter when mirroring logic:
 
 - **Request direction.** A SimX predicate written to mirror an RTL condition
   gated on `~rw` must admit atomics explicitly —
   `!is_write() || memop_is_atomic(op)` — or it silently excludes exactly the
   requests it was written for.
-- **Reservation policy.** [`AmoUnit`](../../sim/simx/amo/amo_unit.h) keeps a
-  `hart → line` map: a hart's reservation is never displaced by another
-  hart's `LR`. Both policies are RISC-V-legal and both produce correct final
-  results, but they fail spuriously at different rates, so a contended retry
-  loop runs a different number of iterations in each model. **An application
-  that uses `LR`/`SC` cannot host a `model_parity` case**, which requires an
-  exact retired-instruction match. The read-modify-write atomics and
-  compare-and-swap have no retry loop and are unaffected.
+- **Reservation indexing.** [`AmoUnit`](../../sim/simx/amo/amo_unit.h)
+  normalizes byte addresses by the cache line and bank bits before applying the
+  bounded table index. Local memory uses bank-word addresses. Both models refuse
+  a foreign LR at a held station, including a different-tag index conflict, and
+  invalidate a matching line on any committed store. The LSU tracker also rejects
+  an SC that does not match the latest accepted LR, and every accepted SC clears
+  that hart's eligibility across all local/global banks. The single-hart
+  `lrsc_order` case checks instruction and cycle parity without scheduling-dependent
+  contention retries.
 
 ---
 
@@ -443,12 +445,3 @@ variants apart.
 
 - **Atomic performance counters.** There is no count of atomics, failed
   `SC`s, or refused and evicted reservations, in either model.
-- **A reservation-unit testbench.** `VX_amo_unit` is covered only through the
-  cache and local-memory integration.
-- **Reservation-policy convergence** between SimX and RTL (§8). Converging
-  means adopting the bounded station set in SimX; until then `LR`/`SC`
-  applications are excluded from `model_parity`.
-- **Local-memory reservation granularity.** The RTL local-memory bank
-  reserves and invalidates on the bank word; SimX keys on the request's byte
-  address. They agree for operations on the same address and can differ for
-  a store to a different byte of the same word.

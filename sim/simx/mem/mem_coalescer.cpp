@@ -170,6 +170,7 @@ void MemCoalescer::on_tick() {
   // Comparand rides with the lane that owns the output. AMOs never coalesce
   // across lanes, so there is exactly one owner and no merge to do.
   std::vector<uint64_t> out_amo_cmp(output_size_, 0);
+  std::vector<bool> out_sc_fail(output_size_, false);
   std::vector<uint32_t> out_tids(output_size_, 0);
 
   BitVector<> cur_mask(input_size_);
@@ -239,6 +240,7 @@ void MemCoalescer::on_tick() {
       // Non-AMO requests stay line-aligned (no semantic change).
       out_addrs.at(o) = in_is_amo ? in_req.addrs.at(i) : seed_addr;
       out_amo_cmp.at(o) = in_req.amo_cmp.at(i);
+      out_sc_fail.at(o) = in_req.amo_sc_fail.at(i);
       break;
     }
   }
@@ -272,6 +274,7 @@ void MemCoalescer::on_tick() {
     mr.hart_id = make_hart_id(in_req.cid, in_req.wid, out_tids.at(o));
     mr.uuid   = in_req.uuid;
     mr.flags  = in_req.flags;
+    mr.flags.amo_sc_fail = out_sc_fail.at(o);
     auto t = get_addr_type(mr.addr);
     mr.flags.io    = (t == AddrType::IO);
     mr.flags.local = (t == AddrType::Shared);

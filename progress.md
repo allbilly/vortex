@@ -43,18 +43,37 @@ LRs without a fresh LR between SCs. The PIO fix passes 51 new cases plus the
 existing regression. The coordinated LSU-level RTL/SimX reservation-lifetime
 fix also addresses false-alias reservation progress, CAS comparand forwarding,
 and duplicate local/global request delivery under asymmetric backpressure.
-Component and SimX tests pass; fresh full XRT qualification is in progress in
-`build_ypcb_blackwell_fixed32/review-fixes-source/`. The active frozen image uses `236c21e6f`; main also contains the tested
-host-only cleanup commit `60563652f`. Its physical queue is deliberately unarmed
-until the additional fixes are integrated and qualified; the existing build
-and 48-case model suite continue as a comparison baseline.
+The final 45 source files are integrated on `ypcb`. All three selected-profile
+XRT cases pass, including mixed local/global native CAS and 64-hart LR/SC;
+scalar, narrow-packet and multibank SimX variants pass, and both narrow-packet
+and two-core/two-bank XRT variants pass. The exact new scalar CI parity case
+passes with 47,486 instructions on each model and a 0.1311% cycle difference
+within the unchanged 5% limit. The full-profile final-kernel parity case also
+passes at 4.256%. Six reservation geometries pass 209,840 vectors; ten lifetime
+geometries pass 4,699,906 lane checks; four asymmetric splitter cases pass.
+The A-only lint check also removed an unused declaration; an explicit selected
+Blackwell preprocessing proof binds the unchanged enabled hardware to the
+existing runtime models. Evidence is in
+`build_ypcb_blackwell_fixed32/git-diff-review-round2-20261023/compute/fix-validation.json`.
+
+The original 48 application cases have now been rerun on each of fresh SimX
+and XRT models: all 96 commands pass. A fresh 52-case PCIe/JTAG board-model
+suite includes both new LR/SC cases on each interface. Its authoritative
+output is `build_ypcb_blackwell_fixed32/board-validation-final-20261023-v2/`;
+earlier harness failures and their numerical results are preserved.
+The active frozen image still uses `236c21e6f` and continues as a comparison
+baseline. The final source requires a new synthesis and implementation in
+`build_ypcb_blackwell_fixed32/blackwell-final-lrsc-ch1-jtag-pcie-20261023-v1/`.
+Its full physical suite preserves the original 53 commands and adds two
+LR/SC/CAS cases, for 55 commands. Preparation is staged with 89 artifacts and
+40 kernels; no final physical queue is armed yet.
 
 ## Preceding image history
 
 **Qualification boundary:** the physically tested full-profile image uses
 `eec6dd471` RTL plus the recorded placement/register-replication recipe. Commit
 `236c21e6f` adds a PCIe reset RTL fix that is not yet physically qualified.
-The additional memory/atomic/PIO fixes remain in the isolated checkout and are
+The additional memory/atomic/PIO fixes are integrated in source and are
 not included in this tested bitstream. The future full suite preserves all 53
 original commands and adds two LR/SC/CAS cases, for 55 commands.
 

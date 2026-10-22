@@ -456,6 +456,7 @@ struct MemFlags {
       uint32_t dxa_notify_done   : 1;   // bit 4
       uint32_t dxa_notify_bar_id : 16;  // bits 5..20
     #endif
+      uint32_t amo_sc_fail : 1;
     };
   };
 
@@ -1096,6 +1097,7 @@ struct LsuReq {
   // Comparand per lane. Only compare-and-swap reads it; it is a separate
   // field because the data operand is already carrying the swap value.
   std::vector<uint64_t> amo_cmp;
+  std::vector<bool> amo_sc_fail;
   BitVector<> mask;
   std::vector<uint32_t> tids;
   uint32_t tag;
@@ -1110,6 +1112,7 @@ struct LsuReq {
     , data(size)
     , byteen(size, 0)
     , amo_cmp(size, 0)
+    , amo_sc_fail(size, false)
     , mask(size)
     , tids(size, 0)
     , tag(0)
