@@ -125,6 +125,20 @@ checkpoint after initial routing and each repair pass. The final candidate must
 still pass all timing, route, DRC and CDC gates. See
 [AMD UG904](https://docs.amd.com/r/en-US/ug904-vivado-implementation/Physical-Optimization).
 
+Vivado 2026.1 rejects `-force_replication_on_nets` in post-route physical
+optimization. Unrouting only selected nets retains post-route mode and can
+make `phys_opt_design` skip the operation while returning success. Apply forced
+replication to a placed, unrouted design, and inspect the log plus actual
+replica counts or driver loads before routing. A saved checkpoint or exit zero
+alone does not establish that replication occurred.
+
+Address fanout can originate from LUTs or flip-flops. The YPCB pre-route helper
+selects both kinds, deduplicates hierarchical aliases by driver cell, and records
+LUT and register count changes separately. A LUT-only filter leaves directly
+registered addresses untreated even when each register drives hundreds of BRAM
+address pins. Inspect the actual driver primitive and loads when choosing a
+replication target.
+
 When running Vivado in a transient systemd unit, save the actual command exit
 code in its run directory before the wrapper exits. A successful unit can be
 unloaded before a dependent observes its result. Preserve its log and
