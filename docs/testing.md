@@ -23,6 +23,13 @@ When excuting, Blackbox needs to recompile the driver if the desired architectur
 It tracks the latest configuration in a file under the current directory blackbox.<driver>.cache.
 To avoid having to rebuild the driver all the time, Blackbox checks if the latest cached configuration matches the current.
 
+`VORTEX_RT_LIB` also selects the runtime build destination: application linking
+can force a dispatcher rebuild there. Keep Make outputs in the test's own build
+directory. To execute against a preserved baseline, first copy its matching
+runtime libraries into a separate comparison directory and select that copy
+with `LD_LIBRARY_PATH` when launching the finished application. Do not point
+`VORTEX_RT_LIB`, `DESTDIR` or a `run-*` Make target at frozen runtime evidence.
+
 ### Comparing simulation and hardware output
 
 Match application-owned datatype, geometry and numerical-success markers across
@@ -60,10 +67,11 @@ You can execute the default opncl suite by running the following commands at the
 ## Standalone RTL unit tests
 
 Run units from a configured build tree, for example
-`make -j1 -C hw/unittest/cp_dma run`. Unit file lists must include dependencies
-of enabled trace functions even when trace output is disabled. With TCU
-enabled, put `VX_tcu_pkg.sv` after `VX_gpu_pkg.sv` and before `VX_trace_pkg.sv`
-in `RTL_PKGS`.
+`make -j1 -C hw/unittest/cp_dma run`. Include only packages the unit uses.
+Units that use `VX_trace_pkg.sv` must include dependencies of its enabled trace
+functions even when trace output is disabled. With TCU enabled, put
+`VX_tcu_pkg.sv` after `VX_gpu_pkg.sv` and before `VX_trace_pkg.sv` in `RTL_PKGS`;
+DXA similarly requires its selected package before the trace package.
 
 RTL dependency enumeration must work in the build service's environment.
 Treat discovery errors and empty file lists as fatal; otherwise source edits

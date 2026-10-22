@@ -3,6 +3,7 @@
 # Licensed under the Apache License, Version 2.0.
 
 import argparse
+import ctypes
 import datetime
 import fcntl
 import hashlib
@@ -20,8 +21,12 @@ import struct
 import subprocess
 import tempfile
 import time
+import uuid
 
 interrupted = 0
+ownership_variable = 'VORTEX_YPCB_RUN_TOKEN'
+subreaper_active = False
+preexisting_children = set()
 
 
 def interrupt(number, frame):
@@ -123,6 +128,190 @@ def stop(child):
         return child.wait()
 
 
+def enable_subreaper():
+    global subreaper_active, preexisting_children
+    pr_set_child_subreaper = 36
+    library = ctypes.CDLL(None, use_errno=True)
+    prctl = library.prctl
+    prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong]
+    prctl.restype = ctypes.c_int
+    if prctl(pr_set_child_subreaper, 1, 0, 0, 0) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+    preexisting_children = set()
+    for process in Path('/proc').glob('[0-9]*'):
+        try:
+            fields = (process / 'stat').read_text().rsplit(')', 1)[1].split()
+            if int(fields[1]) == os.getpid():
+                preexisting_children.add((int(process.name), int(fields[19])))
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            pass
+    subreaper_active = True
+
+
+def process_identity(pid):
+    process = Path('/proc') / str(pid)
+    try:
+        uid = process.stat().st_uid
+        fields = (process / 'stat').read_text().rsplit(')', 1)[1].split()
+        return {'pid': pid, 'start_ticks': int(fields[19]), 'uid': uid}
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+
+
+def has_ownership_marker(pid, token):
+    try:
+        return (ownership_variable + '=' + token).encode() in (Path('/proc') / str(pid) / 'environ').read_bytes().split(b'\0')
+    except (FileNotFoundError, ProcessLookupError):
+        return False
+
+
+def owned_processes(token):
+    found = []
+    for process in Path('/proc').glob('[0-9]*'):
+        pid = int(process.name)
+        if pid == os.getpid():
+            continue
+        try:
+            identity = process_identity(pid)
+            if (identity is not None and identity['uid'] == os.getuid()
+                    and has_ownership_marker(pid, token) and process_identity(pid) == identity):
+                found.append(identity)
+        except PermissionError:
+            continue
+    return found
+
+
+def signal_owned_process(identity, number, token, owned_child=False):
+    if (identity['pid'] == os.getpid() or identity['uid'] != os.getuid()
+            or process_identity(identity['pid']) != identity):
+        return False
+    descriptor = os.pidfd_open(identity['pid'])
+    try:
+        if (process_identity(identity['pid']) != identity
+                or (not owned_child and not has_ownership_marker(identity['pid'], token))):
+            return False
+        signal.pidfd_send_signal(descriptor, number)
+        return True
+    finally:
+        os.close(descriptor)
+
+
+def cleanup_owned_processes(token, children, term_timeout=5, kill_timeout=5):
+    if not re.fullmatch(r'[0-9a-f]{32}', token) or term_timeout <= 0 or kill_timeout <= 0:
+        raise ValueError('Invalid process ownership token or cleanup deadline')
+    started = time.monotonic()
+    known, sent, errors, reaped = {}, set(), [], []
+    direct = {child.pid for child in children}
+    child_identities = set()
+    for child in children:
+        if child.poll() is None:
+            identity = process_identity(child.pid)
+            expected = getattr(child, 'ypcb_identity', identity)
+            if identity is not None and identity == expected:
+                key = (identity['pid'], identity['start_ticks'])
+                child_identities.add(key)
+                known[key] = identity
+    empty_scans = 0
+    while True:
+        for identity in owned_processes(token):
+            known[(identity['pid'], identity['start_ticks'])] = identity
+        for child in children:
+            child.poll()
+        for process in Path('/proc').glob('[0-9]*') if subreaper_active else ():
+            pid = int(process.name)
+            if pid in direct:
+                continue
+            try:
+                fields = (process / 'stat').read_text().rsplit(')', 1)[1].split()
+                if int(fields[1]) != os.getpid():
+                    continue
+                identity = process_identity(pid)
+                if identity is None or identity['uid'] != os.getuid():
+                    continue
+                if (pid, identity['start_ticks']) in preexisting_children:
+                    continue
+                if fields[0] != 'Z':
+                    environment = (process / 'environ').read_bytes().split(b'\0')
+                    markers = [entry for entry in environment
+                               if entry.startswith((ownership_variable + '=').encode())]
+                    if markers and markers != [(ownership_variable + '=' + token).encode()]:
+                        continue
+                    # Adoption preserves ancestry when a daemon clears its environment.
+                    if process_identity(pid) == identity:
+                        key = (pid, identity['start_ticks'])
+                        child_identities.add(key)
+                        known[key] = identity
+                    continue
+                adopted, status = os.waitpid(pid, os.WNOHANG)
+                if adopted:
+                    reaped.append({**identity, 'exit_code': os.waitstatus_to_exitcode(status)})
+            except (FileNotFoundError, ProcessLookupError, ChildProcessError, PermissionError):
+                pass
+        for identity in known.values():
+            if identity['pid'] in direct or process_identity(identity['pid']) != identity:
+                continue
+            try:
+                pid, status = os.waitpid(identity['pid'], os.WNOHANG)
+                if pid:
+                    reaped.append({**identity, 'exit_code': os.waitstatus_to_exitcode(status)})
+            except ChildProcessError:
+                pass
+        remaining = [identity for identity in known.values() if process_identity(identity['pid']) == identity]
+        live_direct = [child.pid for child in children if child.returncode is None]
+        empty_scans = empty_scans + 1 if not remaining and not live_direct else 0
+        elapsed = time.monotonic() - started
+        if empty_scans >= 2 or elapsed >= term_timeout + kill_timeout:
+            break
+        number = signal.SIGTERM if elapsed < term_timeout else signal.SIGKILL
+        for identity in remaining:
+            key = (identity['pid'], identity['start_ticks'], number)
+            if key in sent:
+                continue
+            try:
+                owned_child = (identity['pid'], identity['start_ticks']) in child_identities
+                if signal_owned_process(identity, number, token, owned_child=owned_child):
+                    sent.add(key)
+            except ProcessLookupError:
+                pass
+            except OSError as error:
+                errors.append({'identity': identity, 'signal': number, 'error': repr(error)})
+                sent.add(key)
+        time.sleep(0.05)
+    return {'status': 'PASS' if not remaining and not live_direct and not errors else 'FAIL',
+            'owned_processes': list(known.values()), 'remaining': remaining,
+            'direct_children_alive': live_direct,
+            'protected_preexisting_children': [{'pid': pid, 'start_ticks': ticks}
+                                              for pid, ticks in sorted(preexisting_children)],
+            'reaped_descendants': reaped, 'errors': errors,
+            'signals_sent': [{'pid': pid, 'start_ticks': ticks, 'signal': number}
+                             for pid, ticks, number in sorted(sent)],
+            'elapsed_seconds': time.monotonic() - started}
+
+
+def finish_owned_run(token, children, lease, state, save_state):
+    failure = None
+    try:
+        state['owned_process_cleanup'] = cleanup_owned_processes(token, children)
+        if state['owned_process_cleanup']['status'] != 'PASS':
+            raise RuntimeError('Owned hardware processes remain or cleanup could not be verified')
+    except BaseException as error:
+        failure = error
+        state.update(status='FAIL', cleanup_error=repr(error))
+    finally:
+        state['owned_children_exit_codes'] = [child.returncode for child in reversed(children)]
+        try:
+            if lease is not None:
+                lease.close()
+        except BaseException as error:
+            failure = error
+            state.update(status='FAIL', lease_close_error=repr(error))
+        finally:
+            save_state()
+    if failure is not None:
+        raise RuntimeError('Hardware owner cleanup failed; inspect the manifest') from failure
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image-run', type=Path, required=True)
@@ -144,9 +333,11 @@ def main():
     image, build, output = args.image_run.resolve(), args.build.resolve(), args.output.resolve()
     vivado = args.vivado_bin.resolve()
     output.mkdir(parents=True, exist_ok=False)
+    run_token = uuid.uuid4().hex
     state = {'status': 'PREFLIGHT', 'stage': args.stage, 'hardware_accessed': False,
              'programming_attempted': False, 'programming_performed': False, 'flash_written': False,
-             'image_run': str(image), 'tck_hz': args.tck_hz, 'steps': {}}
+             'image_run': str(image), 'tck_hz': args.tck_hz, 'steps': {},
+             'process_ownership': {'variable': ownership_variable, 'token': run_token, 'uid': os.getuid()}}
     children = []
     lease = None
     bridge = None
@@ -161,11 +352,14 @@ def main():
         os.replace(temporary, output / 'manifest.json')
 
     def launch(name, command, cwd, environment=None):
+        child_environment = dict(os.environ if environment is None else environment)
+        child_environment[ownership_variable] = run_token
         with (output / (name + '.log')).open('w') as log:
             child = subprocess.Popen([str(x) for x in command], cwd=cwd,
-                                     env=environment, stdout=log, stderr=subprocess.STDOUT,
+                                     env=child_environment, stdout=log, stderr=subprocess.STDOUT,
                                      start_new_session=True)
         children.append(child)
+        child.ypcb_identity = process_identity(child.pid)
         state[name + '_pid'] = child.pid
         save()
         return child
@@ -208,6 +402,8 @@ def main():
 
     try:
         save()
+        enable_subreaper()
+        state['child_subreaper_enabled'] = True
         configuration = (build / 'config.mk').read_text()
         if 'MEMORY_SIZE ?= 2147483648' not in configuration or 'XLEN ?= 32' not in configuration:
             raise ValueError('FPGA examples require the configured RV32, 2 GiB YPCB build')
@@ -430,10 +626,7 @@ def main():
                 state['failure_snapshot_error'] = repr(snapshot_error)
         raise
     finally:
-        state['owned_children_exit_codes'] = [stop(child) for child in reversed(children)]
-        if lease is not None:
-            lease.close()
-        save()
+        finish_owned_run(run_token, children, lease, state, save)
     print(json.dumps(state, indent=2))
 
 

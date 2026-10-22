@@ -48,6 +48,14 @@ firmware/CPU checks, `tests/ypcb/wl_selfcal` traffic/report checks and
 `ci/test_ypcb_jtag.py` before hardware use. Those checks
 use PHY or transport oracles; physical memory and GPU results remain separate.
 
+Vendor debug helpers can detach from the launcher's process group. Stopping
+the direct Vivado and hardware-server children therefore does not prove that
+all owned processes stopped. Bind helper ownership to the individual run,
+verify process identity before terminating it, and check both process cleanup
+and lease release. A process name alone does not establish ownership. Retain
+an original cleanup failure when later cleanup succeeds, and audit that
+recovery separately from the numerical test results.
+
 The YPCB AXI and Wishbone crossing generators explicitly select LiteX's
 `vivado` toolchain when exporting RTL. `XilinxPlatform` defaults to ISE;
 its attribute translation omits Vivado's `ASYNC_REG`, `mr_ff`, and
