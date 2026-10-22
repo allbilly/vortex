@@ -71,6 +71,7 @@ generator does not model. Use the scale-aware multiplier test:
 make -j1 -C hw/unittest/tcu_f4_mul run-matrix
 make -j1 -C hw/unittest/tcu_mx_index run
 make -j1 -C hw/unittest/tcu_masked_max_exp run-matrix
+make -j1 -C hw/unittest/multiplier run-matrix
 ```
 
 The multiplier matrix checks MXFP4/NVFP4 products, exact cancellation, lane
@@ -85,6 +86,11 @@ The masked exponent selector matrix checks five/nine candidates, zero/one
 pipeline stages, arbitrary late cancellation masks and stalled enables against
 a linear maximum search. Ties select the first candidate, including all-zero
 inputs. Each variant checks 100,000 frames.
+
+The multiplier matrix checks signed/unsigned full and truncated products up to
+130 output bits, the registered-partial-product option, and clock-enable stalls
+against an arbitrary-precision integer reference. Its selected RV32 case keeps
+three cycles while registering limb products before carry propagation.
 
 ## Creating Your Own Regression Test
 

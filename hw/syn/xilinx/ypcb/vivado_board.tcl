@@ -103,6 +103,7 @@ place_design -directive Explore
 report_timing_summary -delay_type min_max -max_paths 30 \
     -file [file join $output_dir timing-placed.rpt]
 phys_opt_design -directive AggressiveExplore
+source [file join $board_dir vivado_cache_address.tcl]
 report_timing_summary -delay_type min_max -max_paths 30 \
     -file [file join $output_dir timing-preroute.rpt]
 route_design -directive Explore

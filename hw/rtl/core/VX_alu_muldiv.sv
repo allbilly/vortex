@@ -156,7 +156,8 @@ module VX_alu_muldiv import VX_gpu_pkg::*; #(
             .B_WIDTH (`VX_CFG_XLEN+1),
             .R_WIDTH (2*(`VX_CFG_XLEN+1)),
             .SIGNED  (1),
-            .LATENCY (`LATENCY_IMUL)
+            .LATENCY (`LATENCY_IMUL),
+            .PARTIAL_REG (1)
         ) multiplier (
             .clk    (clk),
             .enable (mul_ready_in),

@@ -35,6 +35,10 @@ tests:
     via: script
     run: "make -j1 -C hw/unittest/dxa_setup run"
     touches: [hw/rtl/dxa/VX_dxa_setup.sv, hw/rtl/libs/VX_multiplier.sv, hw/unittest/dxa_setup]
+  - id: hw-multiplier
+    via: script
+    run: "make -j1 -C hw/unittest/multiplier run-matrix"
+    touches: [hw/rtl/libs/VX_multiplier.sv, hw/rtl/core/VX_alu_muldiv.sv, hw/unittest/multiplier]
   - id: hw-tcu-mx-index
     via: script
     run: "make -j1 -C hw/unittest/tcu_mx_index run"
