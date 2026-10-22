@@ -34,7 +34,8 @@ thread count and datatype; the C++ programs reject dimensions that do not fit.
 In the eight-thread study profile, FP4 needs K to be a multiple of 64.
 Every run records the profile, application flags, arguments, binary hashes,
 numerical output and GPU counters in a fresh directory under the build tree.
-Builds use one worker. The selected driver defaults to SimX even when a prior
+Builds use `THREADS`, defaulting to the host CPU count. Set `THREADS=1` for a
+smaller worker limit. The selected driver defaults to SimX even when a prior
 shell set `VORTEX_DRIVER`.
 
 SimX is the software model. XRT selects full GPU/AFU RTL simulation here.

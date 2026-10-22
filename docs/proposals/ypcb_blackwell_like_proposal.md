@@ -16,8 +16,10 @@ finishing an offline image does not establish FPGA execution.
 Keep a separate profile, `ypcb_blackwell_like`, and an independent configured
 build directory, `build_ypcb_blackwell32/`. Preserve the full GPU, JTAG and
 PCIe interfaces, CH1-only 2 GiB DDR3, all nine byte lanes and enabled ECC.
-Use the existing native toolchain. Keep one heavy Vortex stage at a time,
-both Vivado worker limits at one and the 8 GiB service memory cap.
+Use the existing native toolchain. The Vivado builder defaults to the host CPU
+count, capped at eight workers, and sets both worker limits together. Select a
+different limit with `--threads`; native simulation builds use `THREADS`.
+Services have no artificial memory cap.
 
 ## Feature set
 

@@ -64,6 +64,8 @@ def implementation_source(original, recover_abandoned):
     path = original / 'implement-exit.json'
     receipt = json.loads(path.read_text()) if path.is_file() else None
     result = {'original_implementation_exit_sha256': digest(path) if receipt is not None else None}
+    if receipt is not None and receipt.get('timed_out') is not False:
+        raise ValueError('Routed reuse requires an explicit implementation timeout disposition of false')
     if not recover_abandoned:
         if receipt is None or receipt.get('interrupted') != 0 or receipt.get('exit_code') not in (0, 1):
             raise ValueError('Routed reuse requires a completed, uninterrupted implementation')
@@ -73,7 +75,8 @@ def implementation_source(original, recover_abandoned):
         raise ValueError('Cannot recover an active routed producer: ' + str(active))
     progress = json.loads((original / 'progress.json').read_text())
     synthesis = json.loads((original / 'synthesize-exit.json').read_text())
-    if progress.get('stage') != 'implement' or synthesis.get('exit_code') != 0 or synthesis.get('interrupted') != 0:
+    if (progress.get('stage') != 'implement' or synthesis.get('exit_code') != 0
+            or synthesis.get('interrupted') != 0 or synthesis.get('timed_out') is not False):
         raise ValueError('Abandoned recovery requires the recorded implementation stage and successful synthesis')
     result['abandoned_producer_recovery'] = {
         'observed_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -159,7 +162,7 @@ def main():
         child = subprocess.Popen(command, cwd=output, stdout=log,
                                  stderr=subprocess.STDOUT, start_new_session=True)
         while child.poll() is None:
-            timed_out = time.monotonic() - started > args.timeout
+            timed_out = time.monotonic() - started >= args.timeout
             if interrupted or timed_out:
                 try:
                     os.killpg(child.pid, signal.SIGTERM)
@@ -178,12 +181,15 @@ def main():
             temporary.replace(output / 'progress.json')
             time.sleep(1)
         code = child.wait()
+    elapsed = time.monotonic() - started
+    timed_out = timed_out or elapsed >= args.timeout
     receipt = {'command': command, 'exit_code': code, 'interrupted': interrupted, 'timed_out': timed_out,
-               'elapsed_seconds': time.monotonic() - started,
+               'elapsed_seconds': elapsed, 'timeout_seconds': args.timeout,
                'utc': datetime.datetime.now(datetime.timezone.utc).isoformat()}
     (output / 'finalize-exit.json').write_text(json.dumps(receipt, indent=2) + '\n')
     progress = {'stage': 'complete' if code == 0 and not interrupted and not timed_out else 'failed',
-                'running': False, 'exit_code': code, 'hardware_programmed': False}
+                'running': False, 'exit_code': code, 'interrupted': interrupted,
+                'timed_out': timed_out, 'hardware_programmed': False}
     (output / 'progress.json').write_text(json.dumps(progress, indent=2) + '\n')
     if code != 0 or interrupted or timed_out:
         raise SystemExit('Routed finalization failed; inspect ' + str(output / 'finalize.log'))

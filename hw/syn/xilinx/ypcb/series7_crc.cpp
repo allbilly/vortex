@@ -82,7 +82,8 @@ int main(int argc, char **argv) {
         uint32_t state = 0, reg = 0;
         bool have_reg = false;
         unsigned checks = 0, ids = 0, starts = 0, desyncs = 0;
-        uint64_t fdri = 0, window_fdri = 0, write_words = 0;
+        uint64_t fdri = 0, window_fdri = 0, checked_fdri = 0, write_words = 0, window_words = 0;
+        bool startup_checked = false;
         struct Reset { size_t header, value; uint32_t crc; uint64_t words; };
         std::vector<Reset> resets;
         std::vector<std::pair<size_t, uint32_t>> checkpoints;
@@ -98,36 +99,60 @@ int main(int argc, char **argv) {
             require(cursor + 4 * count <= data.size() && reg <= 31, "Packet extent or register unsupported");
             require(op != 1 && (op != 0 || count == 0), "Read or data-bearing NOP unsupported");
             if (op == 2) {
+                require(desyncs == 0, "Register write after DESYNC");
                 require(reg != 8, "LOUT CRC semantics not qualified by the selected reference images");
                 for (size_t i = 0; i < count; ++i) {
                     uint32_t value = u32(cursor + 4 * i);
                     ++write_words;
                     if (reg == 12) { require(value == 0x03751093, "Wrong configuration IDCODE"); ++ids; }
-                    if (reg == 2) { ++fdri; ++window_fdri; }
-                    if (reg == 4 && (value & 31) == 5) ++starts;
-                    if (reg == 4 && (value & 31) == 13) ++desyncs;
+                    if (reg == 2) {
+                        require(starts == 0, "Frame data after START");
+                        ++fdri;
+                        ++window_fdri;
+                    }
+                    if (reg == 4 && (value & 31) == 5) {
+                        require(starts == 0 && fdri > 100000 && checked_fdri == fdri,
+                                "START before complete frame CRC coverage");
+                        ++starts;
+                    }
+                    if (reg == 4 && (value & 31) == 13) {
+                        require(count == 1 && starts == 1 && startup_checked && window_words == 0,
+                                "DESYNC before final startup CRC coverage");
+                        ++desyncs;
+                        continue;
+                    }
                     if (reg == 4 && (value & 31) == 7) {
-                        require(count == 1, "Unsupported multiword CRC-reset command");
+                        require(count == 1 && fdri == 0 && checks == 0 && starts == 0,
+                                "CRC reset would discard configuration coverage");
                         resets.push_back({header, cursor, state, window_fdri});
-                        state = 0; window_fdri = 0;
+                        state = 0; window_fdri = 0; window_words = 0;
                     } else if (reg == 0) {
-                        require(count == 1, "Unsupported multiword CRC checkpoint");
+                        require(count == 1 && window_words != 0,
+                                "Empty or multiword CRC checkpoint");
                         if (value != state) {
                             std::cout << "{\"status\":\"CRC_MISMATCH\",\"file_offset\":" << cursor
                                       << ",\"stored\":" << value << ",\"computed\":" << state << "}\n";
                             return 1;
                         }
                         checkpoints.emplace_back(cursor, value); ++checks;
-                        state = 0; window_fdri = 0;
-                    } else state = extend(state, reg, value);
+                        checked_fdri += window_fdri;
+                        startup_checked |= starts == 1;
+                        state = 0; window_fdri = 0; window_words = 0;
+                    } else {
+                        require(!startup_checked, "Register write after final startup CRC");
+                        state = extend(state, reg, value);
+                        ++window_words;
+                    }
                 }
             }
             cursor += 4 * count;
         }
-        require(ids == 1 && fdri > 100000 && starts == 1 && desyncs == 1,
+        require(ids == 1 && fdri > 100000 && starts == 1 && desyncs == 1
+                && checked_fdri == fdri && startup_checked && window_words == 0 && checks >= 2,
                 "Incomplete full-device configuration sequence");
-        std::cout << "{\"status\":\"" << (checks ? "ALL_PRESENT_CRC_CHECKPOINTS_MATCH" : "NO_CRC_CHECKPOINTS_RESET_ONLY")
-                  << "\",\"crc_checkpoints\":" << checks << ",\"fdri_words\":" << fdri
+        std::cout << "{\"status\":\"ALL_PRESENT_CRC_CHECKPOINTS_MATCH\",\"crc_coverage_complete\":true"
+                  << ",\"startup_crc_checked\":true,\"fdri_words_checked\":" << checked_fdri
+                  << ",\"crc_checkpoints\":" << checks << ",\"fdri_words\":" << fdri
                   << ",\"register_data_words\":" << write_words << ",\"known_answer_vectors\":4,\"resets\":[";
         for (size_t i = 0; i < resets.size(); ++i) {
             if (i) std::cout << ',';
@@ -141,7 +166,7 @@ int main(int argc, char **argv) {
             std::cout << "{\"value_file_offset\":" << checkpoints[i].first << ",\"crc\":" << checkpoints[i].second << '}';
         }
         std::cout << "]}\n";
-        return checks ? 0 : 2;
+        return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
         return 1;

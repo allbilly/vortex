@@ -51,7 +51,7 @@ module VX_ypcb_axil_cdc (
             source_reset_sync <= {source_reset_sync[0], 1'b0};
         end
     end
-    reg aw_pending, w_pending, ar_pending, inflight, prefer_read;
+    reg aw_pending, w_pending, ar_pending, inflight, inflight_cancelled, prefer_read;
     reg [15:0] awaddr, araddr;
     reg [31:0] wdata;
     reg [3:0] wstrb;
@@ -81,6 +81,7 @@ module VX_ypcb_axil_cdc (
             w_pending <= 0;
             ar_pending <= 0;
             inflight <= 0;
+            inflight_cancelled <= 0;
             prefer_read <= 0;
             awaddr <= 0;
             araddr <= 0;
@@ -113,9 +114,14 @@ module VX_ypcb_axil_cdc (
             if (s_rvalid && s_rready) begin
                 s_rvalid <= 0;
             end
+            // The destination still owns the request after a PCIe reset ends.
+            if (src_reset && inflight) begin
+                inflight_cancelled <= 1;
+            end
             if (inflight && response_sync[1] == request_toggle) begin
                 inflight <= 0;
-                if (!src_reset) begin
+                inflight_cancelled <= 0;
+                if (!src_reset && !inflight_cancelled) begin
                     if (request_data[52]) begin
                         s_bvalid <= 1;
                         s_bresp <= response_data[33:32];
@@ -138,12 +144,14 @@ module VX_ypcb_axil_cdc (
                     request_data <= {1'b0, araddr, 36'b0};
                     request_toggle <= !request_toggle;
                     inflight <= 1;
+                    inflight_cancelled <= 0;
                     ar_pending <= 0;
                     prefer_read <= 0;
                 end else if (aw_pending && w_pending) begin
                     request_data <= {1'b1, awaddr, wdata, wstrb};
                     request_toggle <= !request_toggle;
                     inflight <= 1;
+                    inflight_cancelled <= 0;
                     aw_pending <= 0;
                     w_pending <= 0;
                     prefer_read <= 1;

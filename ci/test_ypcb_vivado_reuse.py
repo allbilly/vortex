@@ -43,7 +43,7 @@ def test_reuse_generated_cdc(tmp_path, change):
     for name in files:
         current[name] = hashlib.sha256((output / name).read_bytes()).hexdigest()
     (original / 'inputs.json').write_text(json.dumps({'inputs': previous}))
-    (original / 'synthesize-exit.json').write_text(json.dumps({'exit_code': 0, 'interrupted': 0}))
+    (original / 'synthesize-exit.json').write_text(json.dumps({'exit_code': 0, 'interrupted': 0, 'timed_out': False}))
     for name in ('synth.dcp', 'utilization-synth.rpt', 'drc-synth.rpt'):
         (original / name).write_bytes(b'compiled fixture')
     if change == 'timestamps':

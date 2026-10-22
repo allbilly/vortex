@@ -7,6 +7,39 @@ import re
 import sys
 
 
+def drc_summary(text):
+    section = re.search(r'(?ms)^1\. REPORT SUMMARY\n-+\n(.*?)^2\. REPORT DETAILS\n-+\n(.*)', text)
+    if section is None:
+        raise ValueError('Missing complete DRC summary and details')
+    summary, details = section.groups()
+    required = ('| Design       : ypcb_top', '| Device       : xc7k480tffg1156-2',
+                '| Design State : Fully Routed', 'Design limits: <entire design considered>',
+                'Ruledeck: default', 'Max checks: <unlimited>')
+    if any(item not in text for item in required):
+        raise ValueError('Missing full routed DRC report context')
+    count = re.findall(r'(?m)^\s*Checks found:\s*(\d+)\s*$', summary)
+    if len(count) != 1 or not re.search(r'\|\s*Rule\s*\|\s*Severity\s*\|\s*Description\s*\|\s*Checks\s*\|', summary):
+        raise ValueError('Missing DRC check count or summary columns')
+    rows = re.findall(r'(?m)^\|\s*([\w-]+)\s*\|\s*(Error|Critical Warning|Warning|Advisory)\s*\|[^\n|]*\|\s*(\d+)\s*\|\s*$', summary)
+    expected = {(rule, severity): int(number) for rule, severity, number in rows}
+    if len(expected) != len(rows) or sum(expected.values()) != int(count[0]):
+        raise ValueError('Incomplete or duplicate DRC summary rows')
+    blocks = list(re.finditer(r'(?ms)^([\w-]+)#(\d+) (Error|Critical Warning|Warning|Advisory)\s*\n(.*?)(?=^[\w-]+#\d+ (?:Error|Critical Warning|Warning|Advisory)\s*$|\Z)', details))
+    if len(blocks) != int(count[0]):
+        raise ValueError('Incomplete DRC violation details')
+    actual = {}
+    for block in blocks:
+        rule, number, severity, body = block.groups()
+        key = (rule, severity)
+        actual.setdefault(key, []).append(int(number))
+        if not re.search(r'(?m)^Related violations:\s+[^\n]+\n\s*\Z', body):
+            raise ValueError('Truncated DRC violation detail: ' + rule + '#' + number)
+    if set(actual) != set(expected) or any(numbers != list(range(1, expected[key] + 1))
+                                           for key, numbers in actual.items()):
+        raise ValueError('Inconsistent or duplicate DRC violation details')
+    return expected
+
+
 def bus_skew_summary(text):
     section = re.split(r'(?m)^1\. Bus Skew Report Summary\n-+\n', text, maxsplit=1)[1]
     sections = re.split(r'(?m)^2\. Bus Skew Report Per Constraint\n-+\n', section, maxsplit=1)
@@ -113,7 +146,8 @@ def evaluate(directory, expected_gray_buses=14):
             raise ValueError('Missing internal coverage: ' + name)
         internal_coverage[name] = int(match[1])
     drc = (directory / 'drc-routed.rpt').read_text()
-    drc_errors = re.findall(r'^\|[^\n]*\|\s*(?:Error|Critical Warning)\s*\|', drc, re.M)
+    drc_errors = [count for (_, severity), count in drc_summary(drc).items()
+                  if severity in ('Error', 'Critical Warning')]
     routable = route_count('# of routable nets')
     routed = route_count('# of fully routed nets')
     route_errors = route_count('# of nets with routing errors')

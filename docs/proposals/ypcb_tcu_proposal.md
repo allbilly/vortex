@@ -44,16 +44,21 @@ Validation order:
    window width 25 from `hw/unittest/Makefile`, with its unchanged tolerance.
 2. YPCB memory/control integration and tensor kernels through modeled PCIe
    and JTAG. Require numerical PASS and retired instructions.
-3. Fresh single-worker synthesis, placement, routing, all routed report gates,
+3. Fresh synthesis, placement, routing, all routed report gates,
    frozen-input verification and bitstream CRC. Do not reuse scalar synthesis.
 4. Authorized temporary SRAM programming, all-nine-lane calibration, enabled
    clean ECC, memory tests, scalar regression and physical `sgemm_tcu`.
 
-Set both Vivado worker limits to one, use one heavy Vortex stage at a time,
-and cap its service at 8 GiB. The native toolchain and Python environment are
-shared read-only; generated objects belong to the tensor build. Permanent
-flash is outside this work. Physical PCIe testing needs a connected host;
+The Vivado builder defaults to the host CPU count, capped at eight workers,
+and sets both worker limits together. Use `--threads` to choose another limit;
+native simulation builds use `THREADS`. Services have no artificial memory cap.
+The native toolchain and Python environment are shared read-only; generated
+objects belong to the tensor build. Permanent flash is outside this work.
+Physical PCIe testing needs a connected host;
 local FPGA execution uses JTAG while preserving both interfaces in the image.
 
-The tensor variant is not yet physically qualified. Current run handles and
-results belong in `progress.md` and the tensor build's receipts.
+The FP16/INT8 image passed its physical JTAG suite, including scalar kernels,
+all five basic example scripts and square/rectangular tensor cases with clean
+ECC. Physical PCIe runtime and a full-capacity DDR soak remain untested.
+See [current results](../../progress.md) and the tensor build's receipts for
+the exact qualified image and evidence.

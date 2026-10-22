@@ -116,7 +116,8 @@ def test_preflight_rejects_before_hardware(tmp_path, failure_kind):
 
 
 @pytest.mark.parametrize('finalized', [False, True])
-@pytest.mark.parametrize('outcome', ['success', 'missing', 'failed', 'interrupted', 'timed_out', 'wrong_flow'])
+@pytest.mark.parametrize('outcome', ['success', 'missing', 'failed', 'interrupted', 'timed_out',
+                                     'missing_timeout', 'invalid_timeout', 'wrong_flow'])
 def test_image_producer_exit_receipt(tmp_path, finalized, outcome):
     root = Path((Path.cwd() / 'config.mk').read_text().split('VORTEX_HOME ?= ', 1)[1].splitlines()[0])
     spec = importlib.util.spec_from_file_location('ypcb_fpga_runner', root / 'ci/ypcb_run_fpga.py')
@@ -128,6 +129,8 @@ def test_image_producer_exit_receipt(tmp_path, finalized, outcome):
     if outcome == 'failed': record['exit_code'] = 1
     if outcome == 'interrupted': record['interrupted'] = 15
     if outcome == 'timed_out': record['timed_out'] = True
+    if outcome == 'missing_timeout': record.pop('timed_out')
+    if outcome == 'invalid_timeout': record['timed_out'] = 0
     if outcome == 'wrong_flow':
         name = 'implement-exit.json' if finalized else 'finalize-exit.json'
     if outcome != 'missing':

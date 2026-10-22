@@ -76,12 +76,27 @@ are excluded; settling paths between stages retain ordinary timing.
 The sticky source bit may also feed its own input logic. Follow that logic to
 the capture registers and compare their clocks when checking for a bypass.
 
+A PCIe source reset can occur while the board clock owns a mailbox request.
+Let that request finish exactly once, but retain its cancellation until the
+response crosses back. Checking only whether reset is asserted when the
+response arrives can return old data to a new requester. Exercise both read
+and write responses delayed beyond reset deassertion, responses already in
+the synchronizer, and a subsequent request under backpressure.
+
 The routed YPCB bus-skew report has 14 design Gray buses (ten AXI and four CSR),
 eight JTAG AXI IP constraints and four debug-hub IP constraints. The report gate
 checks each group separately, verifies the three-bit design endpoint sets and
 unique pointer groups, and requires passing results for all vendor constraints.
 Summary and detailed IDs, endpoint counts, requirements and slack must agree;
 truncated or unknown groups fail qualification.
+
+The DRC gate must recognize a complete report and reconcile its summary with
+the detailed rule results before accepting zero errors. An empty file does
+not establish a clean design. Bitstream integrity likewise requires the
+complete supported configuration sequence and CRC coverage through startup;
+matching only whichever checkpoints remain can accept a corrupted final
+checkpoint header. Keep negative tests for missing evidence as well as
+explicit error reports and CRC mismatches.
 
 The PCIe PIPE clock mux uses BUFGCTRL's glitchless selection mode. The
 rate-change logic waits for PHY completion signals and its state machine;
@@ -140,12 +155,18 @@ address pins. Inspect the actual driver primitive and loads when choosing a
 replication target.
 
 When running Vivado in a transient systemd unit, save the actual command exit
-code in its run directory before the wrapper exits. A successful unit can be
+code, interruption signal, timeout flag and configured deadline in its run
+directory before the wrapper exits. A child terminated at its deadline may
+handle the signal and exit zero, so the exit code cannot replace the timeout
+flag. A successful unit can be
 unloaded before a dependent observes its result. Preserve its log and
 checkpoint; a missing unit alone cannot establish stage completion.
-The hardware runner likewise requires the successful, uninterrupted exit receipt
+The hardware runner likewise requires the successful, uninterrupted, non-timeout exit receipt
 from implementation or routed finalization before programming. Reports written
 before bitstream generation do not establish that the producer finished.
+Older receipts lacking a timeout disposition remain incomplete evidence;
+preserve them and obtain a new successful producer receipt instead of editing
+their historical status.
 
 If a producer disappears after saving a routed checkpoint, keep its missing
 exit status unknown. `finalize_vivado.py --recover-abandoned-run` explicitly

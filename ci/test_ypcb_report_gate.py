@@ -15,6 +15,22 @@ def tools():
             runpy.run_path(str(board / 'finalize_vivado.py'))['prepare'])
 
 
+def drc_report(rows=(('TEST-1', 'Warning', 2), ('NOTE-1', 'Advisory', 1))):
+    text = ('| Design       : ypcb_top\n| Device       : xc7k480tffg1156-2\n'
+            '| Design State : Fully Routed\n\nReport DRC\n\n'
+            '1. REPORT SUMMARY\n-----------------\n'
+            'Design limits: <entire design considered>\nRuledeck: default\n'
+            f'Max checks: <unlimited>\nChecks found: {sum(count for _, _, count in rows)}\n'
+            '| Rule | Severity | Description | Checks |\n')
+    for rule, severity, count in rows:
+        text += f'| {rule} | {severity} | Fixture diagnostic | {count} |\n'
+    text += '\n2. REPORT DETAILS\n-----------------\n'
+    for rule, severity, count in rows:
+        for index in range(1, count + 1):
+            text += f'\n{rule}#{index} {severity}\nFixture diagnostic.\nRelated violations: <none>\n\n'
+    return text
+
+
 def reports(directory, failure_kind=None):
     directory.mkdir()
     timing = '0.068 0.000 0 100 0.031 0.000 0 100 0.000 0.000 0 100'
@@ -25,7 +41,7 @@ def reports(directory, failure_kind=None):
         '# of routable nets : 100\n# of fully routed nets : 100\n# of nets with routing errors : 0\n')
     (directory / 'check-timing-routed.rpt').write_text(
         'checking no_clock (0)\nchecking unconstrained_internal_endpoints (0)\n')
-    (directory / 'drc-routed.rpt').write_text('| example | Warning | retained warning |\n')
+    (directory / 'drc-routed.rpt').write_text(drc_report())
     groups = []
     for index in range(14):
         instance = 'axi_crossing_1' if index < 10 else 'csr_crossing_1'
@@ -86,6 +102,60 @@ def test_truncated_skew_detail_is_rejected(tmp_path):
         evaluate(directory)
 
 
+@pytest.mark.parametrize('severity', ['Warning', 'Advisory', 'Error', 'Critical Warning', None])
+def test_complete_drc_reports(tmp_path, severity):
+    evaluate, _ = tools()
+    directory = tmp_path / 'reports'
+    reports(directory)
+    rows = () if severity is None else (('TEST-1', severity, 2),)
+    (directory / 'drc-routed.rpt').write_text(drc_report(rows))
+    result = evaluate(directory)
+    assert result['checks']['drc'] == (severity not in ('Error', 'Critical Warning'))
+
+
+@pytest.mark.parametrize('mutation', ['empty', 'missing_summary', 'missing_details',
+                                     'summary_only', 'missing_row', 'wrong_summary_count',
+                                     'truncated_detail', 'missing_detail', 'duplicate_detail',
+                                     'wrong_severity', 'out_of_order', 'missing_context',
+                                     'partial_design', 'limited_checks'])
+def test_incomplete_drc_report_is_rejected(tmp_path, mutation):
+    evaluate, _ = tools()
+    directory = tmp_path / 'reports'
+    reports(directory)
+    text = drc_report()
+    if mutation == 'empty':
+        text = ''
+    elif mutation == 'missing_summary':
+        text = text.replace('1. REPORT SUMMARY', 'Missing summary')
+    elif mutation == 'missing_details':
+        text = text.replace('2. REPORT DETAILS', 'Missing details')
+    elif mutation == 'summary_only':
+        text = text.split('2. REPORT DETAILS')[0]
+    elif mutation == 'missing_row':
+        text = text.replace('| NOTE-1 | Advisory | Fixture diagnostic | 1 |\n', '')
+    elif mutation == 'wrong_summary_count':
+        text = text.replace('Checks found: 3', 'Checks found: 2')
+    elif mutation == 'truncated_detail':
+        text = text.rsplit('Related violations:', 1)[0]
+    elif mutation == 'missing_detail':
+        text = text.split('NOTE-1#1 Advisory')[0]
+    elif mutation == 'duplicate_detail':
+        text += '\nTEST-1#1 Warning\nDuplicate.\nRelated violations: <none>\n'
+    elif mutation == 'wrong_severity':
+        text = text.replace('NOTE-1#1 Advisory', 'NOTE-1#1 Warning')
+    elif mutation == 'out_of_order':
+        text = text.replace('TEST-1#2 Warning', 'TEST-1#3 Warning')
+    elif mutation == 'missing_context':
+        text = text.replace('| Design State : Fully Routed', '')
+    elif mutation == 'partial_design':
+        text = text.replace('Design limits: <entire design considered>', 'Design limits: selected cells')
+    elif mutation == 'limited_checks':
+        text = text.replace('Max checks: <unlimited>', 'Max checks: 1')
+    (directory / 'drc-routed.rpt').write_text(text)
+    with pytest.raises(ValueError, match='DRC'):
+        evaluate(directory)
+
+
 @pytest.mark.parametrize('failure_kind', [None, 'corrupt_input', 'interrupted', 'timing'])
 def test_routed_finalization_preflight(tmp_path, failure_kind):
     _, prepare = tools()
@@ -95,7 +165,7 @@ def test_routed_finalization_preflight(tmp_path, failure_kind):
     source.write_text('module frozen; endmodule\n')
     expected = hashlib.sha256(source.read_bytes()).hexdigest()
     (original / 'inputs.json').write_text(json.dumps({'source_revision': 'fixture', 'inputs': {'frozen.sv': expected}}))
-    (original / 'implement-exit.json').write_text(json.dumps({'exit_code': 1, 'interrupted': 15 if failure_kind == 'interrupted' else 0}))
+    (original / 'implement-exit.json').write_text(json.dumps({'exit_code': 1, 'interrupted': 15 if failure_kind == 'interrupted' else 0, 'timed_out': False}))
     (original / 'implement.log').write_text('completed route; verifier rejected total count\n')
     (original / 'routed.dcp').write_bytes(b'fixture routed checkpoint')
     if failure_kind == 'corrupt_input':
@@ -122,7 +192,7 @@ def test_abandoned_routed_recovery(tmp_path, monkeypatch, failure_kind):
     expected = hashlib.sha256(source.read_bytes()).hexdigest()
     (original / 'inputs.json').write_text(json.dumps({'source_revision': 'fixture', 'inputs': {'frozen.sv': expected}}))
     (original / 'progress.json').write_text(json.dumps({'stage': 'implement', 'pid': 123, 'running': True}))
-    (original / 'synthesize-exit.json').write_text(json.dumps({'exit_code': 1 if failure_kind == 'bad_synthesis' else 0, 'interrupted': 0}))
+    (original / 'synthesize-exit.json').write_text(json.dumps({'exit_code': 1 if failure_kind == 'bad_synthesis' else 0, 'interrupted': 0, 'timed_out': False}))
     (original / 'implement.log').write_text('route checkpoint and reports saved; bitstream producer interrupted\n')
     (original / 'routed.dcp').write_bytes(b'verified abandoned checkpoint')
     if failure_kind == 'corrupt_input':
@@ -165,7 +235,7 @@ def test_recovery_cli_excludes_its_own_wrapper(tmp_path):
     reports(original)
     (original / 'inputs.json').write_text(json.dumps({'source_revision': 'fixture', 'inputs': {}}))
     (original / 'progress.json').write_text(json.dumps({'stage': 'implement', 'pid': 123, 'running': True}))
-    (original / 'synthesize-exit.json').write_text(json.dumps({'exit_code': 0, 'interrupted': 0}))
+    (original / 'synthesize-exit.json').write_text(json.dumps({'exit_code': 0, 'interrupted': 0, 'timed_out': False}))
     (original / 'implement.log').write_text('completed routing; producer interrupted\n')
     (original / 'routed.dcp').write_bytes(b'fixture checkpoint')
     result = subprocess.run(['bash', '-c', '"$@"; result=$?; exit "$result"', 'wrapper',

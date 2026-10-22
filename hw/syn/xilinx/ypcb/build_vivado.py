@@ -63,12 +63,16 @@ def save(path, value):
 
 
 def run(command, directory, output, name, timeout):
+    if timeout <= 0:
+        raise ValueError('Stage timeout must be positive')
     started = time.monotonic()
+    timed_out = False
     with (output / (name + '.log')).open('w') as log:
         child = subprocess.Popen([str(item) for item in command], cwd=directory,
                                  stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         while child.poll() is None:
-            if interrupted or time.monotonic() - started >= timeout:
+            timed_out = time.monotonic() - started >= timeout
+            if interrupted or timed_out:
                 try:
                     os.killpg(child.pid, signal.SIGTERM)
                 except ProcessLookupError:
@@ -83,18 +87,22 @@ def run(command, directory, output, name, timeout):
                  'elapsed_seconds': time.monotonic() - started, 'running': True})
             time.sleep(1)
         result = child.wait()
+    elapsed = time.monotonic() - started
+    timed_out = timed_out or elapsed >= timeout
     save(output / (name + '-exit.json'), {'command': [str(item) for item in command],
-         'exit_code': result, 'interrupted': interrupted,
-         'elapsed_seconds': time.monotonic() - started})
-    if result != 0 or interrupted or time.monotonic() - started >= timeout:
-        save(output / 'progress.json', {'stage': name, 'running': False, 'exit_code': result, 'interrupted': interrupted})
+         'exit_code': result, 'interrupted': interrupted, 'timed_out': timed_out,
+         'elapsed_seconds': elapsed, 'timeout_seconds': timeout})
+    if result != 0 or interrupted or timed_out:
+        save(output / 'progress.json', {'stage': name, 'running': False, 'exit_code': result,
+             'interrupted': interrupted, 'timed_out': timed_out})
         raise RuntimeError(f'{name} failed; inspect {output / (name + ".log")}')
 
 
 def reuse_synthesis(original, output, manifest):
     original = original.resolve()
     receipt = json.loads((original / 'synthesize-exit.json').read_text())
-    if receipt['exit_code'] != 0 or receipt['interrupted']:
+    if (receipt.get('exit_code') != 0 or receipt.get('interrupted') != 0
+            or receipt.get('timed_out') is not False):
         raise ValueError('The reused synthesis must have a successful exit receipt')
     inputs = json.loads((original / 'inputs.json').read_text())['inputs']
     for name, digest in inputs.items():
@@ -159,6 +167,8 @@ def main():
     parser.add_argument('--threads', type=int, choices=range(1, 9),
                         default=min(8, os.cpu_count() or 1))
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error('Timeout must be positive')
     if args.reuse_synthesis and args.stage != 'all':
         raise ValueError('Reusing synthesis requires the implementation stage')
     build, output = args.build.resolve(), args.output.resolve()

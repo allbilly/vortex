@@ -100,7 +100,8 @@ def producer_receipt(image, inputs):
     if not path.is_file():
         raise ValueError('Image producer is not complete: missing ' + name)
     receipt = json.loads(path.read_text())
-    if receipt.get('exit_code') != 0 or receipt.get('interrupted') != 0 or receipt.get('timed_out', False):
+    if (receipt.get('exit_code') != 0 or receipt.get('interrupted') != 0
+            or receipt.get('timed_out') is not False):
         raise ValueError('Image producer did not finish successfully: ' + name)
     return {'file': name, 'sha256': digest(path), 'receipt': receipt}
 
@@ -242,7 +243,11 @@ def main():
             if digest(target) != expected:
                 raise ValueError('Hardware tool changed while snapshotting: ' + name)
         crc = json.loads(step('crc', [args.crc_checker.resolve(), bit], output, timeout=120))
-        if crc['status'] != 'ALL_PRESENT_CRC_CHECKPOINTS_MATCH' or crc['known_answer_vectors'] != 4:
+        if (crc['status'] != 'ALL_PRESENT_CRC_CHECKPOINTS_MATCH' or crc['known_answer_vectors'] != 4
+                or crc.get('crc_checkpoints', 0) < 2 or crc.get('crc_coverage_complete') is not True
+                or crc.get('startup_crc_checked') is not True
+                or crc.get('fdri_words_checked', 0) != crc.get('fdri_words')
+                or crc.get('fdri_words_checked', 0) <= 100000):
             raise ValueError('Bitstream integrity check did not pass')
         state['crc'] = crc
         if run_kernels:
