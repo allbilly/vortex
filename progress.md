@@ -1,12 +1,339 @@
-# Current Vortex status — October 22, 2026
+# Current Vortex status — October 23, 2026
+
+The five Git-review findings are fixed in local commit `236c21e6f`: PCIe
+mailbox reset cancellation, timeout receipts, full CRC coverage, complete DRC
+parsing, and the Blackwell DMA unit dependency. The combined suite passes
+153 tests. Both DMA profiles pass 787 cases with lint enabled; eight reset
+scenarios pass and reject the old RTL. Updated CRC/DRC tools accept both
+existing qualified images and reject the reproduced corrupt/incomplete inputs.
+
+The preceding full-profile image completed **all 53 physical commands**:
+all five basic example scripts (13 checks, 472 values), all 21 study cases,
+and all 22 square/rectangular tensor cases (36 launches, 13,824 values), with
+clean ECC. Its runner exited zero. The wrapper then detected two detached
+owned `cs_server` helpers; the failed queue and monitor receipts are retained.
+Service cleanup stopped every recorded process and released both leases.
+A separate full completion audit passed **457/457 checks**:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/completion-audit-20261023-v10-cleanup-recovery.json`.
+This qualifies the exact preceding image with SHA-256
+`3c3ac665c8403cc9fa203a7c89e551cb74092c26dec83b53c076a772610f6cc2`.
+The detached-vendor-child cleanup fix is tested (103 focused checks) and
+committed as `60563652f`.
+
+The reset fix changes hardware. A fresh, unchanged-feature Blackwell image is
+building in `build_ypcb_blackwell_fixed32/` with eight Vivado workers and no
+artificial memory cap. The complete board model compiled in 129 seconds;
+all 48 modeled PCIe/JTAG cases pass, with 1,566 independent checks in
+`board-validation-20261023-v1/completion-audit-v3.json`. The earlier auditor
+failures (atomic success-marker shape and optional destructor footer) are
+preserved. Fresh synthesis passed in 16 min 46 s; native implementation is
+active under `vortex-blackwell-reset-fixed-image-20261023-v2.service`. The v1 preflight
+failure (no native commands) is preserved; v2 correctly distinguishes seven
+inherited RTL hashes from two historical timing scripts. Runtime reuse binds
+87 exact files/39 kernels to the new image, preserving original build `e506`,
+validated core/runtime `eec6`, and new board source `236c21` separately.
+The fixed image still needs offline completion and its own full physical run.
+Current handles and evidence: `build_ypcb_blackwell_fixed32/goal-state.json`.
+
+The requested second parallel review covers 269 files. Its host checks pass
+224 CI tests and 19 offline queue-cancellation/admission checks. It found two
+additional hardware issues: the PIO command decoded ignored upper bytes,
+and bank-local LR/SC reservations allowed a hart to succeed twice after two
+LRs without a fresh LR between SCs. The PIO fix passes 51 new cases plus the
+existing regression. The coordinated LSU-level RTL/SimX reservation-lifetime
+fix also addresses false-alias reservation progress, CAS comparand forwarding,
+and duplicate local/global request delivery under asymmetric backpressure.
+Component and SimX tests pass; fresh full XRT qualification is in progress in
+`build_ypcb_blackwell_fixed32/review-fixes-source/`. The active frozen image uses `236c21e6f`; main also contains the tested
+host-only cleanup commit `60563652f`. Its physical queue is deliberately unarmed
+until the additional fixes are integrated and qualified; the existing build
+and 48-case model suite continue as a comparison baseline.
+
+## Preceding image history
+
+**Qualification boundary:** the physically tested full-profile image uses
+`eec6dd471` RTL plus the recorded placement/register-replication recipe. Commit
+`236c21e6f` adds a PCIe reset RTL fix that is not yet physically qualified.
+The additional memory/atomic/PIO fixes remain in the isolated checkout and are
+not included in this tested bitstream. The future full suite preserves all 53
+original commands and adds two LR/SC/CAS cases, for 55 commands.
 
 **Active goal: the full Blackwell-inspired FPGA suite and every example.**
-The third image failed final setup timing at **-0.384 ns**; hold passes at
-+0.013 ns, and the other six report gates pass. Synthesis took 26 min 32 s;
-implementation took 3 h 26 min 24 s (exit 1, uninterrupted). No Blackwell
-bitstream was generated or programmed. The physical queue stopped before
-hardware access. The original FP16/INT8 image remains physically qualified;
-full Blackwell-like physical execution is still pending.
+The image from frozen `eec6dd471` RTL plus the verified register-replication
+recipe now passes all seven offline report gates and CRC checks. It is loaded
+on the FPGA. The first physical run passed **10/53 complete command checks**: CRC,
+programming, DDR memory/DMA, scalar demo, scalar GEMM, `simple_add`, all seven
+elementwise operations, basic GEMM, convolution and pooling. All five basic
+examples pass: 13 numerical checks and 472 output values. Its FP16 study then
+exited zero and verified both launches with zero errors, but the wrapper falsely
+required a simulator-only `CONFIGS:` trace. The first full suite stopped on that
+checker error; it is not a GPU numerical failure. ECC was clean after each
+completed application. Its full SimX/XRT/examples run and both modeled
+interfaces passed independent audits. Full physical qualification remains open
+until every command and the independent completion audit pass.
+
+The checker now verifies frozen hardware flags separately from application
+datatype, geometry, numerical and retirement markers. A regression accepts the
+saved physical FP16 result and all 21 reference cases, and rejects wrong dtype,
+geometry, missing numeric launches/success, zero retirement and hardware-flag
+mismatch. No RTL, binary, workload or tolerance changed. The first failure and
+all successful results are preserved. Both previous leases and owned processes
+were verified released before restarting the **complete 53-command suite**.
+The same qualified bitstream was programmed successfully again; the corrected
+run has repeated CRC/programming, memory/DMA, scalar kernels and all five basic
+examples, then passed FP16, BF16, TF32, FP8, BF8, signed INT8, unsigned INT8
+and all eleven tensor-format studies, including MXFP8/MXBF8/MXFP4/NVFP4
+(**47/53**, all five basic examples, all 21 Blackwell studies and 16 format-matrix cases),
+with clean
+ECC. All 13 basic numerical checks and 472 outputs pass again. FP16 verifies
+both launches with zero errors, correct dtype/tile geometry, frozen image
+configuration flags and positive retirement. Its reports are 1,192 instructions
+/ 3,970 cycles and 2,384 / 7,994 cycles. BF16 also verifies both launches with
+zero errors and clean ECC; its final report is 2,384 instructions / 7,963
+cycles. TF32 also passes both launches with zero errors and clean ECC; its
+final report is 4,120 instructions / 12,573 cycles. FP8 passes both launches
+with zero errors and clean ECC; its final report is 1,528 instructions / 5,610
+cycles. BF8 also passes both launches with zero errors and clean ECC; its final
+report is 1,528 instructions / 5,594 cycles. Signed INT8 passes both launches
+with zero errors and clean ECC; its final report is 1,528 instructions / 5,653
+cycles. Unsigned INT8 also passes both launches with zero errors and clean ECC;
+its final report is 1,528 instructions / 5,647 cycles. Block-scaled MXFP8 passes
+numerical checks and clean ECC, retiring 856 instructions in 3,259 cycles.
+MXBF8 also passes numerical checks and clean ECC, retiring 856 instructions
+in 3,300 cycles. MXFP4 passes numerical checks and clean ECC, retiring 560
+instructions in 2,241 cycles. NVFP4 passes numerical checks and clean ECC,
+retiring 612 instructions in 2,351 cycles. All eleven format-study logs passed
+an independent dtype/configuration/geometry/launch/retirement/ECC audit:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/fpga-study-kernels-20261022-v10/tensor-formats-study-phase-audit.json`.
+Sparse FP16 also passes the application's unchanged numerical criteria and
+clean ECC, retiring 968 instructions in 3,646 cycles. Block-scaled sparse also
+passes numerical checks and clean ECC, retiring 756 instructions in 3,046
+cycles. WGMMA passes its unchanged numerical criteria (maximum drift 5 ULP
+within the 12 ULP bound at K=64) and clean ECC, retiring 14,684 instructions
+in 36,817 cycles. Block-scaled WGMMA passes numerical checks and clean ECC,
+retiring 7,760 instructions in 23,350 cycles. Copy verifies all 1,024 elements
+and clean ECC, retiring 9,248 instructions in 23,782 cycles. Multicast passes
+numerical checks and clean ECC, retiring 1,913 instructions in 4,660 cycles.
+Combined copy/tensor pipeline passes its unchanged numerical criteria (5 ULP
+within bound 12 at K=64) and clean ECC, retiring 1,328 instructions in 8,614
+cycles. Sparse pipeline passes its unchanged numerical criteria (3 ULP within
+bound 12 at K=64) and clean ECC, retiring 1,596 instructions in 7,290 cycles.
+All 17 atomic checks pass with 64 harts and clean ECC; final counters are 52,139
+instructions / 2,643,857 cycles. Cache reuse also passes both launches and clean
+ECC, retiring 2,384 instructions in 8,122 cycles. All 21 studies and all five
+basic examples pass an independent physical audit of numerical markers, flags,
+arguments, binary hashes, retirement, all 17 atomics and ECC:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/fpga-study-kernels-20261022-v10/all-examples-studies-phase-audit.json`.
+The separate 22-case square/rectangular format matrix is now running:
+**16/22 cases pass**. The dense FP16, BF16, TF32, FP8, BF8, signed INT8
+and unsigned INT8 square/rectangular pairs all pass both launches, checking
+512 outputs per square case and 1,024 per rectangular case, with clean ECC.
+The latest completed case is `format-mxfp8-rectangular`. The full 53-command suite
+and final completion/lease-release audit remain incomplete.
+
+The October 23 parallel Git review covers all 266 committed files plus this
+working-tree handoff. It found four concrete tooling/PCIe reset bugs and one
+Blackwell-profile unit-test package gap. All reproductions, per-file coverage
+and passing checks are in
+`build_ypcb_blackwell32/git-diff-review-20261023-v1/review.md`
+and its `manifest.json`. No fixes have been applied during the active run.
+The current original bitstream retains both CRC checkpoints, a complete DRC
+report and normal producer completion. The delayed PCIe reset response fix
+requires a later image rebuild; it does not affect uninterrupted JTAG runtime.
+
+The repeated demo retired 4,888
+instructions in 35,903 cycles; GEMM retired 3,840 in 7,343 cycles. All 37
+`simple_add` outputs matched exactly.
+Current run:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/fpga-study-kernels-20261022-v10/manifest.json`.
+Checker regression and failure diagnosis:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/study-checker-regression-20261022-v10/manifest.json`,
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/harness-failure-disposition-20261022-v9.json`.
+The general rule is documented in commit `9b50ceef1`.
+
+Qualified bitstream:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/blackwell-cache-register-replicated-20261022-v7/vortex_ypcb.bit`,
+18,735,205 bytes, SHA-256
+`3c3ac665c8403cc9fa203a7c89e551cb74092c26dec83b53c076a772610f6cc2`.
+Final setup/hold are **+0.001 ns / +0.020 ns**, with zero failing setup, hold
+or pulse endpoints. Both CRC checkpoints and four known-answer vectors pass.
+The successful native reroute/optimization/bitstream command took **52 min 56 s**,
+reusing the proven synthesis. The offline independent audit is
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/offline-completion-audit-20261022-v9.json`.
+
+SRAM status is `INIT=1 DONE=1 IDCODE=23751093`; no flash was written. Actual
+CH1 calibration reported all nine lanes, and memory/DMA verified four distinct
+8 KiB regions spanning the 2 GiB address window with no aliases. ECC is enabled,
+corrected/uncorrectable errors are both zero. The physical demo retired 4,888
+instructions in 35,521 cycles; scalar GEMM retired 3,840 in 7,570 cycles, with
+verified numerical outputs. Preserved first-run physical results:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/fpga-study-kernels-20261022-v9/manifest.json`.
+The final routed DSP query records 312 DSPs, including all 32 integer DSPs
+with PREG=1:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/final-dsp-mapping-20261022-v9/manifest.json`.
+
+The fourth full image (`e50658fba`) completed and failed final setup timing at
+**-0.824 ns**, TNS -5122.822 ns, 18,055 setup endpoints. Hold passes at +0.030 ns;
+the other six report gates pass. Implementation exited 1 without interruption
+in 2 h 23 min 37 s, following 17 min 31 s synthesis. No Blackwell bitstream was
+generated or programmed. The physical queue stopped before hardware access.
+The original FP16/INT8 image remains the physically qualified fallback.
+
+The final worst path is integer multiplication from an issue-queue register to
+a 33-by-33 signed multiplier's first output register: 8.386 ns data delay,
+10 logic levels including two DSPs and seven CARRY4s. The initial routed worst
+path was L2-cache address distribution: a single net drove 512 loads with
+5.09 ns wire delay. The final failure and exact paths are preserved in
+`build_ypcb_blackwell32/fourth-image-final-disposition-20261022-v1/`.
+
+A copied checkpoint received **27 additional LUT address drivers**, proven in
+pre-route mode with unchanged clock/port definitions. All 828 original frozen
+inputs were retained. The physical-only reroute completed with eight workers,
+no memory cap, and full post-route/report gates in
+`build_ypcb_blackwell32/blackwell-cache-replicated-20261022-v5/`;
+its producer was `vortex-blackwell-cache-replicated-image-20261022-v6.service`.
+After three post-route passes it failed final setup at **-0.408 ns**, TNS
+-916.077 ns, 6,672 endpoints; hold passes at +0.031 ns and the other six gates
+pass. Native implementation exited 1 without interruption in 2 h 52 min 17 s.
+The final worst path is still integer multiplication: 8.108 ns data delay,
+15 levels including 12 CARRY4s and two DSPs. All 834 frozen inputs and the final
+checkpoint ZIP were independently checked. No bitstream or physical run was
+produced. Final disposition:
+`build_ypcb_blackwell32/cache-replicated-final-disposition-20261022-v1/manifest.json`.
+
+An isolated registered-partial-product integer multiplier retains the selected
+three-cycle latency. After correcting a narrow-output CSA-helper limit, all
+**16 configurations / 1.6 million frames** pass against both the original RTL
+and an arbitrary-precision reference. Selected-geometry routed setup improves
+from **+2.144 ns to +4.237 ns** with the caller's actual conditional sign
+extension and 64 used output bits. Both variants use four DSPs; routed PREG
+changes from 0 to 1 in each DSP. Prototype evidence is preserved under
+`build_ypcb_blackwell32/integer-partial-pipeline-study-20261022-v2/`.
+The validated repair is now applied on `ypcb` at `eec6dd471`. The active build
+retains its isolated source worktree and frozen inputs.
+
+The cache-only hardware queue stopped before hardware access on the timing
+failure. Its runtime artifacts are retained, and their validated reuse is
+recorded in the repaired-source preparation below. No new image was programmed.
+
+The verified integer repair is also prepared in a separate detached source
+worktree at `build_ypcb_blackwell32/next-intmul-source/`, commit `eec6dd471`.
+The main `ypcb` checkout was fast-forwarded to `eec6dd471`; it now also contains
+the build-tool-only register-driver fix `602532f98`. The active image retains
+its frozen `eec6dd471` RTL. The isolated checkout adds the
+three-cycle registered-partial option for RV32, a pre-route cache-address
+replication hook, and a public **17-case / 1.7-million-frame** multiplier matrix;
+public tests and catalog lint pass. New-source full integration is running in
+its `build_ypcb_blackwell32/repaired-integration-20261022-v5/`; all eleven tensor
+formats and all 21/21 XRT studies now pass, followed by all 22 XRT format cases
+and all five basic examples (13 CPU checks, 472 outputs). An independent XRT
+audit checks numerical/atomic success and exact frozen-source bindings. The
+full new-source SimX/XRT run now passes **57/57 steps**, all 21 studies per
+driver, all 44 format cases and all five basic examples on both drivers
+(26 CPU checks, 944 outputs). The independent completion audit passes.
+CAD v8 passed synthesis in **20 min 57 s** (native exit 0, uninterrupted) and
+started implementation. Utilization is 239,210 LUTs (80.11%), 146,163 registers,
+509 BRAM tiles and 312 DSPs; all selected features remain enabled. Synthesis
+checkpoint SHA-256 is
+`9d9fd1fc1288ffa151ebfb63190a99f3120abdebef7285c3d6ca217bdeb0d3e7`.
+Its independent source/checkpoint audit passes. Initial routing completed at
+**-0.276 ns setup / +0.018 ns hold**, TNS -26.679 ns, 337 failing setup
+endpoints. The worst path is now data-cache MSHR RAM to data-BRAM enable:
+7.994 ns data delay, 14 LUT levels, 70% wire delay. Integer multiplication is
+no longer the worst path. Three post-route passes completed at **-0.179 ns**,
+**-0.154 ns** and **-0.148 ns** setup respectively. The final report still
+fails setup: TNS -11.186 ns, 215 endpoints; hold passes at +0.018 ns, and the
+other six gates pass. Implementation exited 1 without interruption in
+2 h 10 min 25 s; with synthesis, total native CAD time was about 2 h 31 min
+22 s. No bitstream or physical run was produced. Final disposition:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/final-disposition-20261022-v1/manifest.json`.
+Evidence:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/initial-route-timing-observation-v1.json`.
+Pre-route cache replication added 27 LUT drivers across three 512-load nets.
+The pre-route report is -0.427 ns setup / -0.550 ns hold; these are estimates
+before routing. The worst estimated path is memory-response buffer control,
+with 89% wire delay.
+At 19:56 HKT, board-model v8 passed **48/48 interface cases / 46 GPU workloads**,
+including all eleven tensor formats and both complete 17-operation atomic
+suites. All 55 command receipts exited zero. The independent completion audit
+passes **195 checks**, binding nine source files, the exact model library,
+87 runtime artifacts and 39 kernels to the frozen image. These tests use
+DDR/PHY and memory oracles; they are not physical-board evidence. The original
+new-source build's scope and evidence map is
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/full-suite-plan-20261022-v8.json`.
+All 811 frozen image inputs and nine source bindings were checked, including
+the selected partial-product pipeline and pre-route cache hook. The first attempt's
+missing dependency-header failure is preserved; the retry links the existing
+Ramulator dependency headers. The cache-only predecessor has now failed before
+hardware access, and this repaired source's full physical suite is queued.
+
+The repaired source's 87 runtime artifacts / 39 kernels are prepared in its
+`build_ypcb_blackwell32/hardware-preparation-20261022-v8/`. Reuse is explicit:
+software/tests/profiles and generated headers are byte-identical to the prior
+validated runtime, and all 21 newly tested executable/kernel pairs match it.
+The new preparation records inherited build receipts and the exact new image
+input hash. That attempt's hardware queue stopped before hardware access on
+the final timing failure; the files are reused explicitly by the new route.
+All four successor physical-runner/audit scripts are also prepared and syntax
+checked, retaining the full 53-command scope. Their manifest is
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/physical-runner-preparation-20261022-v8.json`.
+These v8 scripts were armed, then stopped before hardware access when the image
+failed final setup. Their original arming proof remains preserved:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/hardware-queue-20261022-v8/arming-evidence.json`.
+The new-source runtime preflight independently rechecked all 811 frozen image
+inputs, nine source bindings, 87 runtime files and 39 kernel layouts against
+the full 53-command plan. It passes in
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/physical-readiness-preflight-v1.json`.
+The replacement physical suite remained gated on final setup/hold, all other
+report checks and bitstream integrity; it started only after those passed.
+
+The final worst path is directly from an L2 address register to BRAM address:
+7.439 ns data delay, of which 7.216 ns (97%) is wire delay, with no logic
+levels. Ten such register drivers each feed 512 BRAM loads. A bounded
+`AlternateReplication` trial completed natively in 6 min 40 s but left timing
+and the driver inventories unchanged; its result remains unqualified.
+
+A fully unrouted copy of the final checkpoint now has **90 additional FDRE
+cells** across the ten address drivers. Native preparation exited zero without
+interruption; register count increases from 147,241 to 147,331, original-net
+load counts fall from 512 to 10, and logical clock/port definitions are
+unchanged. The original checkpoint and all 811 source inputs remain intact.
+Preparation proof:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/cache-address-register-replication-20261022-v1/manifest.json`.
+
+The successful reroute is saved in
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/blackwell-cache-register-replicated-20261022-v7/`,
+producer `vortex-blackwell-cache-register-image-20261022-v9.service` (completed).
+Initial routing completed at **-0.106 ns setup / +0.020 ns hold**, TNS
+-1.948 ns, 59 setup endpoints. The new worst path is cache-tag RAM to dirty-bit
+write enable; directly registered data addresses are no longer the worst path.
+Post-route optimization reached **+0.001 ns** setup, with hold at +0.020 ns.
+All final gates and CRC checks passed before SRAM programming.
+Evidence:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/register-reroute-initial-timing-20261022-v9.json`.
+All 826 frozen inputs and the unchanged 87 runtime files / 39 kernels were
+independently checked. All 53 physical commands and the independent audit are
+attached to this attempt; the physical suite is now running, while failed
+predecessors stopped before hardware access.
+The auditor checks both real native command ancestry and the register-replication
+proof. Current scope/evidence map:
+`build_ypcb_blackwell32/next-intmul-source/build_ypcb_blackwell32/full-suite-plan-20261022-v9.json`.
+The public helper now covers both LUT and flip-flop drivers, committed on
+`ypcb` as **602532f9857f290a51b59060fe3973925574e3e6**. Its native full-profile
+fixture selected all 13 drivers, added 27 LUTs and 90 registers, and preserved
+clock/port definitions. The preserved fixture's 15 cache RTL files are
+byte-identical to current source. RTL, software, examples, profiles and their
+configuration files are unchanged by this build-tool commit. The active route
+retains the frozen `eec6dd471` source plus its verified physical recipe.
+Fixture and independent audit:
+`build_ypcb_blackwell32/public-cache-address-validation-20261022-v2/`.
+
+Source promotion preserved all three documentation files byte-for-byte and
+retained rollback stash `8889384034ec92f667e7e50f53dd19d3318d9397`. `master` and
+`origin/master` remain at `7b67f0210`. The main generated build was reconfigured;
+all four configuration/type headers retained their bytes and timestamps.
+Promotion receipts and documentation backups are in
+`build_ypcb_blackwell32/source-promotion-20261022-v1/`.
 
 The selected repair maps the NVFP4 unregistered 2x2 mantissa and 4x4 scale
 products into LUTs to remove two serial DSP48 delays, and precomputes FP4
@@ -24,17 +351,95 @@ the exact tested source ancestry. A public selector matrix passed 400,000
 frames, and CI catalog lint passed 669 cases across 36 categories. Evidence:
 `build_ypcb_blackwell32/nvfp4-single-dsp-stage-20261022-v1/validation-audit.json`.
 
+The cache-only reroute exposes a 19-level NVFP4 exponent-ordering path, with
+75% of its 8.377 ns data delay in routing. A new off-tree prototype factors
+the shared scale offset out of the four-term exponent comparison. NVFP4's
+valid biased exponents remain in 10..44, so the six-bit sum cannot wrap;
+the all-invalid result retains its original exponent. Six universal arithmetic
+lemmas, eight reference variants / 800,000 component frames, and 100,000
+stalled full-profile PE frames across all eleven formats pass. The independent
+functional audit passes. No running source snapshot is changed and latency
+remains five cycles. The fresh selected-geometry routed setup improves from
+**+0.467 ns to +0.937 ns**; a separate query of all 15 exponent-ordering
+registers confirms **+0.482 ns** improvement at that stage. The candidate saves
+688 LUTs and 48 registers per PE, with 32 DSPs in each variant. Actual routed
+DSP MREG/PREG values are zero in both; no register absorption is assumed.
+Worst isolated hold is -0.303 / -0.336 ns from the format input port, and does
+not establish whole-board hold qualification. The independent functional and
+timing audit passes. This candidate remains unapplied. Evidence is in
+`build_ypcb_blackwell32/nvfp4-shared-exponent-study-20261022-v1/`.
+
 **User changed the resource preference: no RAM saving is required.** New
 native builds use all eight CPU workers, with no Vortex systemd memory cap.
 Both effective Vivado limits were checked at eight. The builder records its
 worker count, and the native wrapper, board-model compilation and study
 runner now honor `THREADS` instead of forcing a single worker.
 
-Fresh full-profile SimX/XRT validation, both modeled interface suites, a new
-whole-board image, and all 53 physical commands are the next required steps.
-The previously completed 57-step SimX/XRT and 48-case modeled-interface
-results belong to `f7a3fca06`, before this newly applied repair. They are
-preserved below and do not establish completion of the new source.
+Fresh full-profile SimX/XRT validation of `e50658fba` now passes all 57 steps:
+21 studies per driver, all 44 format cases and all five basic examples per
+driver (26 CPU checks, 944 outputs). Both complete 17-test atomic suites pass.
+An independent audit verifies current backend hashes and the exact source
+binding to all 828 frozen image inputs, including all three changed PE exports.
+Receipts: `build_ypcb_blackwell32/repaired-integration-20261022-v3/` and
+`build_ypcb_blackwell32/new-image-source-binding-20261022-v5.json`.
+
+The failed fourth image passed synthesis in **17 min 31 s** (exit 0, uninterrupted) with
+eight effective Vivado workers and completed implementation in
+`build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261022-v4/`.
+The synthesis checkpoint SHA-256 is
+`953fdcefe4336ef25e83101d526da5d60f3a7ccf049592d20f40f83452810fd1`.
+Resource use is 238,855 LUTs (79.99%), 146,419 registers, 509 BRAM tiles and
+312 DSPs (80 fewer DSPs than the previous image). All selected features remain
+enabled. Placement completed in **19 min 15 s**. Its setup estimate is
+**-1.012 ns**, with hold -0.550 ns; the worst setup path is scalar FPU divider
+normalization (conversion register to normalization register), with 19 logic
+levels and 8.706 ns data delay, 86% estimated routing. Pre-route physical
+optimization completed at **-0.583 ns setup / -0.547 ns hold** and routing has
+started during that completed run. The worst pre-route path was scalar FMA alignment, with 11 logic levels
+and 8.422 ns data delay (81% estimated routing). These are estimates; final
+routed setup, hold and the other report gates remain required. Exact paths and report hash:
+`build_ypcb_blackwell32/fourth-image-placement-timing-20261022-v1.json`.
+The pre-route paths are in
+`build_ypcb_blackwell32/fourth-image-preroute-timing-20261022-v1.json`.
+The fresh board model passed **48/48 modeled interface cases**, including all
+46 GPU cases, all eleven formats on both interfaces and both complete 17-test
+atomic suites. All 55 build/test steps exited zero. An independent audit
+checks the exact model library, source revision, frozen image and all 87
+prepared runtime artifacts. These are modeled results with DDR/PHY oracles.
+Evidence: `build_ypcb_blackwell32/board-validation-20261022-v6/completion-audit.json`.
+The image-bound runtime is prepared with 87 host artifacts
+and 39 kernels. All 53 physical commands and the independent audit are queued
+behind final timing/report/CRC success and both modeled interfaces. No
+Blackwell image has been programmed. Current ownership and receipts are in
+`build_ypcb_blackwell32/session-state.json`; the full retained scope is in
+`build_ypcb_blackwell32/full-suite-plan-20261022-v5.json`.
+
+An isolated scalar-divider follow-up moves subnormal-shift controls into the
+existing conversion register, preserving its 17-cycle latency. It passed
+1,002,530 bit-exact FP32 SoftFloat result/flag checks. Its exact-profile initial
+route comparison improved setup from +0.588 ns to **+1.389 ns**; diagnostic
+IO hold is -0.245/-0.261 ns. The selected geometry is FLEN=32, latency=17.
+Both native exits and checkpoint integrity were checked. Evidence is under
+`build_ypcb_blackwell32/fpu-denorm-control-study-20261022-v1/`.
+This candidate is not applied to the repository or either image. The
+physical-only cache reroute retains its frozen RTL; the scalar follow-up
+is available for review if final timing still needs repair.
+
+A second isolated follow-up precomputes FMA exponent alignment controls before
+the existing multiply-delay registers. It preserves the selected eight-cycle
+latency. All four latency-7/8, LUT/DSP variants pass **5,645,360 bit-exact
+SoftFloat result/flag checks**. Its selected-profile initial-route comparison
+measured overall setup +0.941/+0.919 ns, limited by normalization-to-rounding
+in both variants. A targeted alignment-register query improved that stage
+from **+1.481 ns to +3.323 ns**. Both variants retain two routed DSPs with
+MREG/PREG=0 after optimization; absorption is not assumed. Receipts and the
+independent source/checkpoint audit are in
+`build_ypcb_blackwell32/fma-align-control-study-20261022-v1/`.
+This candidate is also unapplied; the cache-replicated reroute uses frozen
+`e50658fba` RTL inputs. Further source changes depend on measured critical paths.
+
+The older 57-step SimX/XRT and 48-case modeled-interface results below belong
+to `f7a3fca06`, before this newly applied repair. They are preserved as history.
 
 ## Historical implementation and validation records
 
