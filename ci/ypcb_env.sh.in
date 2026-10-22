@@ -21,8 +21,9 @@ native_exec() {
         printf '%s\n' 'Run ./ci/ypcb_env.sh setup to create the uv environment.' >&2
         return 1
     fi
+    local worker_count=${THREADS:-$(getconf _NPROCESSORS_ONLN)}
     local -a environment=("PATH=$build_dir/.venv/bin:$tool_dir/verilator/bin:$PATH"
-                          "CONFIGS=${CONFIGS:-}" "THREADS=1")
+                          "CONFIGS=${CONFIGS:-}" "THREADS=$worker_count")
     local include_paths=${CPLUS_INCLUDE_PATH:-}
     local library_paths=${LIBRARY_PATH:-}
     for dependency in uuid libpng; do

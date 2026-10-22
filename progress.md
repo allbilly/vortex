@@ -1,6 +1,89 @@
 # Current Vortex status — October 22, 2026
 
 **Active goal: the full Blackwell-inspired FPGA suite and every example.**
+The third image failed final setup timing at **-0.384 ns**; hold passes at
++0.013 ns, and the other six report gates pass. Synthesis took 26 min 32 s;
+implementation took 3 h 26 min 24 s (exit 1, uninterrupted). No Blackwell
+bitstream was generated or programmed. The physical queue stopped before
+hardware access. The original FP16/INT8 image remains physically qualified;
+full Blackwell-like physical execution is still pending.
+
+The selected repair maps the NVFP4 unregistered 2x2 mantissa and 4x4 scale
+products into LUTs to remove two serial DSP48 delays, and precomputes FP4
+exponent ordering across the existing product seam. Registered scaled
+products retain DSP selection. All formats, the five-cycle TFR pipeline,
+125 MHz, 1 MiB L2, both interfaces and CH1 2 GiB ECC are retained.
+
+Before applying it, all eight scale-aware component variants passed 800,000
+frames, and 100,000 complete N=2/SF=2 tensor-unit frames across all eleven
+formats matched the previous RTL bit-for-bit with masks, scales and stalls.
+Isolated initial-route setup improved from +0.323 ns to **+0.467 ns**.
+The isolated IO hold result (-0.303 ns) is not whole-board qualification.
+Five ordering lemmas and the prior eight arithmetic lemmas remain bound to
+the exact tested source ancestry. A public selector matrix passed 400,000
+frames, and CI catalog lint passed 669 cases across 36 categories. Evidence:
+`build_ypcb_blackwell32/nvfp4-single-dsp-stage-20261022-v1/validation-audit.json`.
+
+**User changed the resource preference: no RAM saving is required.** New
+native builds use all eight CPU workers, with no Vortex systemd memory cap.
+Both effective Vivado limits were checked at eight. The builder records its
+worker count, and the native wrapper, board-model compilation and study
+runner now honor `THREADS` instead of forcing a single worker.
+
+Fresh full-profile SimX/XRT validation, both modeled interface suites, a new
+whole-board image, and all 53 physical commands are the next required steps.
+The previously completed 57-step SimX/XRT and 48-case modeled-interface
+results belong to `f7a3fca06`, before this newly applied repair. They are
+preserved below and do not establish completion of the new source.
+
+## Historical implementation and validation records
+
+The following records describe the completed third image and earlier work.
+Current source is `f7a3fca06` on `ypcb`. Fresh full-profile SimX/XRT revalidation
+passed all 57 command steps: 21 studies per driver, 44 format cases and all five
+basic examples per driver (26 CPU checks, 944 outputs). The new board model
+passed all 48 modeled JTAG/PCIe cases, including 46 GPU cases and both complete
+17-test atomic suites. All 55 build/test step exits are zero; the model library
+hash matches its fresh compilation receipt. These remain simulations with
+DDR/PHY response oracles.
+
+The third image passed synthesis in 26 min 32 s (exit 0, no interruption) and
+is implementing in
+`build_ypcb_blackwell32/blackwell-ch1-jtag-pcie-20261022-v3/` with one worker and
+an 8 GiB cap. DSPs remain 392, block RAM tiles 509 and registers 146,299;
+the full selected configuration is retained. Its 826 frozen inputs include the exact preprocessed FP4 export
+measured in the isolated comparison. All 87 prepared runtime artifacts and 39
+kernel layouts were verified against the new image. The complete 53-command
+physical suite and independent audit are queued behind final CAD/report/CRC
+success and both modeled interface suites. No Blackwell image has been programmed.
+
+Placement completed. Its setup estimate is -0.989 ns (previous image: -2.573 ns
+at placement), with -0.550 ns hold. The worst reported setup path runs from
+the data-cache MSHR RAM into a cache-data RAM address. Pre-route physical
+optimization then improved setup to -0.556 ns, TNS -1195.367 ns. Routing is
+running; these estimates do not qualify the image. Evidence:
+`build_ypcb_blackwell32/third-image-placement-timing-20261022-v1.json`.
+The pre-route report and paths are in
+`build_ypcb_blackwell32/third-image-preroute-timing-20261022-v1.json`.
+
+Current owners and receipts:
+
+- `vortex-blackwell-repaired-board-20261022-v5.service`:
+  `build_ypcb_blackwell32/board-validation-20261022-v5/manifest.json`
+- `vortex-blackwell-vivado-20261022-v4.service`:
+  `build_ypcb_blackwell32/vivado-build-20261022-v4/manifest.json`
+- `vortex-blackwell-qualified-image-and-fpga-20261022-v4.service`:
+  `build_ypcb_blackwell32/hardware-queue-20261022-v4/manifest.json`
+- `vortex-blackwell-hardware-audit-20261022-v4.service`:
+  `build_ypcb_blackwell32/hardware-audit-monitor-20261022-v4/manifest.json`
+
+The current complete plan is
+`build_ypcb_blackwell32/full-suite-plan-20261022-v4.json`; the runtime is in
+`hardware-preparation-20261022-v4/`, and physical results will be saved in
+`fpga-study-kernels-20261022-v4/` under the same build root. Current machine
+state and live worker identities are in `build_ypcb_blackwell32/session-state.json`.
+
+The preceding failed image and repair evidence follow as history.
 The second Blackwell implementation finished and failed final setup timing:
 **-1.061 ns**, TNS -4716.820 ns, 13,512 failing endpoints. Hold passes at
 +0.021 ns. The implementation exited 1 without interruption after 4 h 04 min
@@ -12,10 +95,12 @@ carry-save reduction, and detect exact zero directly from the carry-save
 outputs instead of waiting for the final addition. Eight universal lemmas and
 all eight scale-aware RTL variants pass: 800,000 frames, 4.8 million lane checks.
 All formats, five tensor stages and the 125 MHz target are unchanged. Full GPU
-revalidation and another qualified image remain required. Repair evidence:
+revalidation has now passed; a qualified whole-board image remains required. Repair evidence:
 `build_ypcb_blackwell32/fp4-carry-save-zero-study-20261022-v1/validation-audit.json`.
-An isolated whole-PE timing comparison is running at its initial routed stage
-under a 2 GiB cap. The previous diagnostic's optional post-route optimization
+The isolated whole-PE initial-route comparison completed under a 2 GiB cap:
+setup improved from -0.304 ns to +0.256 ns. Its hold results are -0.336/-0.303 ns;
+this diagnostic does not establish whole-board timing qualification.
+The previous diagnostic's optional post-route optimization
 hit a Vivado segmentation fault (exit 139), not a memory-limit kill. The failed
 run and crash report remain preserved; both comparison variants now use the
 same initial-route measurement stage. Whole-board qualification gates are unchanged.

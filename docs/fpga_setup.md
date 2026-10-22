@@ -22,6 +22,14 @@ including inherited profiles, require `configure` so generated headers and
 compiler flags describe the same machine. Unchanged generated contents retain
 their timestamps. Existing scalar hardware results do not qualify this image.
 
+Isolated tensor timing checks must derive `N` from `TCU_WG_FEDP_K` and `SF` from
+`TCU_MX_MAX_SF`, as the core does. Sparsity can increase the scale-slot count
+without increasing the dot-product width. Verify the elaborated parameters,
+clock period and constraints before comparing results. Inspect DSP48 `MREG`
+and `PREG` after synthesis and again after routing: physical optimization can
+move an inferred product register back into fabric. A `use_dsp` annotation or
+register depth in the source does not establish the final primitive mapping.
+
 Optional extensions also need their packages and module search paths in both
 the standalone export and board model. DXA requires `hw/rtl/dxa` and
 `VX_dxa_pkg.sv`; its types import the core package. `gen_sources.sh` retains
@@ -94,6 +102,11 @@ For a low-memory run, set both `general.maxThreads` and `synth.maxThreads`
 to the chosen worker count. They are independent limits; changing only the
 general setting can leave synthesis using several worker processes. Run large
 simulation compilations and implementation stages sequentially.
+
+The YPCB Vivado builder defaults to the host CPU count, capped at eight workers.
+Use `build_vivado.py --threads=1` to reduce it. The input receipt records the
+selected count, and each stage prints both effective Vivado limits. Native
+simulation builds use `THREADS`, defaulting to the host CPU count.
 
 Use `synth_ip` only in the non-project flow, initialized with `set_part`.
 A disk-backed `create_project` requires `create_ip_run` and `launch_runs`;

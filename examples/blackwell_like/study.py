@@ -105,7 +105,8 @@ def main():
     wrapper = build / 'ci/ypcb_env.sh'
     if not wrapper.is_file():
         parser.error('Re-run configure to generate the YPCB native wrapper')
-    env = dict(os.environ, THREADS='1', OMP_NUM_THREADS='1', MALLOC_ARENA_MAX='2',
+    workers = os.environ.get('THREADS', str(os.cpu_count() or 1))
+    env = dict(os.environ, THREADS=workers, OMP_NUM_THREADS=workers, MALLOC_ARENA_MAX='2',
                STARTUP_ADDR='0x40000000', CONFIGS='')
     for name in ('DEBUG', 'SCOPE', 'CHIPSCOPE', 'VORTEX_DRIVER'):
         env.pop(name, None)
@@ -140,7 +141,7 @@ def main():
 
     try:
         for target in ('sw/kernel', 'sw/runtime/stub', 'sw/runtime/' + options.driver):
-            command = ['make', '-j1', '-C', target]
+            command = ['make', '-j' + workers, '-C', target]
             if options.driver == 'xrt' and target.endswith('/xrt'):
                 command += ['TARGET=xrtsim']
             run(command, output / (target.replace('/', '-') + '.log'))
@@ -151,7 +152,7 @@ def main():
             case_configs = ' '.join((configs, *case.configs))
             print(f'{name}: profile={profile}, driver={options.driver}; {case.description}', flush=True)
             print('  kernel:', root / 'tests/regression' / case.project / 'kernel.cpp', flush=True)
-            run(['make', '-j1', '-C', 'tests/regression/' + case.project], directory / 'build.log',
+            run(['make', '-j' + workers, '-C', 'tests/regression/' + case.project], directory / 'build.log',
                 overrides={'CONFIGS': case_configs})
             for filename in (case.project, 'kernel.vxbin'):
                 shutil.copy2(build / 'tests/regression' / case.project / filename, directory / filename)

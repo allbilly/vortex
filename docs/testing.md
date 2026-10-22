@@ -70,6 +70,7 @@ generator does not model. Use the scale-aware multiplier test:
 ```bash
 make -j1 -C hw/unittest/tcu_f4_mul run-matrix
 make -j1 -C hw/unittest/tcu_mx_index run
+make -j1 -C hw/unittest/tcu_masked_max_exp run-matrix
 ```
 
 The multiplier matrix checks MXFP4/NVFP4 products, exact cancellation, lane
@@ -79,6 +80,11 @@ independent integer reference. The indexing test checks all 32 format codes,
 small tile sizes and full-width overflow boundaries against division-based
 formulas. The scaled GEMM cases in `ci/testcases/tensor_mx.yaml` cover full
 GPU integration.
+
+The masked exponent selector matrix checks five/nine candidates, zero/one
+pipeline stages, arbitrary late cancellation masks and stalled enables against
+a linear maximum search. Ties select the first candidate, including all-zero
+inputs. Each variant checks 100,000 frames.
 
 ## Creating Your Own Regression Test
 

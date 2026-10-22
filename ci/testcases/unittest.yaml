@@ -43,6 +43,10 @@ tests:
     via: script
     run: "make -j1 -C hw/unittest/tcu_f4_mul run-matrix"
     touches: [hw/rtl/tcu/tfr/VX_tcu_tfr_mul_f4.sv, hw/rtl/tcu/tfr/VX_tcu_tfr_wmul.sv, hw/unittest/tcu_f4_mul]
+  - id: hw-tcu-masked-max-exp
+    via: script
+    run: "make -j1 -C hw/unittest/tcu_masked_max_exp run-matrix"
+    touches: [hw/rtl/tcu/tfr/VX_tcu_tfr_masked_max_exp.sv, hw/rtl/tcu/tfr/VX_tcu_tfr_shared_mul.sv, hw/unittest/tcu_masked_max_exp]
   - id: hw-amo-reservation
     via: script
     run: "make -j1 -C hw/unittest/amo_reservation run"

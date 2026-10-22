@@ -298,7 +298,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         wire [7:0] sf_man_prod;
         VX_tcu_tfr_wmul #(
             .N(4),
-            .DSP_ENABLE(DSP_ENABLE)
+            .DSP_ENABLE(0)
         ) sf_wtmul (
             .clk    (clk),
             .enable (enable),
@@ -362,11 +362,11 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
             assign term_exp_biased[j] = term_valid[j] ? exp_biased_raw : 6'd0;
         end
 
-        // Pack the four 2x2 mantissa products into two DSP48s.
+        // Keep the unregistered small products in LUTs to avoid serial DSP delays.
         VX_tcu_tfr_wmul #(
             .N       (2),
             .LANES   (2),
-            .DSP_ENABLE (DSP_ENABLE)
+            .DSP_ENABLE (0)
         ) f4m01 (
             .clk    (clk),
             .enable (enable),
@@ -377,7 +377,7 @@ module VX_tcu_tfr_mul_f4 import VX_tcu_pkg::*;
         VX_tcu_tfr_wmul #(
             .N       (2),
             .LANES   (2),
-            .DSP_ENABLE (DSP_ENABLE)
+            .DSP_ENABLE (0)
         ) f4m23 (
             .clk    (clk),
             .enable (enable),

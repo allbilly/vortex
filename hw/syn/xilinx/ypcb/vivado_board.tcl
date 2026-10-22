@@ -1,15 +1,19 @@
-if {$argc != 7} {
-    error "Usage: vivado_board.tcl source build output ddr cdc pcie stage"
+if {$argc != 8} {
+    error "Usage: vivado_board.tcl source build output ddr cdc pcie stage threads"
 }
-lassign $argv source_root build_root output_dir ddr_dir cdc_dir pcie_dir stage
+lassign $argv source_root build_root output_dir ddr_dir cdc_dir pcie_dir stage worker_count
 foreach name {source_root build_root output_dir ddr_dir cdc_dir pcie_dir} {
     set $name [file normalize [set $name]]
 }
 if {$stage ni {synthesize implement}} {error "Invalid stage"}
 set board_dir [file join $source_root hw syn xilinx ypcb]
 set part xc7k480tffg1156-2
-set_param general.maxThreads 1
-set_param synth.maxThreads 1
+if {![string is integer -strict $worker_count] || $worker_count < 1 || $worker_count > 8} {
+    error "Vivado worker count must be between one and eight"
+}
+set_param general.maxThreads $worker_count
+set_param synth.maxThreads $worker_count
+puts "YPCB_WORKER_LIMITS general=[get_param general.maxThreads] synth=[get_param synth.maxThreads]"
 if {$stage eq "synthesize"} {
     set_part $part
     file mkdir [file join $output_dir ip]

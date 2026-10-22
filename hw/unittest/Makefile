@@ -11,6 +11,7 @@ all:
 	$(MAKE) -C tcu_fedp
 	$(MAKE) -C tcu_mx_index
 	$(MAKE) -C tcu_f4_mul
+	$(MAKE) -C tcu_masked_max_exp
 	$(MAKE) -C cta_dispatcher
 	$(MAKE) -C kmu
 	$(MAKE) -C dxa_core
@@ -47,6 +48,7 @@ run:
 	$(MAKE) -C tcu_fedp run
 	$(MAKE) -C tcu_mx_index run
 	$(MAKE) -C tcu_f4_mul run
+	$(MAKE) -C tcu_masked_max_exp run
 	$(MAKE) -C cta_dispatcher run
 	$(MAKE) -C kmu run
 	$(MAKE) -C dxa_core run
@@ -147,6 +149,7 @@ clean:
 	$(MAKE) -C tcu_fedp clean
 	$(MAKE) -C tcu_mx_index clean
 	$(MAKE) -C tcu_f4_mul clean
+	$(MAKE) -C tcu_masked_max_exp clean
 	$(MAKE) -C cta_dispatcher clean
 	$(MAKE) -C kmu clean
 	$(MAKE) -C dxa_core clean

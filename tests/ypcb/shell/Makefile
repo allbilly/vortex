@@ -7,6 +7,7 @@ RTL_DIR := $(VORTEX_HOME)/hw/rtl
 MODEL_DIR := $(CURDIR)/model
 RUNTIME_DIR := $(ROOT_DIR)/sw/runtime
 VERILATOR ?= $(VERILATOR_PATH)/bin/verilator
+THREADS ?= $(shell getconf _NPROCESSORS_ONLN)
 PROJECT := libvortex-ypcb-shell-test.so
 include $(BOARD_DIR)/config.mk
 BOARD_CONFIGS := $(CONFIGS) $(YPCB_CONFIGS)
@@ -59,7 +60,7 @@ config.stamp: force
 	 if ! cmp -s $$stamp_tmp $@; then mv -f $$stamp_tmp $@; else rm -f $$stamp_tmp; fi
 
 $(PROJECT): $(SRCS) $(HEADERS) $(RTL_SRCS) $(ROOT_DIR)/hw/VX_config.vh $(wildcard $(BOARD_DIR)/VX_ypcb_*.sv) $(SRC_DIR)/Makefile config.stamp
-	$(VERILATOR) --build --cc --exe --assert -Wall -Wno-fatal --timescale 1ns/1ps -j 1 --top-module VX_ypcb_shell --Mdir $(MODEL_DIR) -o $(CURDIR)/$(PROJECT) $(RTL_FLAGS) "-GSCRUB_BASE_ADDR=64'h7ffffec0" "-GSCRUB_END_ADDR=64'h80000000" $(ROOT_DIR)/sim/xrtsim/verilator.vlt $(RTL_PKGS) $(BOARD_DIR)/VX_ypcb_shell.sv $(SRCS) -CFLAGS '$(CXXFLAGS)' -LDFLAGS '-shared -pthread -Wl,-z,defs'
+	$(VERILATOR) --build --cc --exe --assert -Wall -Wno-fatal --timescale 1ns/1ps -j $(THREADS) --top-module VX_ypcb_shell --Mdir $(MODEL_DIR) -o $(CURDIR)/$(PROJECT) $(RTL_FLAGS) "-GSCRUB_BASE_ADDR=64'h7ffffec0" "-GSCRUB_END_ADDR=64'h80000000" $(ROOT_DIR)/sim/xrtsim/verilator.vlt $(RTL_PKGS) $(BOARD_DIR)/VX_ypcb_shell.sv $(SRCS) -CFLAGS '$(CXXFLAGS)' -LDFLAGS '-shared -pthread -Wl,-z,defs'
 
 run: all
 	$(MAKE) -C $(ROOT_DIR)/tests/ypcb/memory_map CONFIGS='$(BOARD_CONFIGS)' STARTUP_ADDR=$(YPCB_STARTUP_ADDR)

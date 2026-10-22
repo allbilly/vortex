@@ -399,14 +399,78 @@ module VX_tcu_tfr_shared_mul import VX_tcu_pkg::*;  #(
     end
     assign exponents[TCK] = join_exp_r[TCK];
 
-    // Maximum exponent select
+`ifdef VX_CFG_TCU_MX_ENABLE
+`ifdef VX_CFG_TCU_FP4_ENABLE
+`ifdef VX_CFG_TCU_MXFP4_ENABLE
+`define TFR_PIPE_FP4_MAX_EXP
+`elsif VX_CFG_TCU_NVFP4_ENABLE
+`define TFR_PIPE_FP4_MAX_EXP
+`endif
+`endif
+`endif
+
+`ifdef TFR_PIPE_FP4_MAX_EXP
+    logic is_f4_r;
+    always_comb begin
+        case (fmt_s_r)
+        `ifdef VX_CFG_TCU_MXFP4_ENABLE
+            TCU_MXFP4_ID: is_f4_r = 1'b1;
+        `endif
+        `ifdef VX_CFG_TCU_NVFP4_ENABLE
+            TCU_NVFP4_ID: is_f4_r = 1'b1;
+        `endif
+            default: is_f4_r = 1'b0;
+        endcase
+    end
+
+    logic [TCK-1:0] other_zero;
+    always_comb begin
+        case (fmt_s_r)
+        `ifdef VX_CFG_TCU_FP8_ENABLE
+            TCU_FP8_ID, TCU_BF8_ID
+        `ifdef VX_CFG_TCU_MX_ENABLE
+            , TCU_MXFP8_ID, TCU_MXBF8_ID
+        `endif
+            : other_zero = mul_f8_zero;
+        `endif
+            default: other_zero = '0;
+        endcase
+    end
+    wire [TCK:0][EXP_W-1:0] other_exponents;
+    for (genvar i = 0; i < TCK; ++i) begin : g_other_exp_kill
+        assign other_exponents[i] = other_zero[i] ? '0 : join_exp_r[i];
+    end
+    assign other_exponents[TCK] = join_exp_r[TCK];
+    wire [TCK:0] other_select, f4_select;
     VX_tcu_tfr_max_exp #(
-        .N     (TCK+1),
+        .N (TCK+1),
+        .WIDTH (EXP_W)
+    ) find_max_exp_other (
+        .exponents (other_exponents),
+        .sel_exp (other_select)
+    );
+    VX_tcu_tfr_masked_max_exp #(
+        .N (TCK+1),
+        .WIDTH (EXP_W),
+        .DEPTH (PROD_REG)
+    ) find_max_exp_f4 (
+        .clk (clk),
+        .enable (enable),
+        .exponents ({join_exp[TCK], mul_f4_exp}),
+        .zero_mask ({1'b0, mul_f4_zero}),
+        .sel_exp (f4_select)
+    );
+    assign exp_sel = is_f4_r ? f4_select : other_select;
+`undef TFR_PIPE_FP4_MAX_EXP
+`else
+    VX_tcu_tfr_max_exp #(
+        .N (TCK+1),
         .WIDTH (EXP_W)
     ) find_max_exp (
         .exponents (exponents),
-        .sel_exp   (exp_sel)
+        .sel_exp (exp_sel)
     );
+`endif
 
     assign exceptions = exceptions_r;
     assign lane_mask  = lane_mask_r;

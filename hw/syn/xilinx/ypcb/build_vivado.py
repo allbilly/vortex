@@ -156,6 +156,8 @@ def main():
     parser.add_argument('--stage', choices=('synthesize', 'all'), default='all')
     parser.add_argument('--reuse-synthesis', type=Path)
     parser.add_argument('--timeout', type=int, default=21600)
+    parser.add_argument('--threads', type=int, choices=range(1, 9),
+                        default=min(8, os.cpu_count() or 1))
     args = parser.parse_args()
     if args.reuse_synthesis and args.stage != 'all':
         raise ValueError('Reusing synthesis requires the implementation stage')
@@ -201,7 +203,7 @@ def main():
                 'source_diff': subprocess.check_output(['git', 'diff', 'HEAD'], cwd=root, text=True),
                 'inputs': {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
                 'scope': 'ABI4 CH1 2 GiB ECC, WL calibration, independent 125 MHz GPU clock, JTAG AXI and PCIe',
-                'controller': controller}
+                'controller': controller, 'vivado_threads': args.threads}
     if args.reuse_synthesis:
         manifest['reused_synthesis'] = reuse_synthesis(args.reuse_synthesis, output, manifest)
     save(output / 'inputs.json', manifest)
@@ -211,7 +213,7 @@ def main():
     for stage in stages:
         run([args.vivado, '-mode', 'batch', '-nojournal', '-nolog', '-source',
              snapshot / 'hw/syn/xilinx/ypcb/vivado_board.tcl', '-tclargs', snapshot,
-             snapshot / 'build', output, output / 'ddr', output, output / 'board/pcie-patched', stage],
+             snapshot / 'build', output, output / 'ddr', output, output / 'board/pcie-patched', stage, args.threads],
             output, output, stage, args.timeout)
     save(output / 'progress.json', {'stage': 'complete', 'running': False,
          'hardware_programmed': False, 'physical_qualification_complete': False})
