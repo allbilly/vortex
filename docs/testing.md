@@ -23,6 +23,17 @@ When excuting, Blackbox needs to recompile the driver if the desired architectur
 It tracks the latest configuration in a file under the current directory blackbox.<driver>.cache.
 To avoid having to rebuild the driver all the time, Blackbox checks if the latest cached configuration matches the current.
 
+### Comparing simulation and hardware output
+
+Match application-owned datatype, geometry and numerical-success markers across
+drivers. RTL initialization traces such as `CONFIGS:` describe the simulation
+model and are not printed by a physical FPGA application. Validate hardware
+configuration using the frozen image flags, the exact executable/kernel hashes
+and device capabilities instead of requiring simulator banners in hardware logs.
+Exercise checker changes against a saved valid hardware result and reject wrong
+datatypes, geometry, missing numerical launches, zero retirement and mismatched
+hardware flags.
+
 ## Running Benchmarks
 
 The Vortex test suite is located under the /test/ folder
