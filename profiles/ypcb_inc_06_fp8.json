@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_06_fp8",
+  "extends": "ypcb_inc_05_tf32",
+  "description": "Cumulative YPCB compute qualification stage 06 fp8. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_TCU_FP8_ENABLE": true
+  }
+}

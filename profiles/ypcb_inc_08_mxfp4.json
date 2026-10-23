@@ -1,0 +1,9 @@
+{
+  "name": "ypcb_inc_08_mxfp4",
+  "extends": "ypcb_inc_07_mx8",
+  "description": "Cumulative YPCB compute qualification stage 08 mxfp4. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_TCU_FP4_ENABLE": true,
+    "VX_CFG_TCU_MXFP4_ENABLE": true
+  }
+}

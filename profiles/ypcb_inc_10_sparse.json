@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_10_sparse",
+  "extends": "ypcb_inc_09_nvfp4",
+  "description": "Cumulative YPCB compute qualification stage 10 sparse. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_TCU_SPARSE_ENABLE": true
+  }
+}

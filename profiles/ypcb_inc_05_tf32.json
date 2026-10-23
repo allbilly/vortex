@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_05_tf32",
+  "extends": "ypcb_inc_04_zacas",
+  "description": "Cumulative YPCB compute qualification stage 05 tf32. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_TCU_TF32_ENABLE": true
+  }
+}

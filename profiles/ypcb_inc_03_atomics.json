@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_03_atomics",
+  "extends": "ypcb_inc_02_l2",
+  "description": "Cumulative YPCB compute qualification stage 03 atomics. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_EXT_A_ENABLE": true
+  }
+}

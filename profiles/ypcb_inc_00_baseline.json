@@ -1,0 +1,5 @@
+{
+  "name": "ypcb_inc_00_baseline",
+  "extends": "ypcb_tcu",
+  "description": "Cumulative YPCB compute qualification stage 00 baseline. Final target remains ypcb_blackwell_like."
+}

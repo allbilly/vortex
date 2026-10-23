@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_02_l2",
+  "extends": "ypcb_inc_01_warps8",
+  "description": "Cumulative YPCB compute qualification stage 02 l2. Final target remains ypcb_blackwell_like.",
+  "chip": {
+    "VX_CFG_L2_ENABLE": true
+  }
+}

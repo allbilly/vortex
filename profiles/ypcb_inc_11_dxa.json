@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_11_dxa",
+  "extends": "ypcb_inc_10_sparse",
+  "description": "Cumulative YPCB compute qualification stage 11 dxa. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_EXT_DXA_ENABLE": true
+  }
+}

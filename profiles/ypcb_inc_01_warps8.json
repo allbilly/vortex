@@ -1,0 +1,8 @@
+{
+  "name": "ypcb_inc_01_warps8",
+  "extends": "ypcb_inc_00_baseline",
+  "description": "Cumulative YPCB compute qualification stage 01 warps8. Final target remains ypcb_blackwell_like.",
+  "core": {
+    "VX_CFG_NUM_WARPS": 8
+  }
+}
