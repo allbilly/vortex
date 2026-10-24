@@ -71,6 +71,23 @@ int main() {
     std::printf("Verified raw 8192 bytes at 0x%08llx\n",
                 static_cast<unsigned long long>(addresses[region]));
   }
+  std::array<uint64_t, 27> line_addresses{};
+  line_addresses[0] = 0x01010000;
+  for (unsigned bit = 6; bit < 32; ++bit) line_addresses[bit - 5] = line_addresses[0] ^ (uint64_t(1) << bit);
+  std::array<std::array<uint8_t, 64>, line_addresses.size()> line_data{};
+  for (size_t line = 0; line < line_addresses.size(); ++line) {
+    for (size_t byte = 0; byte < line_data[line].size(); ++byte) {
+      line_data[line][byte] = uint8_t(line * 73 + byte * 11);
+    }
+    require(pio.write(line_addresses[line], line_data[line].data(), line_data[line].size())
+        == Result::success, "Address-line pattern write failed");
+  }
+  for (size_t line = 0; line < line_addresses.size(); ++line) {
+    std::array<uint8_t, 64> actual{};
+    require(pio.read(line_addresses[line], actual.data(), actual.size()) == Result::success
+        && actual == line_data[line], "A physical address line aliases another location");
+  }
+  std::puts("Verified 27 independent lines covering physical address bits 6..31");
   uint8_t value = 0;
   require(pio.read(wl_config::payload_bytes, &value, 1) == Result::invalid
       && pio.write(wl_config::payload_bytes - 1, patch.data(), 2) == Result::invalid,

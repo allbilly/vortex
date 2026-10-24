@@ -29,6 +29,9 @@ YPCB host-staging arena. The memory-map test covers transfers across the
 2 GiB boundary. Its explicit `raw-memory` target additionally probes the
 last physical byte through JTAG, after startup has completed and the AFU
 is quiesced; it does not use application heap addresses.
+It also writes distinct patterns to 27 independent cache lines, toggling
+each physical address bit from 6 through 31, then reads every line back to
+detect address-line aliases across the full physical aperture.
 
 The separate `ypcb_tcu` profile enables FP16-to-FP32 and INT8-to-INT32 tensor
 arithmetic on one eight-thread core. Configure a fresh RV32, 2 GiB build with
