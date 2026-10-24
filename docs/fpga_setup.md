@@ -33,6 +33,15 @@ It also writes distinct patterns to 27 independent cache lines, toggling
 each physical address bit from 6 through 31, then reads every line back to
 detect address-line aliases across the full physical aperture.
 
+`make -C tests/ypcb/native_bist` builds the full-capacity pre-startup test.
+It uses each controller's existing native BIST engine for write/read passes
+with random and address-derived patterns over the entire 2 GiB payload per
+channel. Run it on a freshly loaded image after calibration and before kernel
+startup. It withholds `INIT_DONE` during destructive traffic; interruption or
+failure keeps startup blocked until the image is reloaded. Normal startup
+then initializes CH1's ECC over the tested memory. This test transfers only
+control and result words over JTAG.
+
 The separate `ypcb_tcu` profile enables FP16-to-FP32 and INT8-to-INT32 tensor
 arithmetic on one eight-thread core. Configure a fresh RV32, 2 GiB build with
 `--profile=ypcb_tcu`; retain the scalar build separately. Its TFR pipeline uses
