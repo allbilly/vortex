@@ -11,6 +11,8 @@ namespace vortex::ypcb {
 enum class WlCalibrationResult { success, invalid, io_error, unsafe_state, timeout, failed };
 
 struct WlCalibrationReport {
+  uint32_t physical_channel = 1;
+  uint32_t physical_lanes = 9;
   uint32_t firmware_id = 0;
   uint32_t state = 0;
   uint32_t error = 0;
@@ -29,6 +31,7 @@ struct WlCalibrationReport {
 };
 
 WlCalibrationResult wait_wl_calibration(Mmio& mmio, WlCalibrationReport* report,
-                                      std::chrono::milliseconds timeout = std::chrono::seconds(40));
+                                      std::chrono::milliseconds timeout = std::chrono::seconds(40),
+                                      unsigned physical_channel = 1);
 
 }

@@ -57,10 +57,10 @@ def bus_skew_summary(text):
             raise ValueError('Missing bus skew endpoints: ' + match[1])
         kind = 'unknown'
         source_group = destination_group = None
-        if all(name.startswith(('axi_crossing_1/', 'csr_crossing_1/')) for name in sources + destinations):
-            source_bits = [re.fullmatch(r'((?:axi|csr)_crossing_1/.*cdc_graycounter\d+_q_reg)\[([0-2])\]', name)
+        if all(re.match(r'(?:axi|csr)_crossing_[01]/', name) is not None for name in sources + destinations):
+            source_bits = [re.fullmatch(r'((?:axi|csr)_crossing_[01]/.*cdc_graycounter\d+_q_reg)\[([0-2])\]', name)
                            for name in sources]
-            target_bits = [re.fullmatch(r'((?:axi|csr)_crossing_1/xilinxmultiregimpl\d+_regs0_reg)\[([0-2])\]', name)
+            target_bits = [re.fullmatch(r'((?:axi|csr)_crossing_[01]/xilinxmultiregimpl\d+_regs0_reg)\[([0-2])\]', name)
                            for name in destinations]
             if (len(source_bits) == len(target_bits) == 3 and all(source_bits) and all(target_bits)
                     and {bit[2] for bit in source_bits} == {'0', '1', '2'}
@@ -100,6 +100,9 @@ def bus_skew_summary(text):
 
 
 def evaluate(directory, expected_gray_buses=14):
+    if expected_gray_buses not in (14, 28):
+        raise ValueError('Expected one or two complete DDR CDC groups')
+    channels = (1,) if expected_gray_buses == 14 else (0, 1)
     directory = Path(directory)
     timing = (directory / 'timing-summary.rpt').read_text()
     section = timing.split('Design Timing Summary', 1)[1]
@@ -126,11 +129,12 @@ def evaluate(directory, expected_gray_buses=14):
     skew_groups = {name: sum(item['kind'] == name for item in skews)
                    for name in ('jtag_ip', 'debug_hub_ip')}
     design_groups = {name: sum(item['source_group'].startswith(name + '/') for item in design_skews)
-                     for name in ('axi_crossing_1', 'csr_crossing_1')}
+                     for channel in channels for name in (f'axi_crossing_{channel}', f'csr_crossing_{channel}')}
     skew_coverage = (len(design_skews) == expected_gray_buses
                      and len({item['source_group'] for item in design_skews}) == expected_gray_buses
                      and len({item['destination_group'] for item in design_skews}) == expected_gray_buses
-                     and design_groups == {'axi_crossing_1': 10, 'csr_crossing_1': 4}
+                     and design_groups == {f'{kind}_crossing_{channel}': count
+                                           for channel in channels for kind, count in (('axi', 10), ('csr', 4))}
                      and skew_groups == {'jtag_ip': 8, 'debug_hub_ip': 4}
                      and all(item['kind'] != 'unknown' for item in skews))
     route = (directory / 'route-status.rpt').read_text()

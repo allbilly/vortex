@@ -2,10 +2,12 @@
 // Licensed under the Apache License, Version 2.0.
 
 `include "VX_platform.vh"
+`include "VX_config.vh"
 
 module VX_ypcb_shell #(
-    parameter logic [63:0] SCRUB_BASE_ADDR = 64'd0,
-    parameter logic [63:0] SCRUB_END_ADDR = 64'h80000000
+    parameter DUAL_CHANNEL = `VX_CFG_YPCB_DUAL_CHANNEL_ENABLED,
+    parameter logic [63:0] SCRUB_BASE_ADDR = DUAL_CHANNEL ? 64'h80000000 : 64'd0,
+    parameter logic [63:0] SCRUB_END_ADDR = DUAL_CHANNEL ? 64'h100000000 : 64'h80000000
 ) (
     input wire clk,
     input wire reset,
@@ -90,7 +92,7 @@ module VX_ypcb_shell #(
     (* ASYNC_REG = "TRUE" *) reg [3:0] pcie_error_meta, pcie_error_sync;
     reg hard_error;
     wire [3:0] transport_error = pcie_error_sync | {hard_error, 3'b0};
-    wire afu_ready = memory_ready == 2'b10;
+    wire afu_ready = memory_ready == (DUAL_CHANNEL ? 2'b11 : 2'b10);
     assign busy = pcie_busy || memory_busy || scrub_busy;
 
     always @(posedge clk) begin
@@ -507,7 +509,9 @@ module VX_ypcb_shell #(
         .interrupt           (afu_interrupt)
     );
 
-    VX_ypcb_pio pio (
+    VX_ypcb_pio #(
+        .DUAL_CHANNEL (DUAL_CHANNEL)
+    ) pio (
         .clk          (clk),
         .reset        (reset),
         .memory_ready (memory_ready),
@@ -555,7 +559,9 @@ module VX_ypcb_shell #(
     assign s_arlen[2] = '0;
     `UNUSED_VAR ({s_bid[2], s_rid[2], route_awaddr[1][15:12], route_araddr[1][15:12]})
 
-    VX_ypcb_startup startup (
+    VX_ypcb_startup #(
+        .DUAL_CHANNEL (DUAL_CHANNEL)
+    ) startup (
         .clk               (clk),
         .reset             (reset),
         .pll_locked        (pll_locked),
@@ -589,7 +595,8 @@ module VX_ypcb_shell #(
 
     VX_ypcb_scrub #(
         .BASE_ADDR (SCRUB_BASE_ADDR),
-        .END_ADDR  (SCRUB_END_ADDR)
+        .END_ADDR  (SCRUB_END_ADDR),
+        .ADDRESS_LIMIT (DUAL_CHANNEL ? 64'h100000000 : 64'h80000000)
     ) scrub (
         .clk        (clk),
         .reset      (reset),
@@ -622,7 +629,8 @@ module VX_ypcb_shell #(
 
     VX_ypcb_memory #(
         .NUM_INPUTS (4),
-        .ID_WIDTH   (32)
+        .ID_WIDTH   (32),
+        .DUAL_CHANNEL (DUAL_CHANNEL)
     ) memory (
         .clk       (clk),
         .reset     (reset),

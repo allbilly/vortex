@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import random
 
-from oracle import FakeCsr
+from oracle import FakeCsr, controller_geometry
 
 
 def arithmetic(path):
@@ -36,6 +36,9 @@ def arithmetic(path):
 
 class Firmware:
     def __init__(self, path, ddr, cpu=False):
+        self.geometry = controller_geometry(ddr)
+        self.nm = self.geometry['lanes']
+        self.ecc = self.geometry['ecc']
         self.lib = ctypes.CDLL(str(path))
         self.lib.ypcb_wl_calibrate.restype = ctypes.c_uint32
         self.lib.selfcal_host_now.restype = ctypes.c_uint64
@@ -49,6 +52,8 @@ class Firmware:
             self.lib.sim_firmware(str(ddr / 'selfcal_fw/firmware.bin').encode())
 
     def run(self, board, reject_ecc=False):
+        if reject_ecc and not self.ecc:
+            raise ValueError('ECC readback rejection case requires an ECC controller')
         mailbox, own, pending, errors, trace = [0] * 128, {}, {}, [], []
 
         def normalize(name):
@@ -63,6 +68,8 @@ class Firmware:
         def read(address):
             try:
                 name, word, width = self.words[address]
+                if name.startswith('ecc_axi_0_') and not self.ecc:
+                    raise AssertionError('No-ECC firmware read an ECC CSR')
                 value = own.get(name, 0) if name.startswith(('ddrctrl_selfcal_', 'ddrctrl_init_', 'ecc_')) \
                     else board.r(normalize(name))
                 return (value >> ((width - 1 - word) * 32)) & 0xffffffff
@@ -73,6 +80,8 @@ class Firmware:
         def write(address, value):
             try:
                 name, word, width = self.words[address]
+                if name.startswith('ecc_axi_0_') and not self.ecc:
+                    raise AssertionError('No-ECC firmware wrote an ECC CSR')
                 combined = pending.get(name, 0) if word else 0
                 combined = (combined << 32) | value
                 pending[name] = combined
@@ -80,9 +89,13 @@ class Firmware:
                     return
                 trace.append((name, combined))
                 if name == 'ddrctrl_init_done' and value:
-                    assert own.get('ecc_axi_0_enable') == 1 and board.r('sdram_dfii_control') == 1
+                    assert board.r('sdram_dfii_control') == 1
+                    if self.ecc:
+                        assert own.get('ecc_axi_0_enable') == 1
                 if name == 'ddrctrl_selfcal_state' and value & 128 and value & 3 == 2:
-                    assert own.get('ddrctrl_init_done') == 1 and own.get('ecc_axi_0_enable') == 1
+                    assert own.get('ddrctrl_init_done') == 1
+                    if self.ecc:
+                        assert own.get('ecc_axi_0_enable') == 1
                 if name.startswith(('ddrctrl_selfcal_', 'ddrctrl_init_', 'ecc_')):
                     if not (reject_ecc and name == 'ecc_axi_0_enable' and value == 1):
                         own[name] = combined
@@ -113,15 +126,25 @@ class Firmware:
 
 def calibration(library, ddr, cpu=False, cases=None, save=None):
     firmware = Firmware(library, ddr, cpu)
-    for case in cases or ('normal', 'per_bit', 'framing_span', 'no_phase', 'clock_error', 'ecc_readback'):
-        board = FakeCsr(ddr, groups=[0] * 9, ps_moves_ck=True)
+    default_cases = ['normal', 'per_bit', 'framing_span', 'no_phase', 'clock_error']
+    if firmware.ecc:
+        default_cases.append('ecc_readback')
+    selected_cases = default_cases if cases is None else cases
+    if not firmware.ecc and 'ecc_readback' in selected_cases:
+        raise ValueError('ECC readback case cannot run on a no-ECC controller')
+    last_lane = firmware.nm - 1
+    for case in selected_cases:
+        board = FakeCsr(ddr, groups=[0] * firmware.nm, ps_moves_ck=True)
         if case == 'per_bit':
-            board.BOFF = {(2, 0): 2, (8, 0): -2, (8, 3): -2, (8, 5): 2}
+            # Match the original last-lane seed so ±2 offsets test bit framing without wraparound.
+            board.RB[last_lane] = 3
+            board.BOFF = {(2, 0): 2, (last_lane, 0): -2,
+                          (last_lane, 3): -2, (last_lane, 5): 2}
         elif case == 'framing_span':
-            board.RB[8] = 0
-            board.BOFF = {(8, 0): -2}
+            board.RB[last_lane] = 0
+            board.BOFF = {(last_lane, 0): -2}
         elif case == 'no_phase':
-            board.WLO[8], board.WHI[8] = 200, 210
+            board.WLO[last_lane], board.WHI[last_lane] = 200, 210
         elif case == 'clock_error':
             board.drp[0x10] = board.drp[0x0e]
         mailbox, own, trace = firmware.run(board, case == 'ecc_readback')
@@ -131,20 +154,28 @@ def calibration(library, ddr, cpu=False, cases=None, save=None):
         if case in ('normal', 'per_bit'):
             assert mailbox[2] == 130 and mailbox[16] & 0xffff == 2, (case, mailbox[2], mailbox[16])
             assert own['ddrctrl_init_done'] == 1 and own['ddrctrl_init_error'] == 0
-            assert all(board.good(lane) for lane in range(9))
+            assert all(board.good(lane) for lane in range(firmware.nm))
             assert mailbox[18] & 0xffff > 0
-            for lane in range(9):
+            for lane in range(firmware.nm):
                 value = mailbox[23 + lane]
                 assert value & 255 >= 3 and (value >> 8) & 255 == board.RB[lane]
                 for bit in range(8):
                     shift = (8 * lane + bit) * 2
                     offset = (mailbox[32 + shift // 32] >> (shift % 32)) & 3
                     assert offset == (board.BOFF.get((lane, bit), 0) // 2) & 3
+            bit_words = (firmware.nm * 8 + 15) // 16
+            partial_bits = (firmware.nm * 8) % 16
+            if partial_bits:
+                assert mailbox[32 + bit_words - 1] >> (partial_bits * 2) == 0
+            assert all(word == 0 for word in mailbox[32 + bit_words:37])
+            assert all(word == 0 for word in mailbox[40 + 4 * firmware.nm:80])
         else:
             expected = {'framing_span': 5, 'no_phase': 5, 'clock_error': 4, 'ecc_readback': 8}[case]
             assert mailbox[2] == 128 | (expected << 8) | 3
             assert own['ddrctrl_init_done'] == 0 and own['ddrctrl_init_error'] == 1
             assert board.r('sdram_dfii_control') == 4
+        write_slip_padding = (1 << (4 * max(0, firmware.nm - 8))) - 1
+        assert mailbox[22] & ~write_slip_padding == 0
         print(f'CALIBRATION PASS: {case}, {len(trace)} CSR writes, state {mailbox[2]}', flush=True)
 
 

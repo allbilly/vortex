@@ -19,12 +19,15 @@ struct StartupReport {
 
 class Startup {
 public:
-  Startup(Mmio& mmio, std::chrono::milliseconds timeout = std::chrono::minutes(10));
+  Startup(Mmio& mmio, std::chrono::milliseconds timeout = std::chrono::minutes(10),
+          uint32_t memory_mask = 2, uint32_t board_abi = 4);
   StartupResult initialize(StartupReport* report);
 
 private:
   Mmio& mmio_;
   std::chrono::milliseconds timeout_;
+  uint32_t memory_mask_;
+  uint32_t board_abi_;
   std::mutex mutex_;
   bool poisoned_ = false;
 };

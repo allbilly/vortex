@@ -13,6 +13,23 @@ checks. The primary LiteDRAM CPU configuration stays `None` to preserve external
 Wishbone access. The local CPU is inside the existing `ddrctrl` CSR group.
 See [the calibration design](proposals/ypcb_local_ddr_calibration_proposal.md).
 
+The separate `ypcb_blackwell_like_4gb` profile selects ABI 5: CH0 provides
+2 GiB without ECC and CH1 retains 2 GiB with ECC. CH0's physical data lanes
+are `[0,1,2,3,4,5,8,7]`; former ECC lane 8 replaces physical lane 6. One
+linear AFU port routes address bit 31 to the physical channel. GPU compute
+stays at 125 MHz, with both JTAG and PCIe interfaces. Configure a fresh build
+with `--xlen=32 --memory-size=4294967296 --profile=ypcb_blackwell_like_4gb`.
+The generated board `ddr-sources` target exports both controllers into fresh
+directories; `ddr-host-config` generates their bound runtime header. See the
+[4 GiB design and verification plan](proposals/ypcb_ch0_spare_4gb_proposal.md).
+
+The 4 GiB figure is physical DDR capacity. Application allocations exclude
+the low I/O region, per-hart stacks, the top local-memory window and the
+YPCB host-staging arena. The memory-map test covers transfers across the
+2 GiB boundary. Its explicit `raw-memory` target additionally probes the
+last physical byte through JTAG, after startup has completed and the AFU
+is quiesced; it does not use application heap addresses.
+
 The separate `ypcb_tcu` profile enables FP16-to-FP32 and INT8-to-INT32 tensor
 arithmetic on one eight-thread core. Configure a fresh RV32, 2 GiB build with
 `--profile=ypcb_tcu`; retain the scalar build separately. Its TFR pipeline uses

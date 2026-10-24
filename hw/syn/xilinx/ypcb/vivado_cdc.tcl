@@ -22,8 +22,26 @@ proc ypcb_cdc_budget {source destination} {
     return [expr {min($source_period, $destination_period)}]
 }
 
-set ypcb_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE && (NAME =~ axi_crossing_1/* || NAME =~ csr_crossing_1/*)}] 42 "Gray-pointer first stages"]
-set ypcb_non_gray_first [ypcb_cdc_require [get_cells -hier -filter {MR_FF == TRUE && NAME !~ axi_crossing_1/* && NAME !~ csr_crossing_1/*}] 1 "CH1 lock first stage"]
+set ypcb_crossings {}
+set ypcb_gray_first [ypcb_cdc_require [get_cells -hier -filter \
+    {MR_FF == TRUE && (NAME =~ axi_crossing_*/* || NAME =~ csr_crossing_*/*)}] \
+    [expr {42 * [llength $ypcb_channels]}] "Gray-pointer first stages"]
+foreach channel $ypcb_channels {
+    foreach kind {axi csr} {
+        set instance ${kind}_crossing_$channel
+        lappend ypcb_crossings $instance
+        set count [expr {$kind eq "axi" ? 30 : 12}]
+        ypcb_cdc_require [get_cells -hier -filter \
+            "MR_FF == TRUE && NAME =~ $instance/*"] $count "$instance Gray-pointer first stages"
+    }
+}
+set ypcb_all_first [get_cells -hier -filter {MR_FF == TRUE}]
+set ypcb_non_gray_first {}
+foreach cell $ypcb_all_first {
+    if {[lsearch -exact $ypcb_gray_first $cell] < 0} {lappend ypcb_non_gray_first $cell}
+}
+ypcb_cdc_require $ypcb_non_gray_first [llength $ypcb_channels] "DDR lock first stages"
+set ypcb_gray_count [expr {14 * [llength $ypcb_channels]}]
 set ypcb_gray_groups [dict create]
 foreach destination $ypcb_gray_first {
     set data_pin [ypcb_cdc_pin $destination D]
@@ -46,8 +64,8 @@ foreach destination $ypcb_gray_first {
     regsub {\[[0-9]+\]$} [get_property NAME $destination] {} group
     dict lappend ypcb_gray_groups $group [list $source $destination $budget]
 }
-if {[dict size $ypcb_gray_groups] != 14} {
-    error "Expected 14 Gray-pointer buses, found [dict size $ypcb_gray_groups]"
+if {[dict size $ypcb_gray_groups] != $ypcb_gray_count} {
+    error "Expected $ypcb_gray_count Gray-pointer buses, found [dict size $ypcb_gray_groups]"
 }
 dict for {group bits} $ypcb_gray_groups {
     if {[llength $bits] != 3} { error "Gray-pointer bus $group is not three bits" }
@@ -61,17 +79,20 @@ dict for {group bits} $ypcb_gray_groups {
     set_bus_skew $budget -from $sources -to $destinations
 }
 
-foreach instance {axi_crossing_1 csr_crossing_1} {
-    set bus_clock [ypcb_cdc_clock [get_pins $instance/bus_clk]]
-    set memory_clock [ypcb_cdc_clock [get_pins $instance/memory_clk]]
-    set budget [ypcb_cdc_budget $bus_clock $memory_clock]
+foreach instance $ypcb_crossings {
+    set stages [get_cells -hier -filter "MR_FF == TRUE && NAME =~ $instance/*"]
+    set clocks [ypcb_cdc_require [get_clocks -of_objects \
+        [get_pins -of_objects $stages -filter {REF_PIN_NAME == C}]] 2 "$instance FIFO clock domains"]
+    set clock_a [ypcb_cdc_require [get_clocks [lindex $clocks 0]] 1 "$instance first FIFO clock"]
+    set clock_b [ypcb_cdc_require [get_clocks [lindex $clocks 1]] 1 "$instance second FIFO clock"]
+    set budget [ypcb_cdc_budget $clock_a $clock_b]
     set storage [get_cells -hier -filter "NAME =~ $instance/storage* && REF_NAME =~ RAM*"]
     if {![llength $storage]} { error "No asynchronous FIFO memory in $instance" }
     set outputs [get_pins -of_objects $storage -filter {DIRECTION == OUT}]
     if {![llength $outputs]} { error "No FIFO data outputs in $instance" }
     # FIFO data becomes visible only after its Gray pointer crosses the synchronizer.
-    set_max_delay -datapath_only $budget -from $bus_clock -through $outputs -to $memory_clock
-    set_max_delay -datapath_only $budget -from $memory_clock -through $outputs -to $bus_clock
+    set_max_delay -datapath_only $budget -from $clock_a -through $outputs -to $clock_b
+    set_max_delay -datapath_only $budget -from $clock_b -through $outputs -to $clock_a
 }
 
 set ypcb_reset_first [get_cells -hier -filter {ARS_FF1 == TRUE}]
@@ -84,13 +105,16 @@ set_false_path -to [get_pins -of_objects $ypcb_reset_cells -filter {REF_PIN_NAME
 set_max_delay 2 -from [get_pins -of_objects $ypcb_reset_first -filter {REF_PIN_NAME == C}] \
     -to [get_pins -of_objects $ypcb_reset_second -filter {REF_PIN_NAME == D}]
 
-foreach channel {1} {
+foreach channel $ypcb_channels {
     set first [ypcb_cdc_require [get_cells ddr_$channel/FDCE] 1 "DDR reset first stage"]
     set second [ypcb_cdc_require [get_cells ddr_$channel/FDCE_1] 1 "DDR reset second stage"]
     set_property ASYNC_REG TRUE [list $first $second]
     set_false_path -to [ypcb_cdc_pin $first D]
 }
-set ypcb_status_first [ypcb_cdc_require [get_cells -regexp {^status_meta_reg\[(1|3|5)\]$}] 3 "CH1 status first stages"]
+set ypcb_status_pattern {^status_meta_reg\[(1|3|5)\]$}
+if {[llength $ypcb_channels] == 2} {set ypcb_status_pattern {^status_meta_reg\[[0-5]\]$}}
+set ypcb_status_first [ypcb_cdc_require [get_cells -regexp $ypcb_status_pattern] \
+    [expr {3 * [llength $ypcb_channels]}] "DDR status first stages"]
 set_false_path -to [get_pins -of_objects $ypcb_status_first -filter {REF_PIN_NAME == D}]
 set ypcb_bus_reset [ypcb_cdc_require [get_cells -hier -filter {NAME =~ reset_sync_reg*}] 2 "Bus reset stages"]
 set_false_path -to [get_pins -of_objects $ypcb_bus_reset -filter {REF_PIN_NAME == PRE}]
@@ -98,7 +122,7 @@ set_false_path -from [ypcb_cdc_require [get_ports {SYS_RSTN}] 1 "Asynchronous re
 
 set ypcb_pcie [ypcb_cdc_require [get_cells pcie/pcie_block_inst/pcie_2_1_block] 1 "PCIe hard block"]
 set_property LOC PCIE_X0Y0 $ypcb_pcie
-puts "YPCB_CDC_CONSTRAINTS_APPLIED gray_buses=14 gray_bits=42 reset_chains=[llength $ypcb_reset_first]"
+puts "YPCB_CDC_CONSTRAINTS_APPLIED gray_buses=$ypcb_gray_count gray_bits=[llength $ypcb_gray_first] reset_chains=[llength $ypcb_reset_first]"
 
 set link_first [ypcb_cdc_require [get_cells -regexp {^link_sync_reg\[0\]$}] 1 "PCIe link first stage"]
 set_false_path -to [ypcb_cdc_pin $link_first D]

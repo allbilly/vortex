@@ -10,13 +10,13 @@ namespace vortex::ypcb {
 namespace {
 constexpr uint32_t pio_base = 0x2000;
 constexpr uint32_t signature = 0x56595043;
-constexpr uint64_t memory_size = 0x80000000ull;
 constexpr size_t line_size = 64;
 }
 
-Pio::Pio(Mmio& mmio, std::chrono::milliseconds timeout)
+Pio::Pio(Mmio& mmio, std::chrono::milliseconds timeout, uint64_t memory_size)
   : mmio_(mmio)
-  , timeout_(timeout) {
+  , timeout_(timeout)
+  , memory_size_(memory_size) {
 }
 
 Result Pio::read_register(uint32_t offset, uint32_t* value) {
@@ -40,7 +40,8 @@ Result Pio::initialize() {
   if (poisoned_) {
     return Result::poisoned;
   }
-  if (timeout_.count() <= 0) {
+  if (timeout_.count() <= 0
+      || (memory_size_ != default_memory_size && memory_size_ != maximum_memory_size)) {
     return Result::invalid;
   }
   uint32_t value;
@@ -58,7 +59,10 @@ Result Pio::initialize() {
   if (value & 1) {
     return Result::busy;
   }
-  if ((value & 0x30) != 0x20) {
+  const bool ready = memory_size_ == maximum_memory_size
+      ? (value & 0x30u) == 0x30u
+      : (value & 0x30u) == 0x20u;
+  if (!ready) {
     return Result::unready;
   }
   initialized_ = true;
@@ -91,7 +95,7 @@ Result Pio::transfer(uint64_t address, uint8_t* data, size_t size, bool write) {
   if (poisoned_) {
     return Result::poisoned;
   }
-  if (!initialized_ || address > memory_size || size > memory_size - address
+  if (!initialized_ || address > memory_size_ || size > memory_size_ - address
       || (size != 0 && data == nullptr)) {
     return Result::invalid;
   }
@@ -107,7 +111,9 @@ Result Pio::transfer(uint64_t address, uint8_t* data, size_t size, bool write) {
     if (status & 1) {
       return Result::busy;
     }
-    if (!(status & 0x20u)) {
+    const uint32_t channel_ready = memory_size_ == maximum_memory_size
+        && (address & 0x80000000ull) == 0 ? 0x10u : 0x20u;
+    if (!(status & channel_ready)) {
       return Result::unready;
     }
     const auto offset = size_t(address & (line_size - 1));

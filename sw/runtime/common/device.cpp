@@ -390,6 +390,27 @@ vx_result_t Device::cp_init() {
     {
         auto rc = this->query_caps(VX_CAPS_NUM_CORES, &cp_num_cores_);
         if (rc != VX_SUCCESS) return rc;
+        uint64_t warps = 0, threads = 0;
+        rc = this->query_caps(VX_CAPS_NUM_WARPS, &warps);
+        if (rc != VX_SUCCESS) return rc;
+        rc = this->query_caps(VX_CAPS_NUM_THREADS, &threads);
+        if (rc != VX_SUCCESS) return rc;
+        uint64_t warp_slots = 1;
+        while (warp_slots < warps) warp_slots <<= 1;
+        // MHARTID packs the warp index into a power-of-two field; each hart owns a downward stack.
+        const uint64_t stack_bytes = cp_num_cores_ * warp_slots * threads
+                                   * (uint64_t(1) << VX_MEM_STACK_LOG2_SIZE);
+        if (!cp_num_cores_ || !warps || !threads
+                || stack_bytes > VX_MEM_STACK_BASE_ADDR - ALLOC_BASE_ADDR)
+            return VX_ERR_DEVICE_LOST;
+        const uint64_t stack_bottom = VX_MEM_STACK_BASE_ADDR - stack_bytes;
+        if (global_mem_.reserve(stack_bottom, GLOBAL_MEM_SIZE - stack_bottom) != 0)
+            return VX_ERR_DEVICE_LOST;
+#if VX_CFG_EXT_OM_ENABLED
+        if (global_mem_.reserve(VX_MEM_OM_BASE_ADDR,
+                                VX_MEM_OM_END_ADDR - VX_MEM_OM_BASE_ADDR) != 0)
+            return VX_ERR_DEVICE_LOST;
+#endif
     }
 
     if (vm_enabled_) {

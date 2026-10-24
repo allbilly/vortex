@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <ypcb_wl_calibration.h>
+#include <ypcb_wl_config.h>
 #include <ypcb_startup.h>
 #include <ypcb_host_memory.h>
 #include <ypcb_jtag.h>
@@ -25,6 +26,9 @@ using namespace vortex::ypcb;
 
 namespace {
 constexpr size_t bar_size = 65536;
+static_assert(wl_config::payload_bytes == GLOBAL_MEM_SIZE, "YPCB controller and runtime memory sizes differ");
+static_assert(wl_config::memory_ready_mask == (VX_CFG_YPCB_DUAL_CHANNEL_ENABLED ? 3u : 2u),
+              "YPCB controller and runtime channel selections differ");
 
 bool valid_bdf(const std::string& bdf) {
   if (bdf.size() != 12 || bdf[4] != ':' || bdf[7] != ':' || bdf[10] != '.') {
@@ -170,36 +174,39 @@ private:
     }
     uint32_t signature, version, status;
     if (read32(0x3000, &signature) != 0 || signature != 0x56595043
-        || read32(0x3004, &version) != 0 || version != 4
+        || read32(0x3004, &version) != 0 || version != wl_config::board_abi
         || read32(0x3008, &status) != 0 || status == 0xffffffff) {
       std::fprintf(stderr, "[VXDRV] YPCB startup signature/version is unavailable\n");
       return -1;
     }
-    WlCalibrationReport calibration;
-    const auto calibrated = wait_wl_calibration(*this, &calibration);
-    std::fprintf(stderr, "[VXDRV] CH1 calibration result=%u firmware=%08x error=%u phase=%d window=%u scan_points=%u cycles_low32=%u\n",
-                 unsigned(calibrated), calibration.firmware_id, calibration.error, calibration.phase_steps,
-                 calibration.phase_window, calibration.phase_points, calibration.cycles_low32);
-    if (calibrated != WlCalibrationResult::success) {
-      for (unsigned lane = 0; lane < calibration.read_windows.size(); ++lane) {
-        std::fprintf(stderr, "[VXDRV] CH1 lane%u read_window=%08x phase_pass=%08x,%08x,%08x,%08x\n",
-                     lane, calibration.read_windows[lane], calibration.phase_pass_maps[lane * 4],
-                     calibration.phase_pass_maps[lane * 4 + 1], calibration.phase_pass_maps[lane * 4 + 2],
-                     calibration.phase_pass_maps[lane * 4 + 3]);
+    for (unsigned channel = 0; channel < 2; ++channel) {
+      if (!(wl_config::memory_ready_mask & (1u << channel))) continue;
+      WlCalibrationReport calibration;
+      const auto calibrated = wait_wl_calibration(*this, &calibration, std::chrono::seconds(40), channel);
+      std::fprintf(stderr, "[VXDRV] CH%u calibration result=%u firmware=%08x error=%u phase=%d window=%u scan_points=%u cycles_low32=%u\n",
+                   channel, unsigned(calibrated), calibration.firmware_id, calibration.error, calibration.phase_steps,
+                   calibration.phase_window, calibration.phase_points, calibration.cycles_low32);
+      if (calibrated != WlCalibrationResult::success) {
+        for (unsigned lane = 0; lane < calibration.physical_lanes; ++lane) {
+          std::fprintf(stderr, "[VXDRV] CH%u lane%u read_window=%08x phase_pass=%08x,%08x,%08x,%08x\n",
+                       channel, lane, calibration.read_windows[lane], calibration.phase_pass_maps[lane * 4],
+                       calibration.phase_pass_maps[lane * 4 + 1], calibration.phase_pass_maps[lane * 4 + 2],
+                       calibration.phase_pass_maps[lane * 4 + 3]);
+        }
+        return -1;
       }
-      return -1;
-    }
-    for (unsigned lane = 0; lane < calibration.read_windows.size(); ++lane) {
-      const auto value = calibration.read_windows[lane];
-      std::fprintf(stderr, "[VXDRV] CH1 lane%u write_slip=%u read_slip=%u taps=%u..%u center=%u bit_offsets=",
-                   lane, unsigned((calibration.write_slips >> (lane * 4)) & 15), (value >> 8) & 255,
-                   (value >> 16) & 255, ((value >> 16) & 255) + (value & 255) - 1, value >> 24);
-      for (unsigned bit = 0; bit < 8; ++bit) {
-        std::fprintf(stderr, "%s%d", bit ? "," : "", int(calibration.bit_offsets[lane * 8 + bit]));
+      for (unsigned lane = 0; lane < calibration.physical_lanes; ++lane) {
+        const auto value = calibration.read_windows[lane];
+        std::fprintf(stderr, "[VXDRV] CH%u lane%u write_slip=%u read_slip=%u taps=%u..%u center=%u bit_offsets=",
+                     channel, lane, unsigned((calibration.write_slips >> (lane * 4)) & 15), (value >> 8) & 255,
+                     (value >> 16) & 255, ((value >> 16) & 255) + (value & 255) - 1, value >> 24);
+        for (unsigned bit = 0; bit < 8; ++bit) {
+          std::fprintf(stderr, "%s%d", bit ? "," : "", int(calibration.bit_offsets[lane * 8 + bit]));
+        }
+        std::fputc('\n', stderr);
       }
-      std::fputc('\n', stderr);
     }
-    Startup startup(*this);
+    Startup startup(*this, std::chrono::minutes(10), wl_config::memory_ready_mask, wl_config::board_abi);
     StartupReport report;
     if (startup.initialize(&report) != StartupResult::success
         || pio_.initialize() != Result::success) {
@@ -287,7 +294,7 @@ private:
   void* bar_ = MAP_FAILED;
   bool enabled_ = false;
   bool reset_available_ = false;
-  Pio pio_{*this};
+  Pio pio_{*this, std::chrono::seconds(30), wl_config::payload_bytes};
   std::unique_ptr<HostMemory> host_;
 };
 

@@ -35,7 +35,11 @@ enum class Result { success, invalid, io_error, busy, unready, memory_error, tim
 
 class Pio {
 public:
-  explicit Pio(Mmio& mmio, std::chrono::milliseconds timeout = std::chrono::seconds(30));
+  static constexpr uint64_t default_memory_size = 0x80000000ull;
+  static constexpr uint64_t maximum_memory_size = 0x100000000ull;
+
+  explicit Pio(Mmio& mmio, std::chrono::milliseconds timeout = std::chrono::seconds(30),
+               uint64_t memory_size = default_memory_size);
   Result initialize();
   Result read(uint64_t address, void* data, size_t size);
   Result write(uint64_t address, const void* data, size_t size);
@@ -48,6 +52,7 @@ private:
 
   Mmio& mmio_;
   std::chrono::milliseconds timeout_;
+  uint64_t memory_size_;
   std::mutex mutex_;
   bool initialized_ = false;
   bool poisoned_ = false;

@@ -2,7 +2,8 @@
 
 module VX_ypcb_memory #(
     parameter NUM_INPUTS = 4,
-    parameter ID_WIDTH = 32
+    parameter ID_WIDTH = 32,
+    parameter DUAL_CHANNEL = 0
 ) (
     input wire clk,
     input wire reset,
@@ -118,16 +119,20 @@ module VX_ypcb_memory #(
     reg [ID_WIDTH-1:0] rd_id;
     reg [7:0] rd_remaining;
     assign busy = wr_active || rd_active || (|s_awvalid) || (|s_wvalid) || (|s_arvalid);
-    wire aw_ok = c_awaddr[63:31] == 0 && burst_valid(c_awaddr[11:0], c_awlen);
-    wire ar_ok = c_araddr[63:31] == 0 && burst_valid(c_araddr[11:0], c_arlen);
+    wire aw_bank = DUAL_CHANNEL ? c_awaddr[31] : 1'b1;
+    wire ar_bank = DUAL_CHANNEL ? c_araddr[31] : 1'b1;
+    wire aw_ok = (DUAL_CHANNEL ? c_awaddr[63:32] == 0 : c_awaddr[63:31] == 0)
+              && burst_valid(c_awaddr[11:0], c_awlen);
+    wire ar_ok = (DUAL_CHANNEL ? c_araddr[63:32] == 0 : c_araddr[63:31] == 0)
+              && burst_valid(c_araddr[11:0], c_arlen);
 
-    assign c_awready = !wr_active && (!aw_ok || m_awready[1]);
+    assign c_awready = !wr_active && (!aw_ok || m_awready[aw_bank]);
     assign c_wready = wr_active && !wr_done && (wr_error || m_wready[wr_bank]);
     assign c_bvalid = wr_active && (wr_error ? wr_done : m_bvalid[wr_bank]);
     assign c_bid = wr_id;
     assign c_bresp = wr_error ? 2'b11 : m_bresp[wr_bank];
 
-    assign c_arready = !rd_active && (!ar_ok || m_arready[1]);
+    assign c_arready = !rd_active && (!ar_ok || m_arready[ar_bank]);
     assign c_rvalid = rd_active && (rd_error || m_rvalid[rd_bank]);
     assign c_rdata = rd_error ? '0 : m_rdata[rd_bank];
     assign c_rid = rd_id;
@@ -136,7 +141,7 @@ module VX_ypcb_memory #(
 
     // Serialization retains the original ID while each DDR core sees ID zero.
     for (genvar bank = 0; bank < 2; ++bank) begin : g_ddr
-        assign m_awvalid[bank] = c_awvalid && !wr_active && aw_ok && bank == 1;
+        assign m_awvalid[bank] = c_awvalid && !wr_active && aw_ok && aw_bank == 1'(bank);
         assign m_awaddr[bank] = c_awaddr[30:0];
         assign m_awid[bank] = '0;
         assign m_awlen[bank] = c_awlen;
@@ -145,13 +150,12 @@ module VX_ypcb_memory #(
         assign m_wstrb[bank] = c_wstrb;
         assign m_wlast[bank] = c_wlast;
         assign m_bready[bank] = c_bready && wr_active && !wr_error && wr_bank == 1'(bank);
-        assign m_arvalid[bank] = c_arvalid && !rd_active && ar_ok && bank == 1;
+        assign m_arvalid[bank] = c_arvalid && !rd_active && ar_ok && ar_bank == 1'(bank);
         assign m_araddr[bank] = c_araddr[30:0];
         assign m_arid[bank] = '0;
         assign m_arlen[bank] = c_arlen;
         assign m_rready[bank] = c_rready && rd_active && !rd_error && rd_bank == 1'(bank);
     end
-    `UNUSED_VAR ({m_awready[0], m_arready[0]})
     `UNUSED_VAR (m_bid)
     `UNUSED_VAR (m_rid)
 
@@ -170,7 +174,7 @@ module VX_ypcb_memory #(
         end else begin
             if (c_awvalid && c_awready) begin
                 wr_active <= 1;
-                wr_bank <= 1'b1;
+                wr_bank <= aw_bank;
                 wr_error <= !aw_ok;
                 wr_done <= 0;
                 wr_id <= c_awid;
@@ -183,7 +187,7 @@ module VX_ypcb_memory #(
             end
             if (c_arvalid && c_arready) begin
                 rd_active <= 1;
-                rd_bank <= 1'b1;
+                rd_bank <= ar_bank;
                 rd_error <= !ar_ok;
                 rd_id <= c_arid;
                 rd_remaining <= c_arlen;

@@ -3,6 +3,8 @@
 
 #include <vortex.h>
 #include <vortex2.h>
+#include <VX_config.h>
+#include <VX_types.h>
 #include "ypcb_host_memory.h"
 #include <array>
 #include <cstdio>
@@ -38,9 +40,19 @@ int main() {
   require(vx_device_query(device, VX_CAPS_GLOBAL_MEM_SIZE, &capacity) == VX_SUCCESS,
       "Query memory capacity failed");
   uint64_t free_bytes = 0, used_bytes = 0;
+  uint64_t warp_slots = 1;
+  while (warp_slots < VX_CFG_NUM_WARPS) warp_slots <<= 1;
+  const uint64_t stack_bytes = uint64_t(VX_CFG_NUM_CORES) * warp_slots
+      * VX_CFG_NUM_THREADS * (uint64_t(1) << VX_MEM_STACK_LOG2_SIZE);
+  const uint64_t stack_bottom = VX_MEM_STACK_BASE_ADDR - stack_bytes;
+  uint64_t system_reserved = VX_MEM_GLOBAL_SIZE - stack_bottom;
+#if VX_CFG_EXT_OM_ENABLED
+  system_reserved += VX_MEM_OM_END_ADDR - VX_MEM_OM_BASE_ADDR;
+#endif
   require(vx_mem_info(device, &free_bytes, &used_bytes) == 0
-      && used_bytes == arena_size && free_bytes == capacity - 0x10000 - arena_size,
-      "DDR arena not counted as reserved");
+      && used_bytes == arena_size + system_reserved
+      && free_bytes == capacity - VX_MEM_USER_BASE_ADDR - used_bytes,
+      "Host arena and architectural top reservations not counted");
   vx_buffer_h overlap = nullptr;
   require(vx_buffer_reserve(device, arena_base, 4096, VX_MEM_READ_WRITE, &overlap)
       == VX_ERR_INVALID_VALUE && overlap == nullptr, "User reserved command-memory arena");
@@ -54,8 +66,31 @@ int main() {
       "Allocator crossed the transport reservation");
   require(vx_buffer_release(low) == VX_SUCCESS && vx_buffer_release(high) == VX_SUCCESS,
       "Release user allocations failed");
-  require(vx_mem_info(device, &free_bytes, &used_bytes) == 0 && used_bytes == arena_size,
-      "User release removed the transport reservation");
+  require(vx_mem_info(device, &free_bytes, &used_bytes) == 0
+      && used_bytes == arena_size + system_reserved,
+      "User release changed reserved memory accounting");
+  vx_buffer_h last_page = nullptr;
+  require(vx_buffer_reserve(device, stack_bottom - 4096, 4096,
+                            VX_MEM_READ_WRITE, &last_page) == VX_SUCCESS,
+      "Last page below stack reservation was not allocatable");
+  uint64_t last_page_address = 0;
+  require(vx_buffer_address(last_page, &last_page_address) == VX_SUCCESS
+      && last_page_address == stack_bottom - 4096,
+      "Last valid page address changed");
+  require(vx_buffer_release(last_page) == VX_SUCCESS, "Release last valid page failed");
+  const std::array<std::array<uint64_t, 2>, 4> protected_ranges = {{
+      {stack_bottom, 4096},
+      {VX_MEM_LMEM_BASE_ADDR, 4096},
+      {VX_MEM_GLOBAL_SIZE - 4096, 4096},
+      {stack_bottom - 4096, 8192}
+  }};
+  for (const auto& entry : protected_ranges) {
+    vx_buffer_h protected_buffer = nullptr;
+    require(vx_buffer_reserve(device, entry[0], entry[1], VX_MEM_READ_WRITE,
+                              &protected_buffer) == VX_ERR_INVALID_VALUE
+        && protected_buffer == nullptr,
+        "Stack/local-memory/top reservation was exposed to users");
+  }
   vx_buffer_h crossing = nullptr;
   require(vx_buffer_reserve(device, capacity - 4096, 8192, VX_MEM_READ_WRITE, &crossing)
       == VX_ERR_INVALID_VALUE && crossing == nullptr, "Reservation crossed physical memory end");
@@ -79,9 +114,22 @@ int main() {
       && count() == before, "Failed range query reached CP setup");
   unsetenv("RESERVATION_TEST_QUERY_ERROR");
   require(vx_device_open(0, &device) == VX_SUCCESS, "Separate host address space rejected");
-  require(vx_mem_info(device, &free_bytes, &used_bytes) == 0 && used_bytes == 0
-      && free_bytes == capacity - 0x10000, "No-reservation backend lost device capacity");
+  require(vx_mem_info(device, &free_bytes, &used_bytes) == 0
+      && used_bytes == system_reserved
+      && free_bytes == capacity - VX_MEM_USER_BASE_ADDR - system_reserved,
+      "No-host-arena backend lost architectural reservations or capacity");
+  vx_buffer_h no_arena_last_page = nullptr;
+  require(vx_buffer_reserve(device, stack_bottom - 4096, 4096,
+                            VX_MEM_READ_WRITE, &no_arena_last_page) == VX_SUCCESS,
+      "No-host-arena allocator missed last valid page");
+  require(vx_buffer_release(no_arena_last_page) == VX_SUCCESS,
+      "No-host-arena last page release failed");
+  vx_buffer_h no_arena_stack = nullptr;
+  require(vx_buffer_reserve(device, stack_bottom, 4096, VX_MEM_READ_WRITE,
+                            &no_arena_stack) == VX_ERR_INVALID_VALUE
+      && no_arena_stack == nullptr,
+      "No-host-arena allocator exposed stack reservation");
   require(vx_device_release(device) == VX_SUCCESS, "Close unreserved device failed");
   dlclose(library);
-  std::puts("PASSED: mandatory transport reservation, real allocator and SimX CP, arena exclusion, 9 invalid/query cases rejected before CP access");
+  std::puts("PASSED: host arena and stack/LMEM/top reservations, last valid page, both host-range modes, and invalid/query rejection before CP access");
 }

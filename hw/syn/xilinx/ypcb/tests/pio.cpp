@@ -12,11 +12,18 @@
 #include <algorithm>
 #include <atomic>
 #include <thread>
+#include <utility>
 #include <vector>
 #endif
 #ifdef TEST_HOST_MEMORY
 #include <ypcb_host_memory.h>
 #include <cstring>
+#endif
+
+#ifdef TEST_PIO_DUAL_CHANNEL
+static constexpr uint64_t pio_test_memory_limit = 0x100000000ull;
+#else
+static constexpr uint64_t pio_test_memory_limit = 0x80000000ull;
 #endif
 
 static void require(bool condition, const char* message) {
@@ -37,7 +44,11 @@ public:
   Test() {
     dut.s_awvalid = dut.s_wvalid = dut.s_arvalid = 0;
     dut.s_bready = dut.s_rready = 0;
+#ifdef TEST_PIO_DUAL_CHANNEL
+    dut.memory_ready = 3;
+#else
     dut.memory_ready = 2;
+#endif
     dut.reset = 1;
     for (unsigned cycle = 0; cycle < 4; ++cycle) {
       tick();
@@ -64,7 +75,7 @@ public:
   void tick() {
     drive();
     if (dut.m_awvalid && dut.m_awready) {
-      require((dut.m_awaddr & 63) == 0 && dut.m_awaddr < 0x80000000ull,
+      require((dut.m_awaddr & 63) == 0 && dut.m_awaddr < pio_test_memory_limit,
           "Invalid AXI write address");
       have_address = true;
       write_address = dut.m_awaddr;
@@ -96,7 +107,7 @@ public:
       have_address = have_data = false;
     }
     if (dut.m_arvalid && dut.m_arready) {
-      require((dut.m_araddr & 63) == 0 && dut.m_araddr < 0x80000000ull,
+      require((dut.m_araddr & 63) == 0 && dut.m_araddr < pio_test_memory_limit,
           "Invalid AXI read address");
       read_data = memory[dut.m_araddr];
       read_status = response;
@@ -243,13 +254,26 @@ static void host_test(Test& test) {
   using namespace vortex::ypcb;
   test.response = 0;
   TestMmio mmio(test);
+#ifdef TEST_PIO_DUAL_CHANNEL
+  Pio pio(mmio, std::chrono::seconds(30), Pio::maximum_memory_size);
+#else
   Pio pio(mmio);
+#endif
   test.dut.memory_ready = 1;
   require(pio.initialize() == Result::unready, "Host accepted incomplete readiness");
+#ifdef TEST_PIO_DUAL_CHANNEL
+  test.dut.memory_ready = 3;
+#else
   test.dut.memory_ready = 2;
+#endif
   require(pio.initialize() == Result::success, "Host PIO initialization failed");
   unsigned transfers = 0;
+#ifdef TEST_PIO_DUAL_CHANNEL
+  for (uint64_t base : {0x10000ull, 0x3fffff80ull, 0x7fffff40ull,
+                        0x80001000ull}) {
+#else
   for (uint64_t base : {0x10000ull, 0x3fffff80ull, 0x7fffff40ull}) {
+#endif
     for (unsigned offset = 0; offset < 64; ++offset) {
       for (unsigned size : {0u, 1u, 3u, 31u, 64u, 65u, 129u}) {
         for (unsigned line = 0; line < 3; ++line) {
@@ -287,6 +311,29 @@ static void host_test(Test& test) {
   require(pio.write(0x7fffffff, &last, 1) == Result::success
           && pio.read(0x7fffffff, &out, 1) == Result::success && last == out,
           "Final address byte differs");
+#ifdef TEST_PIO_DUAL_CHANNEL
+  require(pio.read(Pio::maximum_memory_size, nullptr, 0) == Result::success
+          && pio.write(Pio::maximum_memory_size, nullptr, 0) == Result::success,
+          "4 GiB empty end-of-memory transfer failed");
+  const std::array<uint8_t, 2> crossing_write{{0x3c, 0xc3}};
+  std::array<uint8_t, 2> crossing_read{};
+  require(pio.write(Pio::default_memory_size - 1, crossing_write.data(), crossing_write.size())
+              == Result::success
+          && pio.read(Pio::default_memory_size - 1, crossing_read.data(), crossing_read.size())
+              == Result::success
+          && crossing_read == crossing_write,
+          "4 GiB host PIO transfer across the 2 GiB boundary failed");
+  uint8_t high_byte = 0x9d, high_read = 0;
+  require(pio.write(Pio::maximum_memory_size - 1, &high_byte, 1) == Result::success
+          && pio.read(Pio::maximum_memory_size - 1, &high_read, 1) == Result::success
+          && high_byte == high_read,
+          "4 GiB host PIO final byte failed");
+  const unsigned before = mmio.accesses;
+  require(pio.read(Pio::maximum_memory_size - 1, &out, 2) == Result::invalid
+          && pio.write(Pio::maximum_memory_size, nullptr, 1) == Result::invalid
+          && pio.read(UINT64_MAX, &out, 1) == Result::invalid,
+          "4 GiB host PIO crossing or overflow was accepted");
+#else
   const unsigned before = mmio.accesses;
   require(pio.read(0x80000000ull, nullptr, 0) == Result::success
           && pio.write(0x80000000ull, nullptr, 0) == Result::success,
@@ -296,13 +343,27 @@ static void host_test(Test& test) {
           && pio.write(1, nullptr, 1) == Result::invalid
           && pio.read(0xffffffffffffffffull, &out, 1) == Result::invalid,
           "Host range or pointer validation failed");
+#endif
   require(mmio.accesses == before, "Empty/invalid transfer accessed MMIO");
+
+#ifdef TEST_PIO_DUAL_CHANNEL
+  test.dut.memory_ready = 2;
+  require(pio.write(0x1000, &last, 1) == Result::unready
+          && pio.write(0x80001000ull, &last, 1) == Result::success,
+          "Dual-channel PIO did not select CH0 readiness by address bit 31");
+  test.dut.memory_ready = 1;
+  require(pio.write(0x1000, &last, 1) == Result::success
+          && pio.write(0x80001000ull, &last, 1) == Result::unready,
+          "Dual-channel PIO did not select CH1 readiness by address bit 31");
+  test.dut.memory_ready = 3;
+#else
   for (unsigned ready : {0u, 1u}) {
     test.dut.memory_ready = ready;
     require(pio.write(0x1000, &last, 1) == Result::unready,
             "Host accessed an unready channel");
   }
   test.dut.memory_ready = 2;
+#endif
   for (unsigned response : {2u, 3u}) {
     test.response = response;
     require(pio.read(0x10000, &out, 1) == Result::memory_error,
@@ -327,7 +388,11 @@ static void host_test(Test& test) {
   first.join();
   second.join();
   require(!failed, "Concurrent host transfers shared the staging window");
+#ifdef TEST_PIO_DUAL_CHANNEL
+  Pio slow_staging(mmio, std::chrono::milliseconds(100), Pio::maximum_memory_size);
+#else
   Pio slow_staging(mmio, std::chrono::milliseconds(100));
+#endif
   require(slow_staging.initialize() == Result::success, "Slow staging initialization failed");
   mmio.staging_delay = std::chrono::milliseconds(120);
   std::array<uint8_t, 65> staged{}, staged_read{};
@@ -337,21 +402,193 @@ static void host_test(Test& test) {
           && staged == staged_read,
           "Host staging latency consumed the hardware command completion budget");
   mmio.staging_delay = std::chrono::milliseconds(0);
+#ifdef TEST_PIO_DUAL_CHANNEL
+  Pio faulted(mmio, std::chrono::seconds(30), Pio::maximum_memory_size);
+#else
   Pio faulted(mmio);
+#endif
   require(faulted.initialize() == Result::success, "Fault test initialization failed");
   mmio.fail = true;
   require(faulted.read(0x10000, &out, 1) == Result::io_error, "MMIO failure was lost");
   mmio.fail = false;
   require(faulted.read(0x10000, &out, 1) == Result::poisoned, "Faulted transport reused MMIO");
+#ifdef TEST_PIO_DUAL_CHANNEL
+  Pio bounded(mmio, std::chrono::milliseconds(100), Pio::maximum_memory_size);
+#else
   Pio bounded(mmio, std::chrono::milliseconds(100));
+#endif
   require(bounded.initialize() == Result::success, "Timeout test initialization failed");
   test.pause = true;
   require(bounded.read(0x10000, &out, 1) == Result::timeout, "Host transfer did not time out");
   require(bounded.read(0x10000, &out, 1) == Result::poisoned, "Timed-out transport reused staging");
   test.pause = false;
   test.wait();
-  std::printf("PASSED: host PIO helper against RTL, %u byte-range transfers, two-bank boundary, final 4 GiB byte, host/device guards, two threads, readiness/errors/timeouts\n",
+  std::printf("PASSED: host PIO helper against RTL, %u byte-range transfers, 2 GiB address bounds, host/device guards, two threads, readiness/errors/timeouts\n",
               transfers + 42);
+}
+
+class BoundsMmio : public vortex::ypcb::Mmio {
+public:
+  unsigned accesses = 0;
+  uint32_t ready_status = 0x20;
+  std::vector<uint64_t> command_addresses;
+
+  int read32(uint32_t offset, uint32_t* value) override {
+    ++accesses;
+    if (!value || offset < pio_base || offset >= pio_base + 0x1000 || (offset & 3)) {
+      return -1;
+    }
+    switch (offset - pio_base) {
+      case 0:
+        *value = 0x56595043;
+        return 0;
+      case 4:
+        *value = ready_status | 2;
+        return 0;
+      case 0x14:
+        *value = 0;
+        return 0;
+      default:
+        *value = 0;
+        return 0;
+    }
+  }
+
+  int write32(uint32_t offset, uint32_t value) override {
+    ++accesses;
+    if (offset < pio_base || offset >= pio_base + 0x1000 || (offset & 3)) {
+      return -1;
+    }
+    switch (offset - pio_base) {
+      case 8:
+        address_ = value;
+        break;
+      case 0x18:
+        mask_ = (mask_ & 0xffffffff00000000ull) | value;
+        break;
+      case 0x1c:
+        mask_ = (mask_ & 0xffffffffull) | (uint64_t(value) << 32);
+        break;
+      case 0x10:
+        command_addresses.push_back(address_);
+        if (value == 1) {
+          staging_ = memory_[address_];
+        } else if (value == 2) {
+          auto& line = memory_[address_];
+          for (unsigned byte = 0; byte < 64; ++byte) {
+            if ((mask_ >> byte) & 1) {
+              const unsigned shift = (byte % 4) * 8;
+              const uint32_t byte_mask = 0xffu << shift;
+              line[byte / 4] = (line[byte / 4] & ~byte_mask)
+                  | (staging_[byte / 4] & byte_mask);
+            }
+          }
+        } else {
+          return -1;
+        }
+        break;
+      default:
+        break;
+    }
+    return 0;
+  }
+
+  int read_words(uint32_t offset, uint32_t* values, size_t count) override {
+    ++accesses;
+    if (offset != pio_base + 0x100 || !values || count != staging_.size()) {
+      return -1;
+    }
+    std::copy(staging_.begin(), staging_.end(), values);
+    return 0;
+  }
+
+  int write_words(uint32_t offset, const uint32_t* values, size_t count) override {
+    ++accesses;
+    if (offset != pio_base + 0x100 || !values || count != staging_.size()) {
+      return -1;
+    }
+    std::copy(values, values + count, staging_.begin());
+    return 0;
+  }
+
+private:
+  static constexpr uint32_t pio_base = 0x2000;
+  uint32_t address_ = 0;
+  uint64_t mask_ = ~uint64_t(0);
+  std::array<uint32_t, 16> staging_{};
+  std::map<uint64_t, std::array<uint32_t, 16>> memory_;
+};
+
+static void transport_capacity_test() {
+  using namespace vortex::ypcb;
+  BoundsMmio mmio;
+  Pio legacy(mmio);
+  require(legacy.initialize() == Result::success, "Default-capacity PIO init failed");
+  uint8_t value = 0x36, output = 0;
+  require(legacy.write(Pio::default_memory_size - 1, &value, 1) == Result::success
+          && legacy.read(Pio::default_memory_size - 1, &output, 1) == Result::success
+          && value == output,
+          "Default 2 GiB final byte failed");
+  const unsigned before_legacy_rejects = mmio.accesses;
+  require(legacy.read(Pio::default_memory_size, nullptr, 0) == Result::success
+          && legacy.read(Pio::default_memory_size, &output, 1) == Result::invalid
+          && legacy.write(Pio::default_memory_size - 1, &value, 2) == Result::invalid
+          && mmio.accesses == before_legacy_rejects,
+          "Default 2 GiB end or cross-boundary bounds differ");
+
+  Pio four_gib(mmio, std::chrono::seconds(30), Pio::maximum_memory_size);
+  mmio.ready_status = 0x30;
+  require(four_gib.initialize() == Result::success, "4 GiB PIO initialization failed");
+  mmio.ready_status = 0x20;
+  require(four_gib.read(0x1000, &output, 1) == Result::unready
+          && four_gib.read(0x80001000ull, &output, 1) == Result::success,
+          "4 GiB PIO did not select CH0 readiness from address bit 31");
+  mmio.ready_status = 0x10;
+  require(four_gib.read(0x1000, &output, 1) == Result::success
+          && four_gib.read(0x80001000ull, &output, 1) == Result::unready,
+          "4 GiB PIO did not select CH1 readiness from address bit 31");
+  mmio.ready_status = 0x30;
+  const std::array<uint8_t, 2> crossing{{0x3c, 0xc3}};
+  std::array<uint8_t, 2> crossing_read{};
+  const auto command_start = mmio.command_addresses.size();
+  require(four_gib.write(Pio::default_memory_size - 1,
+                         crossing.data(), crossing.size()) == Result::success
+          && four_gib.read(Pio::default_memory_size - 1,
+                           crossing_read.data(), crossing_read.size()) == Result::success
+          && crossing == crossing_read,
+          "4 GiB PIO transfer across 2 GiB boundary failed");
+  require(mmio.command_addresses.size() == command_start + 4
+          && mmio.command_addresses[command_start] == Pio::default_memory_size - 64
+          && mmio.command_addresses[command_start + 1] == Pio::default_memory_size
+          && mmio.command_addresses[command_start + 2] == Pio::default_memory_size - 64
+          && mmio.command_addresses[command_start + 3] == Pio::default_memory_size,
+          "4 GiB PIO did not issue both sides of the 2 GiB boundary");
+
+  value = 0x9d;
+  output = 0;
+  const auto final_address = Pio::maximum_memory_size - 1;
+  require(four_gib.write(final_address, &value, 1) == Result::success
+          && four_gib.read(final_address, &output, 1) == Result::success
+          && value == output
+          && mmio.command_addresses[mmio.command_addresses.size() - 1]
+              == Pio::maximum_memory_size - 64,
+          "4 GiB PIO final byte/line failed");
+  const unsigned before_four_gib_rejects = mmio.accesses;
+  require(four_gib.read(Pio::maximum_memory_size, nullptr, 0) == Result::success
+          && four_gib.read(Pio::maximum_memory_size, &output, 1) == Result::invalid
+          && four_gib.write(final_address, &value, 2) == Result::invalid
+          && four_gib.read(UINT64_MAX, &output, 1) == Result::invalid
+          && four_gib.write(UINT64_MAX, nullptr, 0) == Result::invalid
+          && mmio.accesses == before_four_gib_rejects,
+          "4 GiB PIO end, crossing, overflow, or no-MMIO rejection differs");
+
+  Pio invalid_capacity(mmio, std::chrono::seconds(30), 0xc0000000ull);
+  const unsigned before_invalid_capacity = mmio.accesses;
+  require(invalid_capacity.initialize() == Result::invalid
+          && invalid_capacity.read(0, &output, 1) == Result::invalid
+          && mmio.accesses == before_invalid_capacity,
+          "Unsupported capacity was not rejected before MMIO");
+  std::puts("PASSED: default 2 GiB and explicit 4 GiB PIO bounds, 2 GiB crossing, final line/byte and invalid-capacity rejection");
 }
 #endif
 
@@ -520,8 +757,15 @@ static void command_strobes() {
 int main() {
   command_strobes();
   Test test;
+#ifdef TEST_PIO_DUAL_CHANNEL
+  test.dut.memory_ready = 3;
+#endif
   require(test.read(0) == 0x56595043, "Signature differs");
+#ifdef TEST_PIO_DUAL_CHANNEL
+  require(test.read(4) == 0x30, "Dual-channel reset status differs");
+#else
   require(test.read(4) == 0x20, "Reset status differs");
+#endif
   require(test.write(0x100, 0x12345678) == 0, "Data write failed");
   require(test.write(0x100, 0xaabbccdd, 5) == 0, "Masked register write failed");
   require(test.read(0x100) == 0x12bb56dd, "Register byte enables differ");
@@ -530,7 +774,12 @@ int main() {
   test.read(0x102, 3);
   test.read(0x200, 3);
 
+#ifdef TEST_PIO_DUAL_CHANNEL
+  const std::array<uint64_t, 6> addresses = {
+      0x1000, 0x3fffffc0, 0x40001000, 0x7fffefc0, 0x80001000, 0xffffffc0};
+#else
   const std::array<uint64_t, 4> addresses = {0x1000, 0x3fffffc0, 0x40001000, 0x7fffefc0};
+#endif
   const std::array<uint64_t, 3> masks = {~uint64_t(0), 0, 0x8123456789abcdefull};
   for (uint64_t address : addresses) {
     auto& line = test.memory[address];
@@ -573,6 +822,26 @@ int main() {
       && test.write(0x10, 2) == 2, "Out-of-range command accepted");
   test.wait(3);
   require(test.write(0xc, 0) == 0, "High address clear failed");
+#ifdef TEST_PIO_DUAL_CHANNEL
+  for (const auto& channel : {std::pair<unsigned, uint32_t>{2, 0x1000}, {1, 0x80001000}}) {
+    test.dut.memory_ready = channel.first;
+    require(test.write(8, channel.second) == 0
+        && test.write(0x10, 1) == 2, "Unready selected channel command was not rejected");
+    test.wait(2);
+  }
+  require(test.reads + test.writes == issued, "Unready selected channel issued AXI traffic");
+  test.dut.memory_ready = 1;
+  require(test.write(8, 0x1000) == 0 && test.write(0x10, 1) == 0,
+      "Ready CH0 command was rejected");
+  test.wait();
+  test.dut.memory_ready = 2;
+  require(test.write(8, 0x80001000) == 0 && test.write(0x10, 1) == 0,
+      "Ready CH1 command was rejected");
+  test.wait();
+  require(test.reads + test.writes == issued + 2,
+      "Ready channel selection did not issue exactly two reads");
+  test.dut.memory_ready = 3;
+#else
   for (unsigned ready : {0u, 1u}) {
     test.dut.memory_ready = ready;
     require(test.write(8, 0x1000) == 0
@@ -581,6 +850,7 @@ int main() {
   }
   require(test.reads + test.writes == issued, "Rejected command issued AXI traffic");
   test.dut.memory_ready = 2;
+#endif
   for (unsigned response : {2u, 3u}) {
     test.response = response;
     require(test.write(0x10, 1) == 0, "Error read command rejected");
@@ -588,10 +858,24 @@ int main() {
     require(test.write(0x10, 2) == 0, "Error write command rejected");
     test.wait(response);
   }
+#ifdef TEST_PIO_DUAL_CHANNEL
+  std::printf("PASSED: dual-channel PIO, %u writes, %u reads, 4 GiB address bounds and CH0/CH1 readiness selection\n",
+#else
   std::printf("PASSED: PIO, %u writes, %u reads, 2 GiB address bounds, byte masks, guards, independent AXI-Lite channels, stalls and error responses\n",
+#endif
         test.writes, test.reads);
 #ifdef TEST_PIO_TRANSPORT
     host_test(test);
+    transport_capacity_test();
+#endif
+#ifdef TEST_PIO_DUAL_CHANNEL
+  const unsigned before_upper_guard = test.reads + test.writes;
+  require(test.write(8, 0x1000) == 0 && test.write(0xc, 1) == 0
+      && test.write(0x10, 1) == 2,
+      "Dual-channel upper-address guard command failed");
+  test.wait(3);
+  require(test.reads + test.writes == before_upper_guard,
+      "Dual-channel upper-address rejection issued AXI traffic");
 #endif
 #ifdef TEST_HOST_MEMORY
     memory_host_test();

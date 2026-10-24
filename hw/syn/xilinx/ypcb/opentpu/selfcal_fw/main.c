@@ -8,11 +8,18 @@
 uint32_t ypcb_wl_calibrate(void) {
     hw_wr(CSR_INIT_DONE, 0);
     hw_wr(CSR_INIT_ERROR, 0);
+#if HAS_ECC
     hw_wr(CSR_ECC_ENABLE, 0);
+#endif
     uint32_t state = selfcal_run(1, 1);
     if (state == ST_OK) {
+#if HAS_ECC
         hw_wr(CSR_ECC_ENABLE, 1);
-        if (hw_rd(CSR_ECC_ENABLE) != 1 || hw_rd(CSR_DFII_CONTROL) != 1) {
+        if (hw_rd(CSR_ECC_ENABLE) != 1) {
+            state = ST_FAILED | (8u << 8);
+        }
+#endif
+        if (hw_rd(CSR_DFII_CONTROL) != 1) {
             state = ST_FAILED | (8u << 8);
         }
     }
@@ -29,7 +36,7 @@ uint32_t ypcb_wl_calibrate(void) {
         hw_wr(CSR_DLY_SEL, 0);
         hw_mbox(MB_CH(0) + MB_STATUS, state | (1u << 16) | (1u << 17) | (1u << 24));
     }
-    // The terminal flag also certifies the ECC/controller handoff.
+    // Publish completion only after the controller handoff has been verified.
     state |= ST_DONE;
     hw_mbox(MB_STATE, state);
     hw_wr(CSR_SELFCAL_STATE, state);

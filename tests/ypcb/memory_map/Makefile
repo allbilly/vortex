@@ -21,8 +21,11 @@ config.stamp: force
 	@TMP=$@.tmp.$$$$; printf '%s\n' '$(CXXFLAGS)' > $$TMP; \
 	 if ! cmp -s $$TMP $@; then mv -f $$TMP $@; else rm -f $$TMP; fi
 
-$(PROJECT): $(SRC_DIR)/main.cpp $(VORTEX_HOME)/sw/runtime/include/vortex2.h $(VORTEX_HOME)/VX_config.toml $(RT_DIR)/libvortex.so config.stamp
+$(PROJECT): $(SRC_DIR)/main.cpp $(VORTEX_HOME)/sw/runtime/include/vortex2.h $(VORTEX_HOME)/VX_config.toml $(ROOT_DIR)/sw/VX_types.h $(ROOT_DIR)/sw/VX_config.h $(RT_DIR)/libvortex.so config.stamp
 	$(CXX) $(CXXFLAGS) $< -L$(RT_DIR) -lvortex -o $@
+
+raw-memory: $(SRC_DIR)/raw.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp $(SW_COMMON_DIR)/ypcb_jtag.cpp $(SW_COMMON_DIR)/ypcb_transport.h $(SW_COMMON_DIR)/ypcb_jtag.h $(ROOT_DIR)/sw/ypcb/ypcb_wl_config.h config.stamp
+	$(CXX) $(CXXFLAGS) -I$(SW_COMMON_DIR) -I$(ROOT_DIR)/sw/ypcb -pthread $(filter %.cpp,$^) -o $@
 
 run: $(PROJECT)
 	CONFIGS="$(CONFIGS)" $(MAKE) -C $(RT_DIR)/$(DRIVER)
@@ -35,4 +38,4 @@ run-xrt: DRIVER=xrt
 run-xrt: run
 
 clean:
-	rm -f $(PROJECT) config.stamp
+	rm -f $(PROJECT) raw-memory config.stamp

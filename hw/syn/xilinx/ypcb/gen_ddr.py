@@ -78,7 +78,7 @@ class CalibrationBuilder(Builder):
         firmware(self.soc, self.calibration_output, self.calibration_compiler)
 
 
-def standalone(path, sources):
+def standalone(path, sources, module_prefix='ypcb_selfcal_'):
     text = path.read_text()
     initializations = {}
 
@@ -102,7 +102,7 @@ def standalone(path, sources):
         if not names:
             raise ValueError('Missing external CPU modules: ' + str(source))
         pattern = r'\b(' + '|'.join(re.escape(name) for name in names) + r')\b'
-        rename = lambda match: 'ypcb_selfcal_' + match[1]
+        rename = lambda match: module_prefix + match[1]
         text = re.sub(pattern, rename, text)
         text += '\n' + re.sub(pattern, rename, body)
         external[str(source)] = digest(source)

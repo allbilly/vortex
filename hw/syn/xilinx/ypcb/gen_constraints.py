@@ -11,7 +11,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-def generate(reference, package_path, audit_path, top, output):
+CH0_PHYSICAL_LANES = (0, 1, 2, 3, 4, 5, 8, 7)
+
+
+def generate(reference, package_path, audit_path, top, output, dual_channel=False):
     with package_path.open() as stream:
         package = {row['pin']: row for row in csv.DictReader(stream)}
     ports = {}
@@ -32,7 +35,9 @@ def generate(reference, package_path, audit_path, top, output):
 
     rename = {'addr': 'a', 'ck_p': 'clk_p', 'ck_n': 'clk_n'}
     scalars = {'cke', 'cs_n', 'odt', 'ck_p', 'ck_n'}
-    for bank in (1,):
+    banks = (0, 1) if dual_channel else (1,)
+    exported_channels = {}
+    for bank in banks:
         project = reference / f'ypcb003381p1/1.0/mig_{bank}.prj'
         inputs.append(project)
         tree = ET.parse(project)
@@ -40,9 +45,15 @@ def generate(reference, package_path, audit_path, top, output):
             raise ValueError('MIG reference does not match the selected FPGA')
         if tree.findtext('InternalVref') != '0':
             raise ValueError('MIG reference must retain the board external-VREF profile')
+        channel_start = len(ports)
+        physical_count = 0
+        physical_widths = {'dq': set(), 'dqs_p': set(), 'dqs_n': set()}
+        physical_to_logical_lane = {physical: logical
+                                    for logical, physical in enumerate(CH0_PHYSICAL_LANES)}
         for pin in tree.iter('Pin'):
             if not pin.attrib['name'].startswith('ddr3_'):
                 continue
+            physical_count += 1
             match = re.fullmatch(r'ddr3_(\w+)(\[\d+\])?', pin.attrib['name'])
             if match is None:
                 raise ValueError(f'Unsupported MIG pin: {pin.attrib}')
@@ -51,17 +62,46 @@ def generate(reference, package_path, audit_path, top, output):
                 if index != '[0]':
                     raise ValueError(f'Unexpected scalar width: {signal}{index}')
                 index = ''
-            name = f'ddr{bank}_{rename.get(signal, signal)}{index or ""}'
+            physical_index = int(index[1:-1]) if index else 0
+            if signal in physical_widths:
+                physical_widths[signal].add(physical_index)
+            port_index = physical_index
+            if dual_channel and bank == 0 and signal == 'dq':
+                physical_lane, bit_in_lane = divmod(physical_index, 8)
+                logical_lane = physical_to_logical_lane.get(physical_lane)
+                if logical_lane is None:
+                    continue
+                port_index = logical_lane * 8 + bit_in_lane
+            elif dual_channel and bank == 0 and signal in ('dqs_p', 'dqs_n'):
+                logical_lane = physical_to_logical_lane.get(physical_index)
+                if logical_lane is None:
+                    continue
+                port_index = logical_lane
+            port_suffix = f'[{port_index}]' if index else ''
+            name = f'ddr{bank}_{rename.get(signal, signal)}{port_suffix}'
             standard = 'DIFF_SSTL15' if signal in ('ck_p', 'ck_n', 'dqs_p', 'dqs_n') else 'SSTL15'
             profile = audit['channels'][bank]['ports'][rename.get(signal, signal)]
-            number = int(match[2][1:-1]) if match[2] else 0
-            if profile['pins'][number] != pin.attrib['PADName'] or profile['iostandard'] != standard:
+            if (physical_index >= len(profile['pins'])
+                    or profile['pins'][physical_index] != pin.attrib['PADName']
+                    or profile['iostandard'] != standard):
                 raise ValueError(f'MIG/pin-profile mismatch: {name}')
             if signal in ('dq', 'dqs_p', 'dqs_n') and profile['misc'] != ['IN_TERM=UNTUNED_SPLIT_40']:
                 raise ValueError(f'Unexpected DDR termination profile: {name}')
             add(name, pin.attrib['PADName'], standard)
-        if len(ports) != 117:
-            raise ValueError('Each board channel must expose all 117 DDR pins')
+        if physical_count != 117:
+            raise ValueError(f'Channel {bank} MIG reference must expose all 117 physical DDR pins')
+        if (physical_widths['dq'] != set(range(72))
+                or physical_widths['dqs_p'] != set(range(9))
+                or physical_widths['dqs_n'] != set(range(9))):
+            raise ValueError(f'Channel {bank} MIG reference has unexpected physical data/strobe widths')
+        expected_count = 107 if dual_channel and bank == 0 else 117
+        if len(ports) - channel_start != expected_count:
+            raise ValueError(f'Channel {bank} exported {len(ports) - channel_start} DDR pins; expected {expected_count}')
+        exported_channels[str(bank)] = {
+            'physical_project': str(project),
+            'physical_pin_count': physical_count,
+            'exported_pin_count': expected_count,
+        }
 
     board_xdc = inputs[2].read_text()
     gpio = {'SYS_CLK': 'SYS_CLK', 'SYS_RSTN': 'SYS_RSTN', 'pcie_perstn': 'pcie_perstn'}
@@ -78,6 +118,8 @@ def generate(reference, package_path, audit_path, top, output):
         add(name, pin)
 
     header = top.read_text().split(');', 1)[0]
+    if not dual_channel:
+        header = re.sub(r'`ifdef VX_CFG_YPCB_DUAL_CHANNEL_ENABLE\n.*?`endif', '', header, flags=re.S)
     declared = set()
     for width, name in re.findall(r'^\s*(?:input|output|inout)\s+wire\s*(\[\d+:0\])?\s+(\w+)', header, re.M):
         if width:
@@ -104,6 +146,9 @@ def generate(reference, package_path, audit_path, top, output):
     output.write_text('\n'.join(lines) + '\n')
     manifest = {'status': 'SOURCE_PIN_COVERAGE_PASS_PHYSICAL_PROFILE_UNVERIFIED',
                 'part': 'xc7k480tffg1156-2', 'top': str(top), 'pins': ports,
+                'dual_channel': dual_channel,
+                'channels': exported_channels,
+                'ch0_physical_lane_order': list(CH0_PHYSICAL_LANES) if dual_channel else None,
                 'unique_pins': len(ports), 'physical_supplies_verified': False,
                 'reference_vref_mode': 'external',
                 'timing_signoff': False,
@@ -120,8 +165,11 @@ def main():
     parser.add_argument('--audit', type=Path, required=True)
     parser.add_argument('--top', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--dual-channel', action='store_true',
+                        help='export audited CH0 spare-lane 8x8-bit data plus unchanged 9-lane CH1')
     args = parser.parse_args()
-    generate(args.reference, args.package, args.audit, args.top, args.output)
+    generate(args.reference, args.package, args.audit, args.top, args.output,
+             dual_channel=args.dual_channel)
 
 
 if __name__ == '__main__':

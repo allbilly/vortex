@@ -1,0 +1,11 @@
+{
+  "name": "ypcb_blackwell_like_4gb",
+  "extends": "ypcb_blackwell_like",
+  "description": "Original YPCB full-profile compute configuration with a 4 GiB RV32 device map for dual-channel DDR.",
+  "platform": {
+    "VX_CFG_YPCB_DUAL_CHANNEL_ENABLE": true,
+    "VX_CFG_PLATFORM_MEMORY_NUM_BANKS": 1,
+    "VX_CFG_PLATFORM_MEMORY_ADDR_WIDTH": 32,
+    "VX_CFG_MEM_ADDR_WIDTH": 32
+  }
+}

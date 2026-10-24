@@ -1,14 +1,45 @@
 # PHY response oracle adapted from OpenTPU opentpu/host/ddrcal.py.
 # Licensed under the Apache License, Version 2.0.
 import csv
+import json
 from pathlib import Path
 import random
+import re
 
 
 def csr_map(path):
     with path.open() as stream:
         return {row[1]: (int(row[2], 16), int(row[3])) for row in csv.reader(stream)
                 if row and row[0] == 'csr_register'}
+
+
+def controller_geometry(build):
+    build = Path(build)
+    export = json.loads((build / 'selfcal-export.json').read_text())
+    profile = export.get('profile', {})
+    if profile.get('channels'):
+        raise ValueError('Select one channel controller export, not the aggregate export')
+    lanes = profile.get('physical_lanes')
+    ecc = profile.get('ecc')
+    if lanes not in (8, 9) or not isinstance(ecc, bool):
+        raise ValueError('Controller export has no supported physical-lane/ECC profile')
+    config = (build / 'selfcal_fw/selfcal_cfg.h').read_text()
+    macros = {name: int(value) for name, value in re.findall(
+        r'^\s*#define\s+(NM|HAS_ECC)\s+(\d+)\s*$', config, re.M)}
+    if macros.get('NM') != lanes:
+        raise ValueError('Controller profile and selfcal_cfg.h lane counts disagree')
+    if 'HAS_ECC' in macros and bool(macros['HAS_ECC']) != ecc:
+        raise ValueError('Controller profile and selfcal_cfg.h ECC modes disagree')
+    firmware = json.loads((build / 'selfcal_fw/manifest.json').read_text())
+    if bool(firmware.get('ecc')) != ecc:
+        raise ValueError('Controller profile and firmware ECC modes disagree')
+    if firmware.get('physical_channel') not in (0, 1):
+        raise ValueError('Unsupported physical controller channel')
+    regs = csr_map(build / 'csr.csv')
+    has_ecc_csrs = any(name.startswith('ecc_axi_0_') for name in regs)
+    if has_ecc_csrs != ecc:
+        raise ValueError('Controller ECC mode and ECC CSR map disagree')
+    return {'lanes': lanes, 'ecc': ecc, 'physical_channel': firmware['physical_channel']}
 
 
 class FakeCsr:
@@ -18,23 +49,29 @@ class FakeCsr:
     step plus group 1's offset (7 steps per 1/8 VCO in the modelled DRP registers). BOFF[m, i]:
     DQ bit i of lane m reads right at RB[m] + BOFF instead (its ISERDES framed a CLK off); its
     read bitslip is its own when the CSR map has ddrphy_dly_sel_bits."""
-    def __init__(self, build, nm=9, seed=1, groups=None, ps_moves_ck=False):
+    def __init__(self, build, nm=None, seed=1, groups=None, ps_moves_ck=False):
+        self.geometry = controller_geometry(build)
         self.regs = csr_map(Path(build) / "csr.csv")
         rnd = random.Random(seed)
-        self.nm = nm
-        self.RB = [rnd.randrange(8) for _ in range(nm)]
-        self.WB = [rnd.choice((0, 2, 4)) for _ in range(nm)]
-        self.LO = [rnd.randrange(0, 18) for _ in range(nm)]
+        if nm is not None and nm != self.geometry['lanes']:
+            raise ValueError('Requested PHY model lane count disagrees with controller profile')
+        self.nm = self.geometry['lanes']
+        self.RB = [rnd.randrange(8) for _ in range(self.nm)]
+        self.WB = [rnd.choice((0, 2, 4)) for _ in range(self.nm)]
+        self.LO = [rnd.randrange(0, 18) for _ in range(self.nm)]
         self.HI = [lo + rnd.randrange(4, 12) for lo in self.LO]
-        self.WLO = [rnd.randrange(10, 30) for _ in range(nm)]
+        self.WLO = [rnd.randrange(10, 30) for _ in range(self.nm)]
         self.WHI = [lo + rnd.randrange(40, 70) for lo in self.WLO]
         self.v = {}
-        self.sel, self.wb, self.rd = 0, [0] * nm, [0] * nm
-        self.rbb = [[0] * 8 for _ in range(nm)]     # read bitslip per DQ bit
+        self.sel, self.wb, self.rd = 0, [0] * self.nm, [0] * self.nm
+        self.rbb = [[0] * 8 for _ in range(self.nm)]  # read bitslip per DQ bit
         self.BOFF = {}
         self.wr = {}
         self.steps = 0
-        self.groups = groups or [0] * nm
+        self.groups = [0] * self.nm if groups is None else list(groups)
+        if len(self.groups) != self.nm:
+            raise ValueError('PHY phase groups must match the selected controller lane count')
+        self.data_stride = self.nm * 8
         self.ck = ps_moves_ck               # the phase shift moves CK, not DQ / DQS
         # write clock MMCM registers as configured: CLKOUT3 / 5 at 0, CLKOUT4 / 6 at 90 deg
         self.drp = {0x0E: 0x0041, 0x0F: 0, 0x10: 0x8041, 0x11: 0,
@@ -96,7 +133,7 @@ class FakeCsr:
                     for m in range(self.nm):
                         for i in range(8):
                             if not self.bit_ok(m, i):
-                                x ^= (1 << (8 * m + i)) | (1 << (72 + 8 * m + i))
+                                x ^= (1 << (8 * m + i)) | (1 << (self.data_stride + 8 * m + i))
                     self.v[f"sdram_dfii_pi{p}_rddata"] = x
 
     def good(self, m):

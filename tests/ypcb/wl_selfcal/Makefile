@@ -8,12 +8,27 @@ CFLAGS += -std=c11 -O2 -Wall -Wextra -Werror -fno-builtin -shared -fPIC
 VERILATOR ?= $(VERILATOR_PATH)/bin/verilator
 RTL_DIR ?= $(CURDIR)/cpu-test
 LITEDRAM_PYTHONPATH ?= $(ROOT_DIR)/open-reference/migen:$(ROOT_DIR)/open-reference/litex:$(ROOT_DIR)/open-reference/litedram
+ifneq ($(strip $(MAKECMDGOALS)),clean)
+WL_CONTROLLER_ECC := $(shell python3 -c "import json; print(int(json.load(open('$(DDR_DIR)/selfcal-export.json'))['profile']['ecc']))")
+WL_CONFIG_ECC := $(shell sed -n 's/^[[:space:]]*#define[[:space:]]\+HAS_ECC[[:space:]]\+\([01]\)$$/\1/p' $(DDR_DIR)/selfcal_fw/selfcal_cfg.h)
+ifeq ($(filter $(WL_CONTROLLER_ECC),0 1),)
+$(error Selected WL controller has no valid ECC profile)
+endif
+ifneq ($(strip $(WL_CONFIG_ECC)),)
+ifneq ($(WL_CONFIG_ECC),$(WL_CONTROLLER_ECC))
+$(error WL selfcal_cfg.h ECC mode differs from selected controller profile)
+endif
+else ifeq ($(WL_CONTROLLER_ECC),1)
+# The retained ABI4 CH1 config predates the explicit HAS_ECC macro.
+WL_SELF_CAL_ECC_CFLAGS := -DHAS_ECC=1
+endif
+endif
 
 .PHONY: all run cpu-test report-test clean
 all: libwl-selfcal.so libwl-arith.so
 
 libwl-selfcal.so: $(FW_DIR)/cal.c $(FW_DIR)/main.c $(FW_DIR)/host.c $(FW_DIR)/cal.h $(FW_DIR)/hw.h $(DDR_DIR)/selfcal_fw/selfcal_cfg.h
-	$(CC) $(CFLAGS) -DSELFCAL_HOST -I$(DDR_DIR)/selfcal_fw -I$(FW_DIR) $(filter %.c,$^) -o $@
+	$(CC) $(CFLAGS) $(WL_SELF_CAL_ECC_CFLAGS) -DSELFCAL_HOST -I$(DDR_DIR)/selfcal_fw -I$(FW_DIR) $(filter %.c,$^) -o $@
 
 libwl-arith.so: $(FW_DIR)/arith.c
 	$(CC) $(CFLAGS) $< -o $@

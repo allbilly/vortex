@@ -7,20 +7,21 @@
 namespace vortex::ypcb {
 namespace {
 constexpr uint32_t status_errors = (3u << 4) | (1u << 8) | (15u << 11);
-constexpr uint32_t required_status = 10u;
-
-bool ready(uint32_t status) {
-  return (status & 0x7ff) == (10u | (1u << 7) | (2u << 9)) && (status >> 16) == 3;
+bool ready(uint32_t status, uint32_t memory_mask) {
+  const uint32_t required = memory_mask | (memory_mask << 2) | (1u << 7) | (memory_mask << 9);
+  return (status & 0x7ff) == required && (status >> 16) == 3;
 }
 }
 
-Startup::Startup(Mmio& mmio, std::chrono::milliseconds timeout)
-  : mmio_(mmio), timeout_(timeout) {
+Startup::Startup(Mmio& mmio, std::chrono::milliseconds timeout, uint32_t memory_mask, uint32_t board_abi)
+  : mmio_(mmio), timeout_(timeout), memory_mask_(memory_mask), board_abi_(board_abi) {
 }
 
 StartupResult Startup::initialize(StartupReport* report) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (report == nullptr || timeout_.count() <= 0) {
+  if (report == nullptr || timeout_.count() <= 0
+      || (memory_mask_ != 2 && memory_mask_ != 3)
+      || board_abi_ != (memory_mask_ == 3 ? 5u : 4u)) {
     return StartupResult::invalid;
   }
   *report = {};
@@ -34,11 +35,12 @@ StartupResult Startup::initialize(StartupReport* report) {
     return StartupResult::io_error;
   }
   report->initial_status = report->final_status = status;
-  if (signature != 0x56595043 || version != 4 || (status & status_errors) != 0
+  const uint32_t required_status = memory_mask_ | (memory_mask_ << 2);
+  if (signature != 0x56595043 || version != board_abi_ || (status & status_errors) != 0
       || (status & required_status) != required_status) {
     return StartupResult::unsafe_state;
   }
-  if (ready(status)) {
+  if (ready(status, memory_mask_)) {
     report->reused_ready = true;
     return StartupResult::success;
   }
@@ -64,7 +66,7 @@ StartupResult Startup::initialize(StartupReport* report) {
         || (status >> 16) >= 4) {
       return StartupResult::failed;
     }
-    if (ready(status)) {
+    if (ready(status, memory_mask_)) {
       poisoned_ = false;
       return StartupResult::success;
     }

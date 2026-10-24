@@ -56,8 +56,20 @@ case ${1:-help} in
         native_exec "$@"
         ;;
     configure)
-        native_exec "$source_dir/configure" --xlen=32 --memory-size=2147483648 --tooldir="$tool_dir" \
-            --osversion=ubuntu/focal
+        selected_profile=${PROFILE:-}
+        if [[ -z $selected_profile && -f "$build_dir/config.mk" ]]; then
+            selected_profile=$(sed -n 's/^[[:space:]]*PROFILE[[:space:]]*?=[[:space:]]*//p' "$build_dir/config.mk" | head -n 1)
+            selected_profile=${selected_profile//[@[:space:]]/}
+        fi
+        memory_size=2147483648
+        if [[ $selected_profile == ypcb_blackwell_like_4gb ]]; then
+            memory_size=4294967296
+        fi
+        configure_args=(--xlen=32 --memory-size="$memory_size" --tooldir="$tool_dir" --osversion=ubuntu/focal)
+        if [[ -n $selected_profile ]]; then
+            configure_args+=(--profile="$selected_profile")
+        fi
+        native_exec "$source_dir/configure" "${configure_args[@]}"
         ;;
     install-toolchain)
         flags=()

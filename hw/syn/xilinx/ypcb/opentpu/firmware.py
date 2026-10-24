@@ -18,28 +18,32 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def header(directory):
+def header(directory, modules=9, ecc=True):
+    if modules not in (8, 9) or ecc != (modules == 9):
+        raise ValueError('Unsupported lane/ECC configuration')
+    pattern_words = (modules * 16 + 31) // 32
+    lane_words = (modules * 8 + 31) // 32
     csr = json.loads((directory / 'csr.json').read_text())
     phy = (directory / 'software/include/generated/sdram_phy.h').read_text()
     if (csr['cores']['ddrphy'] != 'WL7DDRPHY'
-            or csr['cores']['ecc_axi_0'] != 'LiteDRAMNativePortECC'
+            or (csr['cores'].get('ecc_axi_0') == 'LiteDRAMNativePortECC') != ecc
             or csr['constants']['config_clock_frequency'] != 100000000
             or csr['constants']['config_csr_data_width'] != 32
             or 'config_csr_ordering_big' not in csr['constants']):
         raise ValueError('Unexpected CH1 WL controller metadata')
     definitions = {name: int(value, 0) for name, value in
                    re.findall(r'^#define (\w+) (0x[0-9a-fA-F]+|[0-9]+)\s*$', phy, re.M)}
-    expected = {'SDRAM_PHY_DATABITS': 72, 'SDRAM_PHY_DFI_DATABITS': 144,
-                'SDRAM_PHY_PHASES': 4, 'SDRAM_PHY_MODULES': 9, 'SDRAM_PHY_DELAYS': 32,
+    expected = {'SDRAM_PHY_DATABITS': modules * 8, 'SDRAM_PHY_DFI_DATABITS': modules * 16,
+                'SDRAM_PHY_PHASES': 4, 'SDRAM_PHY_MODULES': modules, 'SDRAM_PHY_DELAYS': 32,
                 'SDRAM_PHY_BITSLIPS': 8, 'SDRAM_PHY_CL': 6, 'SDRAM_PHY_CWL': 5}
     if any(definitions.get(name) != value for name, value in expected.items()):
         raise ValueError('Unexpected CH1 DDR800 geometry')
     registers = csr['csr_registers']
     occupied = set()
     for name, reg in registers.items():
-        width = (5 if name.endswith(('_wrdata', '_rddata')) else
+        width = (pattern_words if name.endswith(('_wrdata', '_rddata')) else
                  2 if name == 'ddrctrl_bist_seed' else
-                 3 if name == 'ddrctrl_bist_lane_bits' else 1)
+                 lane_words if name == 'ddrctrl_bist_lane_bits' else 1)
         address = reg['addr']
         words = set(range(address, address + 4 * reg['size'], 4))
         if address % 4 or address < 0 or address + 4 * reg['size'] > 0x2000 \
@@ -86,10 +90,11 @@ def header(directory):
     if len(sequence) != 7:
         raise ValueError('Unexpected DDR3 initialization sequence')
     lines = ['#pragma once', '#include <stdint.h>',
-             '#define SYS_HZ 100000000u', '#define NCH 1', '#define NM 9', '#define NPH 4',
+             '#define SYS_HZ 100000000u', '#define NCH 1', f'#define NM {modules}', '#define NPH 4',
+             f'#define HAS_ECC {int(ecc)}',
              '#define NDELAYS 32', '#define NBITSLIPS 8', '#define PERIOD 112', '#define WRAP 112',
              '#define MIN_WINDOW 3', '#define N_SEEDS 3', '#define SCAN_SEEDS 1',
-             '#define PAT_WORDS 5', '#define WAIT_1MS 100000u', '#define WAIT_1S 100000000u',
+             f'#define PAT_WORDS {pattern_words}', '#define WAIT_1MS 100000u', '#define WAIT_1S 100000000u',
              '#define WAIT_60S 6000000000ull', '#define BIST_MIB 64',
              '#define BIST_SEED0 0x0123456789ABCDEFull',
              f"#define RDPHASE {definitions['SDRAM_PHY_RDPHASE']}",
@@ -97,17 +102,19 @@ def header(directory):
              '#define N_INIT 7']
     for macro, name in {'CSR_SELFCAL_STATE': 'ddrctrl_selfcal_state',
                         'CSR_INIT_DONE': 'ddrctrl_init_done', 'CSR_INIT_ERROR': 'ddrctrl_init_error',
-                        'CSR_ECC_ENABLE': 'ecc_axi_0_enable', 'CSR_DFII_CONTROL': 'sdram_dfii_control',
+                        'CSR_DFII_CONTROL': 'sdram_dfii_control',
                         'CSR_DLY_SEL': 'ddrphy_dly_sel'}.items():
         lines.append(f'#define {macro} {address(name)}')
+    if ecc:
+        lines.append(f"#define CSR_ECC_ENABLE {address('ecc_axi_0_enable')}")
     lines.append('static const struct { uint32_t a, ba, cmd, wait, control; } INIT_SEQ[N_INIT] = {')
     lines.extend('    {' + ', '.join(str(v) for v in operation) + '},' for operation in sequence)
     lines += ['};', 'static const uint32_t PAT[N_SEEDS][NPH][PAT_WORDS] = {']
     for seed in (42, 84, 36):
         rng = random.Random(seed)
-        patterns = [rng.getrandbits(144) for _ in range(4)]
-        lines.append('    {' + ', '.join('{' + ', '.join(f'0x{(v >> (32 * (4 - i))) & 0xffffffff:08x}u'
-                                                     for i in range(5)) + '}' for v in patterns) + '},')
+        patterns = [rng.getrandbits(modules * 16) for _ in range(4)]
+        lines.append('    {' + ', '.join('{' + ', '.join(f'0x{(v >> (32 * (pattern_words - 1 - i))) & 0xffffffff:08x}u'
+                                                     for i in range(pattern_words)) + '}' for v in patterns) + '},')
     lines += ['};', 'struct ch_csr {',
               '    uint32_t rst, dly_sel, rdly_dq_rst, rdly_dq_inc, rdly_dq_bitslip_rst, rdly_dq_bitslip;',
               '    uint32_t wdly_dq_bitslip_rst, wdly_dq_bitslip, rdphase, wrphase, dly_sel_bits;',
@@ -126,7 +133,7 @@ def header(directory):
     lines.append('    ' + address('sdram_dfii_control') + ',')
     for suffix in ('command', 'command_issue', 'address', 'baddress', 'wrdata', 'rddata'):
         lines.append('    {' + ', '.join(address(f'sdram_dfii_pi{p}_{suffix}',
-                                               5 if suffix in ('wrdata', 'rddata') else 1)
+                                               pattern_words if suffix in ('wrdata', 'rddata') else 1)
                                           for p in range(4)) + '},')
     for group in (['ddrctrl_bist_' + n for n in ('start', 'mode', 'base', 'length', 'seed', 'done')],
                   ['ddrctrl_phase_dqs_' + n for n in ('shift', 'busy', 'steps')],
@@ -134,8 +141,8 @@ def header(directory):
                    'drp_dat_w', 'drp_dat_r', 'drp_read', 'drp_write', 'drp_drdy')]):
         lines.append('    ' + ', '.join(address(n, 2 if n == 'ddrctrl_bist_seed' else 1) for n in group) + ',')
         if group[0] == 'ddrctrl_bist_start':
-            lines.append('    {' + ', '.join(address(f'ddrctrl_bist_lane{m}_errors') for m in range(9)) + '},')
-    lines += ['    0xffffffffu,', '    1, 1, 0, 1, {0, 0, 0, 0, 0, 0, 0, 0, 0}', '}};', '']
+            lines.append('    {' + ', '.join(address(f'ddrctrl_bist_lane{m}_errors') for m in range(modules)) + '},')
+    lines += ['    0xffffffffu,', '    1, 1, 0, 1, {' + ', '.join('0' for _ in range(modules)) + '}', '}};', '']
     return '\n'.join(lines)
 
 
@@ -143,7 +150,7 @@ def build(soc, output, compiler):
     directory = output / 'selfcal_fw'
     directory.mkdir(exist_ok=True)
     configuration = directory / 'selfcal_cfg.h'
-    configuration.write_text(header(output))
+    configuration.write_text(header(output, soc.module_count, soc.ecc))
     sources = [HERE / 'selfcal_fw' / name for name in ('cal.c', 'cal.h', 'hw.h', 'main.c', 'arith.c')]
     sources += [BOARD / 'selfcal_fw' / name for name in ('crt0.S', 'link.ld', 'memory.c')]
     sources += [configuration, Path(__file__)]
@@ -173,8 +180,9 @@ def build(soc, output, compiler):
     soc.ddrctrl.selfcal.set_firmware([int.from_bytes(payload[i:i + 4], 'little')
                                     for i in range(0, MEMORY_BYTES, 4)])
     metadata = {'firmware_id': identifier, 'bytes': (directory / 'firmware.bin').stat().st_size,
-                'memory_bytes': MEMORY_BYTES, 'mailbox_words': 128, 'physical_channel': 1,
+                'memory_bytes': MEMORY_BYTES, 'mailbox_words': 128, 'physical_channel': soc.physical_channel,
+                'physical_lanes': soc.module_count,
                 'mailbox_channel': 0, 'mailbox_magic': 0x53435231, 'phase_period_steps': 112,
-                'phase_stride': 1, 'bist_mib_per_phase': 64, 'ecc': True,
+                'phase_stride': 1, 'bist_mib_per_phase': 64, 'ecc': soc.ecc,
                 'sha256': digest(directory / 'firmware.bin'), 'inputs': inputs, 'command': command}
     (directory / 'manifest.json').write_text(json.dumps(metadata, indent=2) + '\n')

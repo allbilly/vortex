@@ -30,8 +30,11 @@
 #define NWBS      ((NBITSLIPS + 1) / 2)        /* write bitslips 0, 2, 4, 6 */
 #define MAXK      (PERIOD + 1)                 /* scan points at stride 1 */
 
-#if NDELAYS != 32 || NBITSLIPS != 8 || NPH != 4 || NM != 9
-#error "the firmware is written for 32 taps, 8 bitslips, 4 phases and 9 lanes"
+#if NDELAYS != 32 || NBITSLIPS != 8 || NPH != 4 || (NM != 8 && NM != 9)
+#error "unsupported calibration geometry"
+#endif
+#if PAT_WORDS != ((NM * 16 + 31) / 32)
+#error "DFI pattern width does not match the lane count"
 #endif
 #ifndef FW_ID
 #define FW_ID 0u
@@ -113,10 +116,15 @@ static void test_bits(int nseeds, m72 *err)
             for (int i = 0; i < PAT_WORDS; i++)
                 x[PAT_WORDS - 1 - i] |= rdw(a + 4 * i) ^ p[i];
         }
-        /* bit b counts for DQ bit b % 72: bits 0-71, 72-143 and 144-159 folded */
+#if NM == 8
+        err->w[0] |= x[0] | x[2];
+        err->w[1] |= x[1] | x[3];
+#else
+        /* Fold both DFI transfers into the 72 physical DQ bits. */
         err->w[0] |= x[0] | (x[2] >> 8) | (x[3] << 24) | (x[4] >> 16);
         err->w[1] |= x[1] | (x[3] >> 8) | (x[4] << 24);
         err->w[2] |= (x[2] & 0xFF) | ((x[4] >> 8) & 0xFF);
+#endif
     }
 }
 

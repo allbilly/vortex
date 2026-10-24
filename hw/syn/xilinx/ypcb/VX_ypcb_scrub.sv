@@ -5,7 +5,8 @@
 `include "VX_platform.vh"
 module VX_ypcb_scrub #(
     parameter logic [63:0] BASE_ADDR = 64'd0,
-    parameter logic [63:0] END_ADDR = 64'h80000000
+    parameter logic [63:0] END_ADDR = 64'h80000000,
+    parameter logic [63:0] ADDRESS_LIMIT = 64'h80000000
 ) (
     input wire clk,
     input wire reset,
@@ -50,7 +51,7 @@ module VX_ypcb_scrub #(
     assign m_bready = state == RESPONSE;
 
     initial begin
-        if (BASE_ADDR >= END_ADDR || END_ADDR > 64'h80000000
+        if (BASE_ADDR >= END_ADDR || END_ADDR > ADDRESS_LIMIT
                 || BASE_ADDR[5:0] != 0 || END_ADDR[5:0] != 0) begin
             $fatal(1, "Invalid ECC scrub address range");
         end

@@ -32,10 +32,13 @@ from wl7ddrphy import WL7DDRPHY
 from firmware import build as build_firmware
 
 
-class Ch1Core(SoCCore):
+class DdrCore(SoCCore):
     csr_map = {'ddrctrl': 0, 'ddrphy': 1, 'ecc_axi_0': 2, 'sdram': 3}
 
-    def __init__(self, platform):
+    def __init__(self, platform, physical_channel=1):
+        self.physical_channel = physical_channel
+        self.ecc = physical_channel == 1
+        self.module_count = 9 if self.ecc else 8
         frequency = 100e6
         platform.add_extension(get_common_ios())
         SoCCore.__init__(self, platform, frequency, cpu_type=None, with_uart=False,
@@ -44,7 +47,7 @@ class Ch1Core(SoCCore):
         self.crg = WLCRG(platform, frequency, clk50=platform.request('clk'), rst_reg=True)
         self.comb += self.crg.rst.eq(platform.request('rst'))
         configuration = {'memtype': 'DDR3', 'sdram_module': MT41K256M8_tRFC160,
-                         'sdram_module_nb': 9, 'sdram_rank_nb': 1}
+                         'sdram_module_nb': self.module_count, 'sdram_rank_nb': 1}
         platform.add_extension(get_dram_ios(configuration))
 
         self.ddrctrl = LiteDRAMCoreControl()
@@ -53,14 +56,14 @@ class Ch1Core(SoCCore):
         self.ddrctrl.write_clocks = clocks = WriteClocks(1, frequency)
         self.ddrctrl.phase = DQSPhase(clocks)
         self.ddrphy = phy = ClockDomainsRenamer(clocks.domains)(WL7DDRPHY(
-            platform.request('ddram'), groups=[0] * 9, sys_clk_freq=frequency,
+            platform.request('ddram'), groups=[0] * self.module_count, sys_clk_freq=frequency,
             iodelay_clk_freq=200e6, cl=6, cwl=5, rd_reg=False))
         phy.settings.add_electrical_settings(rtt_nom='60ohm', rtt_wr='60ohm', ron='34ohm')
         with registered_injector():
             self.add_sdram('sdram', phy=phy, module=MT41K256M8_tRFC160(frequency, '1:4'),
                            with_soc_interconnect=False,
                            controller_settings=ControllerSettings(cmd_buffer_depth=16))
-        self.ddrctrl.bist = BIST(self.sdram.crossbar.get_port(), modules=9)
+        self.ddrctrl.bist = BIST(self.sdram.crossbar.get_port(), modules=self.module_count)
         self.comb += [platform.request('pll_locked').eq(self.crg.mmcm.locked & clocks.locked),
                       platform.request('init_done').eq(self.ddrctrl.init_done.storage),
                       platform.request('init_error').eq(self.ddrctrl.init_error.storage),
@@ -72,9 +75,12 @@ class Ch1Core(SoCCore):
         self.comb += control.connect_to_pads(platform.request('wb_ctrl'), mode='slave')
 
         raw = self.sdram.crossbar.get_port()
-        assert raw.data_width == 576
-        user = LiteDRAMNativePort('both', raw.address_width, 512)
-        self.ecc_axi_0 = LiteDRAMNativePortECC(user, raw, with_error_injection=False)
+        assert raw.data_width == self.module_count * 64
+        if self.ecc:
+            user = LiteDRAMNativePort('both', raw.address_width, 512)
+            self.ecc_axi_0 = LiteDRAMNativePortECC(user, raw, with_error_injection=False)
+        else:
+            user = raw
         axi = AXIInterface(data_width=512, address_width=user.address_width + log2_int(64), id_width=8)
         self.axi_to_native = LiteDRAMAXI2Native(axi, user, with_read_modify_write=True)
         platform.add_extension(get_axi_user_port_ios('axi_0', axi.address_width, 512, 8))
@@ -101,9 +107,10 @@ class CalibrationBuilder(Builder):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Elaborate the OpenTPU-derived CH1 integration prototype')
+    parser = argparse.ArgumentParser(description='Export a fixed-clock YPCB WL DDR controller')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--cc', type=Path, required=True)
+    parser.add_argument('--physical-channel', type=int, choices=(0, 1), default=1)
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
@@ -111,10 +118,12 @@ def main():
     if importlib.metadata.version('pythondata-cpu-vexriscv') != '1.0.1.post407':
         raise ValueError('Unexpected calibration CPU RTL package version')
     platform = XilinxPlatform('xc7k480tffg1156-2', io=[], toolchain='vivado')
-    soc = Ch1Core(platform)
+    soc = DdrCore(platform, args.physical_channel)
     builder = CalibrationBuilder(soc, output, args.cc.resolve())
-    builder.build(build_name='ypcb_ddr3')
-    export = standalone(output / 'gateware/ypcb_ddr3.v', platform.sources)
+    build_name = 'ypcb_ddr3_ch0' if args.physical_channel == 0 else 'ypcb_ddr3'
+    builder.build(build_name=build_name)
+    prefix = 'ypcb_ch0_selfcal_' if args.physical_channel == 0 else 'ypcb_selfcal_'
+    export = standalone(output / 'gateware' / (build_name + '.v'), platform.sources, prefix)
     constraints = output / 'phase-constraints.tcl'
     constraints.write_text('\n'.join(soc.phase_constraints) + '\n')
     files = [Path(__file__), Path(__file__).with_name('wl7ddrphy.py'),
@@ -124,17 +133,19 @@ def main():
              Path(__file__).with_name('provenance.json')]
     metadata = {'status': 'WL_CALIBRATION_CONTROLLER_EXPORTED_PHYSICAL_QUALIFICATION_PENDING',
                 'eligible_for_synthesis': True, 'hardware_qualified': False, 'hardware_accessed': False,
-                'board_abi': 4,
+                'board_abi': 5 if args.physical_channel == 0 else 4,
+                'physical_channel': args.physical_channel,
                 'input_clock_hz': 50000000, 'controller_clock_hz': 100000000,
-                'ddr_data_rate': 800000000, 'physical_lanes': 9, 'payload_bytes': 2147483648,
-                'ecc': True, 'phase_uncertainty_ns': 1.3,
+                'ddr_data_rate': 800000000, 'physical_lanes': soc.module_count, 'payload_bytes': 2147483648,
+                'physical_data_lanes': [0, 1, 2, 3, 4, 5, 8, 7] if args.physical_channel == 0 else list(range(8)),
+                'ecc': soc.ecc, 'phase_uncertainty_ns': 1.3,
                 'source_sha256': {str(p): digest(p) for p in files}, 'export': export}
     (output / 'prototype.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    export.update(cpu_rtl_package='pythondata-cpu-vexriscv==1.0.1.post407', board_abi=4,
+    export.update(cpu_rtl_package='pythondata-cpu-vexriscv==1.0.1.post407', board_abi=metadata['board_abi'],
                   controller='WL7DDRPHY', profile={k: v for k, v in metadata.items() if k != 'export'},
                   phase_constraints_sha256=digest(constraints))
     (output / 'selfcal-export.json').write_text(json.dumps(export, indent=2) + '\n')
-    print('YPCB_WL_CH1_CONTROLLER_EXPORTED_PHYSICAL_QUALIFICATION_PENDING')
+    print(f'YPCB_WL_CH{args.physical_channel}_CONTROLLER_EXPORTED_PHYSICAL_QUALIFICATION_PENDING')
 
 
 if __name__ == '__main__':

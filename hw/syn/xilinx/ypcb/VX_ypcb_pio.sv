@@ -3,7 +3,9 @@
 
 `include "VX_platform.vh"
 
-module VX_ypcb_pio (
+module VX_ypcb_pio #(
+    parameter bit DUAL_CHANNEL = 1'b0
+) (
     input wire clk,
     input wire reset,
     input wire [1:0] memory_ready,
@@ -135,11 +137,15 @@ module VX_ypcb_pio (
                                 if (command_value == 1 || command_value == 2) begin
                                     done <= 0;
                                     result <= 2'b00;
-                                    if (address[63:31] != 0 || address[5:0] != 0) begin
+                                    if ((DUAL_CHANNEL && address[63:32] != 0)
+                                            || (!DUAL_CHANNEL && address[63:31] != 0)
+                                            || address[5:0] != 0) begin
                                         done <= 1;
                                         result <= 2'b11;
                                         s_bresp <= 2'b10;
-                                    end else if (!memory_ready[1]) begin
+                                    end else if (!(DUAL_CHANNEL
+                                            ? memory_ready[address[31]]
+                                            : memory_ready[1])) begin
                                         done <= 1;
                                         result <= 2'b10;
                                         s_bresp <= 2'b10;

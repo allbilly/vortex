@@ -16,6 +16,8 @@ class BIST(LiteXModule):
     complement XOR the seed in every group (finds aliased address bits)."""
     def __init__(self, port, modules=9):
         dw, aw = len(port.wdata.data), len(port.cmd.addr)
+        if modules not in (8, 9) or dw % (8 * modules):
+            raise ValueError("Unsupported native-port lane geometry")
         ngroups = dw // (8 * modules)                 # 72-bit groups (DQ beats): 8
         self.start = CSRStorage(1, description="Write 1: start (mode / base / length as set).")
         self.mode = CSRStorage(2, description="bit0: 1 = read and check, 0 = write; bit1: data.")
@@ -47,7 +49,7 @@ class BIST(LiteXModule):
         for g in range(ngroups):
             gw = 8 * modules
             rot = (st << (7 * g % 64)) | (st >> (64 - 7 * g % 64)) if g else st
-            rnd = Cat(rot[:64], rot[:gw - 64] ^ rot[64 - (gw - 64):64])
+            rnd = rot[:64] if gw == 64 else Cat(rot[:64], rot[:gw - 64] ^ rot[64 - (gw - 64):64])
             pat = Cat(dat_addr, ~dat_addr, dat_addr)[:gw] ^ Cat(self.seed.storage, self.seed.storage)[:gw]
             groups.append(Mux(addrmode, pat, rnd))
         self.comb += exp.eq(Cat(*groups))

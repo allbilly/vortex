@@ -5,16 +5,18 @@ lassign $argv source_root build_root output_dir ddr_dir cdc_dir pcie_dir stage w
 foreach name {source_root build_root output_dir ddr_dir cdc_dir pcie_dir} {
     set $name [file normalize [set $name]]
 }
-if {$stage ni {synthesize implement}} {error "Invalid stage"}
+if {$stage ni {elaborate synthesize implement}} {error "Invalid stage"}
 set board_dir [file join $source_root hw syn xilinx ypcb]
 set part xc7k480tffg1156-2
+set ypcb_channels {1}
+if {[file isfile [file join $ddr_dir ch0 selfcal-export.json]]} {set ypcb_channels {0 1}}
 if {![string is integer -strict $worker_count] || $worker_count < 1 || $worker_count > 8} {
     error "Vivado worker count must be between one and eight"
 }
 set_param general.maxThreads $worker_count
 set_param synth.maxThreads $worker_count
 puts "YPCB_WORKER_LIMITS general=[get_param general.maxThreads] synth=[get_param synth.maxThreads]"
-if {$stage eq "synthesize"} {
+if {$stage in {elaborate synthesize}} {
     set_part $part
     file mkdir [file join $output_dir ip]
     create_ip -name jtag_axi -vendor xilinx.com -library ip -version 1.2 \
@@ -62,7 +64,7 @@ if {$stage eq "synthesize"} {
     set output [open [file join $output_dir ypcb-vivado.xdc] w]
     while {[gets $input line] >= 0} {
         if {[string match "reset_property INTERNAL_VREF*" [string trim $line]]} {continue}
-        if {[string match "*ddr1_reset_n*" $line]} {
+        if {[regexp {ddr[01]_reset_n} $line]} {
             set line [string map {"IOSTANDARD SSTL15" "IOSTANDARD LVCMOS15"} $line]
         }
         puts $output $line
@@ -72,20 +74,32 @@ if {$stage eq "synthesize"} {
     read_xdc [file join $output_dir ypcb-vivado.xdc]
     set_property top ypcb_top [current_fileset]
     update_compile_order -fileset sources_1
-    synth_design -top ypcb_top -part $part -flatten_hierarchy none
+    if {$stage eq "elaborate"} {
+        synth_design -rtl -top ypcb_top -part $part
+        puts "YPCB_FULL_BOARD_RTL_ELABORATION_PASS channels=$ypcb_channels"
+        exit
+    }
+    synth_design -top ypcb_top -part $part -flatten_hierarchy rebuilt
     set_property CFGBVS GND [current_design]
     set_property CONFIG_VOLTAGE 1.8 [current_design]
-    set delays [get_cells -hier -filter {REF_NAME == IDELAYE2 && NAME =~ *ddr_1*}]
-    set controls [get_cells -hier -filter {REF_NAME == IDELAYCTRL && NAME =~ *ddr_1*}]
-    if {[llength $delays] != 72 || [llength $controls] != 1} {error "Incomplete CH1 delay coverage"}
-    set_property IODELAY_GROUP ypcb_ddr1 [concat $delays $controls]
-    set txout [get_nets -hier -filter {NAME =~ *PIPE_TXOUTCLK_OUT*}]
-    if {[llength $txout] != 1} {error "Expected one PCIe TXOUTCLK"}
+    foreach channel $ypcb_channels {
+        set lanes [expr {$channel == 0 ? 8 : 9}]
+        set delays [get_cells -hier -filter "REF_NAME == IDELAYE2 && NAME =~ ddr_${channel}/*"]
+        set controls [get_cells -hier -filter "REF_NAME == IDELAYCTRL && NAME =~ ddr_${channel}/*"]
+        if {[llength $delays] != $lanes * 8 || [llength $controls] != 1} {
+            error "Incomplete CH$channel delay coverage"
+        }
+        set_property IODELAY_GROUP ypcb_ddr$channel [concat $delays $controls]
+    }
+    set tx_gt [get_cells -hier -filter {REF_NAME == GTXE2_CHANNEL}]
+    if {[llength $tx_gt] != 1} {error "Expected exactly one PCIe GTXE2_CHANNEL"}
+    set txout [get_pins -of_objects $tx_gt -filter {REF_PIN_NAME == TXOUTCLK}]
+    if {[llength $txout] != 1} {error "Expected exactly one PCIe TXOUTCLK pin"}
     create_clock -name pcie_gt_txoutclk -period 10.000 $txout
     write_checkpoint -force [file join $output_dir synth.dcp]
     report_utilization -file [file join $output_dir utilization-synth.rpt]
     report_drc -file [file join $output_dir drc-synth.rpt]
-    puts "YPCB_CH1_JTAG_PCIE_SYNTHESIS_COMPLETE"
+    puts "YPCB_JTAG_PCIE_SYNTHESIS_COMPLETE channels=$ypcb_channels"
     exit
 }
 open_checkpoint [file join $output_dir synth.dcp]
@@ -134,7 +148,7 @@ report_drc -file [file join $output_dir drc-routed.rpt]
 report_utilization -file [file join $output_dir utilization-routed.rpt]
 write_checkpoint -force [file join $output_dir routed.dcp]
 if {[get_property SLACK $setup] < 0 || [get_property SLACK $hold] < 0} {error "Routed timing fails"}
-set qualification [exec python3 [file join $board_dir verify_vivado_reports.py] $output_dir]
+set qualification [exec python3 [file join $board_dir verify_vivado_reports.py] $output_dir [expr {14 * [llength $ypcb_channels]}]]
 set receipt [open [file join $output_dir report-qualification.json] w]
 puts $receipt $qualification
 close $receipt

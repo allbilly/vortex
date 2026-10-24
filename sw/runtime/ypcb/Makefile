@@ -12,6 +12,11 @@ CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -Werror -fPIC -DNDEBUG
 CXXFLAGS += -I$(INC_DIR) -I$(RT_COMMON_DIR) -I$(SW_COMMON_DIR) -I$(ROOT_DIR)/sw
 CXXFLAGS += -I$(ROOT_DIR)/sw/ypcb
 LDFLAGS += -shared -pthread -Wl,-z,defs
+ifeq ($(PROFILE),ypcb_blackwell_like_4gb)
+YPCB_RUNTIME_MEMORY_SIZE := 4294967296
+else
+YPCB_RUNTIME_MEMORY_SIZE := 2147483648
+endif
 SRCS := $(SRC_DIR)/vortex.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp \
         $(SW_COMMON_DIR)/ypcb_wl_calibration.cpp $(SW_COMMON_DIR)/ypcb_startup.cpp \
         $(SW_COMMON_DIR)/ypcb_host_memory.cpp $(SW_COMMON_DIR)/ypcb_jtag.cpp
@@ -29,7 +34,7 @@ config.stamp: force
 	 if ! cmp -s $$stamp_tmp $@; then mv -f $$stamp_tmp $@; else rm -f $$stamp_tmp; fi
 
 $(DESTDIR)/libvortex-ypcb.so: $(SRCS) $(HEADERS) $(SRC_DIR)/Makefile config.stamp
-	@test "$(MEMORY_SIZE)" = 2147483648 || { echo "Configure the YPCB build with --memory-size=2147483648" >&2; exit 1; }
+	@test "$(MEMORY_SIZE)" = "$(YPCB_RUNTIME_MEMORY_SIZE)" || { echo "YPCB profile $(PROFILE) requires --memory-size=$(YPCB_RUNTIME_MEMORY_SIZE)" >&2; exit 1; }
 	@test "$(XLEN)" = 32 || { echo 'YPCB requires the RV32 build' >&2; exit 1; }
 	mkdir -p $(DESTDIR)
 	$(CXX) $(CXXFLAGS) $(SRCS) $(LDFLAGS) -o $@

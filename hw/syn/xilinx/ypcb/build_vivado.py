@@ -15,38 +15,65 @@ import subprocess
 import tempfile
 import time
 
+from gen_dual_ddr import checked_channel, scoped_constraints
+
 interrupted = 0
 
 
 def wl_controller(directory):
     export = json.loads((directory / 'selfcal-export.json').read_text())
     profile = export['profile']
-    expected = {'board_abi': 4, 'input_clock_hz': 50000000, 'controller_clock_hz': 100000000,
-                'ddr_data_rate': 800000000, 'physical_lanes': 9, 'payload_bytes': 2147483648,
-                'ecc': True, 'phase_uncertainty_ns': 1.3, 'eligible_for_synthesis': True}
-    if (export['board_abi'] != 4 or export['controller'] != 'WL7DDRPHY'
-            or any(profile.get(k) != v for k, v in expected.items())):
-        raise ValueError('Unexpected ABI4 CH1 WL controller profile')
+    abi = export['board_abi']
+    if abi == 4:
+        checked, firmware, _ = checked_channel(directory, 1)
+        if (profile.get('board_abi') != 4 or profile.get('eligible_for_synthesis') is not True
+                or export['controller'] != 'WL7DDRPHY'):
+            raise ValueError('Unexpected ABI4 CH1 WL controller profile')
+        channels = [{'physical_channel': 1, 'firmware_id': firmware['firmware_id'],
+                     'firmware_sha256': firmware['sha256'], 'ecc': True}]
+    elif abi == 5:
+        expected = {'board_abi': 5, 'input_clock_hz': 50000000,
+                    'controller_clock_hz': 100000000, 'ddr_data_rate': 800000000,
+                    'payload_bytes': 4294967296, 'phase_uncertainty_ns': 1.3,
+                    'eligible_for_synthesis': True}
+        if (export['controller'] != 'WL7DDRPHY'
+                or any(profile.get(k) != v for k, v in expected.items())
+                or export.get('channel_exports') != {'0': 'ch0', '1': 'ch1'}
+                or export.get('CH1_controller_reused_unchanged') is not True
+                or len(profile['channels']) != 2):
+            raise ValueError('Unexpected ABI5 dual-channel WL profile')
+        channels, rtl, constraints = [], [], []
+        for channel in range(2):
+            child = directory / f'ch{channel}'
+            _, firmware, name = checked_channel(child, channel)
+            record = profile['channels'][channel]
+            lanes = [0, 1, 2, 3, 4, 5, 8, 7] if channel == 0 else list(range(8))
+            if (record['physical_channel'] != channel or record['directory'] != f'ch{channel}'
+                    or record['physical_data_lanes'] != lanes
+                    or record['physical_lanes'] != (8 if channel == 0 else 9)
+                    or record['ecc'] != (channel == 1) or record['payload_bytes'] != 2147483648
+                    or record['firmware_id'] != firmware['firmware_id']
+                    or record['firmware_sha256'] != firmware['sha256']
+                    or hashlib.sha256((child / 'selfcal-export.json').read_bytes()).hexdigest()
+                       != record['original_export_sha256']):
+                raise ValueError('Dual-channel child binding changed')
+            rtl.append((child / 'gateware' / name).read_text())
+            constraints.extend(scoped_constraints((child / 'phase-constraints.tcl').read_text(), channel))
+            channels.append(record)
+        if ((directory / 'gateware/ypcb_ddr3.v').read_text() != '\n'.join(rtl)
+                or (directory / 'phase-constraints.tcl').read_text() != '\n'.join(constraints) + '\n'):
+            raise ValueError('Combined controller does not match its selected channels')
+    else:
+        raise ValueError('Unsupported WL board ABI')
     files = {'gateware/ypcb_ddr3.v': export['standalone_verilog_sha256'],
              'phase-constraints.tcl': export['phase_constraints_sha256']}
-    firmware = json.loads((directory / 'selfcal_fw/manifest.json').read_text())
-    payload = (directory / 'selfcal_fw/firmware.bin').read_bytes()
-    if (firmware['memory_bytes'] != 16384 or firmware['bytes'] != len(payload)
-            or not payload or len(payload) > 16384 or len(payload) % 4
-            or not 0 < firmware['firmware_id'] < 2**32):
-        raise ValueError('Invalid WL firmware bounds or identity')
-    files['selfcal_fw/firmware.bin'] = firmware['sha256']
     for name, expected_hash in files.items():
         if hashlib.sha256((directory / name).read_bytes()).hexdigest() != expected_hash:
             raise ValueError('WL controller input changed: ' + name)
-    for name, expected_hash in firmware['inputs'].items():
-        if hashlib.sha256(Path(name).read_bytes()).hexdigest() != expected_hash:
-            raise ValueError('WL calibration source changed: ' + name)
     for name, expected_hash in profile['source_sha256'].items():
         if hashlib.sha256(Path(name).read_bytes()).hexdigest() != expected_hash:
             raise ValueError('WL controller source changed after export: ' + name)
-    return {'board_abi': 4, 'controller': 'WL7DDRPHY', 'firmware_id': firmware['firmware_id'],
-            'firmware_sha256': firmware['sha256'], 'profile': profile}
+    return {'board_abi': abi, 'controller': 'WL7DDRPHY', 'channels': channels, 'profile': profile}
 
 
 def interrupt(signum, frame):
@@ -161,7 +188,7 @@ def main():
     parser.add_argument('--pcie-reference', type=Path, required=True)
     parser.add_argument('--litex-root', type=Path, required=True)
     parser.add_argument('--vivado', default='vivado')
-    parser.add_argument('--stage', choices=('synthesize', 'all'), default='all')
+    parser.add_argument('--stage', choices=('elaborate', 'synthesize', 'all'), default='all')
     parser.add_argument('--reuse-synthesis', type=Path)
     parser.add_argument('--timeout', type=int, default=21600)
     parser.add_argument('--threads', type=int, choices=range(1, 9),
@@ -175,10 +202,20 @@ def main():
     root = Path(__file__).resolve().parents[4]
     if output.exists():
         raise ValueError('Output must be a fresh directory')
-    if (not (build / 'config.mk').is_file() or 'MEMORY_SIZE ?= 2147483648' not in (build / 'config.mk').read_text()
-            or 'XLEN ?= 32' not in (build / 'config.mk').read_text()):
-        raise ValueError('Configure an RV32 build with --memory-size=2147483648 first')
+    configuration = (build / 'config.mk').read_text()
+    def configured(name):
+        match = re.search(r'^' + name + r' \?= (\S+)$', configuration, re.M)
+        if match is None:
+            raise ValueError('Missing generated configuration: ' + name)
+        return match.group(1)
+    memory_size = int(configured('MEMORY_SIZE'))
+    dual_channel = memory_size == 4294967296
+    if (configured('XLEN') != '32' or memory_size not in (2147483648, 4294967296)
+            or (configured('PROFILE') == 'ypcb_blackwell_like_4gb') != dual_channel):
+        raise ValueError('Configure the selected RV32 YPCB 2 GiB or dual-channel 4 GiB profile first')
     controller = wl_controller(args.ddr.resolve())
+    if controller['board_abi'] != (5 if dual_channel else 4):
+        raise ValueError('WL controller and configured memory capacity disagree')
     output.mkdir(parents=True)
     board = root / 'hw/syn/xilinx/ypcb'
     run(['make', '-C', build / 'hw/syn/xilinx/ypcb', 'sources', 'board-pcie',
@@ -186,7 +223,8 @@ def main():
          f'PCIE_REFERENCE={args.pcie_reference.resolve()}'], build, output, 'export', 600)
     run(['python3', board / 'gen_constraints.py', '--reference', args.reference.resolve(),
          '--package', args.package.resolve(), '--audit', args.pin_audit.resolve(),
-         '--top', board / 'ypcb_top.sv', '--output', output / 'board/ypcb-reference.xdc'],
+         '--top', board / 'ypcb_top.sv', '--output', output / 'board/ypcb-reference.xdc',
+         *(['--dual-channel'] if dual_channel else [])],
         build, output, 'pins', 120)
     environment = dict(os.environ)
     dependencies = [args.litex_root / item for item in ('migen', 'litex', 'litedram')]
@@ -197,12 +235,11 @@ def main():
     snapshot = output / 'snapshot'
     for relative in ('hw/rtl', 'hw/syn/xilinx/ypcb'):
         shutil.copytree(root / relative, snapshot / relative)
+    shutil.copytree(root / 'profiles', snapshot / 'profiles')
+    for name in ('VX_config.toml', 'VX_types.toml'):
+        shutil.copy2(root / name, snapshot / name)
     shutil.copytree(build / 'hw', snapshot / 'build/hw', ignore=shutil.ignore_patterns('syn', 'unittest'))
-    shutil.copytree(args.ddr.resolve() / 'gateware', output / 'ddr/gateware')
-    for name in ('csr.json', 'csr.csv', 'selfcal-export.json', 'phase-constraints.tcl', 'prototype.json'):
-        shutil.copy2(args.ddr.resolve() / name, output / 'ddr' / name)
-    shutil.copytree(args.ddr.resolve() / 'selfcal_fw', output / 'ddr/selfcal_fw')
-    shutil.copytree(args.ddr.resolve() / 'software/include/generated', output / 'ddr/software/include/generated')
+    shutil.copytree(args.ddr.resolve(), output / 'ddr')
     filelist = output / 'afu/sources.txt'
     text = filelist.read_text().replace(str(build / 'hw'), str(snapshot / 'build/hw'))
     text = text.replace(str(root / 'hw'), str(snapshot / 'hw'))
@@ -212,12 +249,14 @@ def main():
                 'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
                 'source_diff': subprocess.check_output(['git', 'diff', 'HEAD'], cwd=root, text=True),
                 'inputs': {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
-                'scope': 'ABI4 CH1 2 GiB ECC, WL calibration, independent 125 MHz GPU clock, JTAG AXI and PCIe',
+                'scope': ('ABI5 CH0 raw spare-lane + CH1 ECC 4 GiB' if dual_channel else 'ABI4 CH1 ECC 2 GiB')
+                         + ', WL calibration, independent 125 MHz GPU clock, JTAG AXI and PCIe',
                 'controller': controller, 'vivado_threads': args.threads}
     if args.reuse_synthesis:
         manifest['reused_synthesis'] = reuse_synthesis(args.reuse_synthesis, output, manifest)
     save(output / 'inputs.json', manifest)
-    stages = ['synthesize'] if args.stage == 'synthesize' else ['synthesize', 'implement']
+    stages = ['elaborate'] if args.stage == 'elaborate' else (
+        ['synthesize'] if args.stage == 'synthesize' else ['synthesize', 'implement'])
     if args.reuse_synthesis:
         stages = ['implement']
     for stage in stages:

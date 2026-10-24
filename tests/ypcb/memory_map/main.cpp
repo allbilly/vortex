@@ -1,4 +1,6 @@
 #include <vortex2.h>
+#include <VX_config.h>
+#include <VX_types.h>
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -50,15 +52,31 @@ int main() {
     }
     std::printf("Runtime capabilities: %llu MHz, peak memory %llu MB/s\n",
                 static_cast<unsigned long long>(clock_rate), static_cast<unsigned long long>(memory_bandwidth));
+    uint64_t capacity = 0;
+    check(vx_device_query(device, VX_CAPS_GLOBAL_MEM_SIZE, &capacity), "global memory capacity");
     vx_queue_info_t info = {sizeof(info), nullptr, VX_QUEUE_PRIORITY_NORMAL, 0};
     vx_queue_h queue = nullptr;
     check(vx_queue_create(device, &info, &queue), "create queue");
 
-    constexpr std::array<uint64_t, 4> addresses = {
-        0x00100000, 0x40100000, 0x7fffd000, 0x7ffee000
-    };
-    std::array<vx_buffer_h, addresses.size()> buffers{};
-    std::array<std::vector<uint8_t>, addresses.size()> reference;
+    std::vector<uint64_t> addresses;
+    if (capacity > (uint64_t(1) << 31)) {
+        if (!VX_CFG_YPCB_DUAL_CHANNEL_ENABLED) {
+            std::fprintf(stderr, "4 GiB memory map requires dual-channel profile\n");
+            check(vx_device_release(device), "release device");
+            return 1;
+        }
+        addresses = {0x00100000, 0x40100000, 0x7ff6d000, 0x7ff5e000,
+                     0x7ffff000, 0x80100000, 0xfff6d000};
+    } else if (capacity != (uint64_t(1) << 31)) {
+        std::fprintf(stderr, "Unexpected global memory capacity: %llu\n",
+                     static_cast<unsigned long long>(capacity));
+        check(vx_device_release(device), "release device");
+        return 1;
+    } else {
+        addresses = {0x00100000, 0x40100000, 0x7ff6d000, 0x7ff5e000};
+    }
+    std::vector<vx_buffer_h> buffers(addresses.size(), nullptr);
+    std::vector<std::vector<uint8_t>> reference(addresses.size());
     for (size_t region = 0; region < addresses.size(); ++region) {
         reference[region].resize(8192);
         for (size_t byte = 0; byte < reference[region].size(); ++byte) {
@@ -83,15 +101,18 @@ int main() {
 
     const std::array<uint8_t, 13> patch = {0x91, 0x27, 0xf4, 0x63, 0x08, 0xbb,
         0x51, 0x3c, 0xae, 0x79, 0x12, 0xe0, 0x45};
-    check(vx_enqueue_write(queue, buffers[2], 4093, patch.data(), patch.size(),
+    const size_t patch_region = addresses.size() > 4 ? 4 : 2;
+    const size_t copy_region = addresses.size() > 5 ? 5 : 3;
+    constexpr size_t patch_offset = 4093;
+    check(vx_enqueue_write(queue, buffers[patch_region], patch_offset, patch.data(), patch.size(),
                            0, nullptr, nullptr), "partial boundary write");
     for (size_t byte = 0; byte < patch.size(); ++byte) {
-        reference[2][4093 + byte] = patch[byte];
+        reference[patch_region][patch_offset + byte] = patch[byte];
     }
     std::array<uint8_t, 32> partial_read;
     partial_read.fill(0xa5);
     vx_event_h event = nullptr;
-    check(vx_enqueue_read(queue, partial_read.data() + 3, buffers[2], 4093,
+    check(vx_enqueue_read(queue, partial_read.data() + 3, buffers[patch_region], patch_offset,
                           patch.size(), 0, nullptr, &event), "partial boundary read");
     check(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE), "wait partial read");
     check(vx_event_release(event), "release partial read");
@@ -103,10 +124,10 @@ int main() {
             return 1;
         }
     }
-    check(vx_enqueue_copy(queue, buffers[3], 77, buffers[2], 4093, patch.size(),
+    check(vx_enqueue_copy(queue, buffers[copy_region], 77, buffers[patch_region], patch_offset, patch.size(),
                           0, nullptr, nullptr), "partial device copy");
     for (size_t byte = 0; byte < patch.size(); ++byte) {
-        reference[3][77 + byte] = patch[byte];
+        reference[copy_region][77 + byte] = patch[byte];
     }
     for (size_t region = 0; region < addresses.size(); ++region) {
         verify(queue, buffers[region], reference[region]);
@@ -114,6 +135,8 @@ int main() {
     }
     check(vx_queue_release(queue), "release queue");
     check(vx_device_release(device), "release device");
-    std::puts("PASSED: CP DMA, 4 distinct regions, CH1 2 GiB bounds, byte-exact upload/download/copy and no aliases");
+    std::puts(capacity > (uint64_t(1) << 31)
+        ? "PASSED: CP DMA, legacy regions, dual-channel boundary, CH1 and pre-stack bounds, byte-exact transfers"
+        : "PASSED: CP DMA, legacy 2 GiB regions, byte-exact upload/download/copy and no aliases");
     return 0;
 }

@@ -4,7 +4,9 @@
 `timescale 1ns/1ps
 `include "VX_platform.vh"
 
-module VX_ypcb_startup (
+module VX_ypcb_startup #(
+    parameter DUAL_CHANNEL = 0
+) (
     input wire clk,
     input wire reset,
     input wire [1:0] pll_locked,
@@ -42,7 +44,9 @@ module VX_ypcb_startup (
     reg [11:0] write_address;
     reg [7:0] write_command;
     reg command_enabled;
-    wire calibrated = pll_locked == 2'b10 && init_done == 2'b10 && init_error == 0;
+    localparam logic [1:0] READY_MASK = DUAL_CHANNEL ? 2'b11 : 2'b10;
+    localparam logic [31:0] BOARD_ABI = DUAL_CHANNEL ? 32'd5 : 32'd4;
+    wire calibrated = pll_locked == READY_MASK && init_done == READY_MASK && init_error == 0;
     wire write_fire = aw_pending && w_pending && !s_bvalid;
     wire request_start = write_fire && write_address == 12'h010 && command_enabled
         && write_command == 8'd1 && state == WAIT_INIT && calibrated && !scrub_failed;
@@ -78,12 +82,12 @@ module VX_ypcb_startup (
                     end
                     // A previous completion must not open memory before the new scrub starts.
                     if (busy_seen && scrub_done && !scrub_busy) begin
-                        memory_ready <= 2'b10;
+                        memory_ready <= READY_MASK;
                         state <= READY;
                     end
                 end
                 READY: begin
-                    memory_ready <= 2'b10;
+                    memory_ready <= READY_MASK;
                 end
                 FAILED: begin
                     memory_ready <= 0;
@@ -160,7 +164,7 @@ module VX_ypcb_startup (
                 s_rresp <= 0;
                 case (s_araddr)
                     12'h000: s_rdata <= 32'h56595043;
-                    12'h004: s_rdata <= 32'd4;
+                    12'h004: s_rdata <= BOARD_ABI;
                     12'h008: s_rdata <= status;
                     12'h010: s_rdata <= 0;
                     default: s_rresp <= 2'b11;

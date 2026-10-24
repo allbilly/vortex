@@ -5,8 +5,9 @@ SRC_DIR := $(VORTEX_HOME)/tests/ypcb/reservation
 RT_DIR := $(ROOT_DIR)/sw/runtime
 CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -Werror
 CXXFLAGS += -I$(VORTEX_HOME)/sw/runtime/include -I$(VORTEX_HOME)/sw/runtime/common
-CXXFLAGS += -I$(SW_COMMON_DIR)
-HEADERS := $(SW_COMMON_DIR)/ypcb_host_memory.h $(SW_COMMON_DIR)/ypcb_transport.h $(SW_COMMON_DIR)/mem_alloc.h
+CXXFLAGS += -I$(SW_COMMON_DIR) -I$(ROOT_DIR)/sw
+CXXFLAGS += $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
+HEADERS := $(SW_COMMON_DIR)/ypcb_host_memory.h $(SW_COMMON_DIR)/ypcb_transport.h $(SW_COMMON_DIR)/mem_alloc.h $(ROOT_DIR)/sw/VX_types.h $(ROOT_DIR)/sw/VX_config.h $(VORTEX_HOME)/VX_config.toml
 
 .PHONY: all run clean
 all: reservation-test libvortex-reservation-test.so

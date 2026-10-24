@@ -15,6 +15,8 @@ IVERILOG ?= iverilog
 VVP ?= vvp
 LITEDRAM_PYTHONPATH ?= $(ROOT_DIR)/open-reference/migen:$(ROOT_DIR)/open-reference/litex:$(ROOT_DIR)/open-reference/litedram:$(ROOT_DIR)/open-python-deps
 DDR_OUT_DIR ?= $(CURDIR)/ddr
+DDR_CH0_OUT_DIR ?= $(DDR_OUT_DIR)-ch0
+DDR_CH1_OUT_DIR ?= $(DDR_OUT_DIR)-ch1
 DDR_CONFIG_HEADER := $(ROOT_DIR)/sw/ypcb/ypcb_wl_config.h
 MEMORY_NUM_INPUTS ?= 4
 SLANG_PLUGIN ?= $(ROOT_DIR)/tools-build/sv-elab/slang.so
@@ -27,7 +29,7 @@ BOARD_AFU_RTLIL ?= $(BOARD_AFU_DIR)/vortex_afu_slang.il
 PCIE_REFERENCE ?= $(ROOT_DIR)/open-reference/pcie_7x
 PCIE_SRC_DIR ?= $(BOARD_OUT_DIR)/pcie-patched/src
 BOARD_CFLAGS := -I$(SRC_DIR) -I$(ROOT_DIR)/hw -I$(RTL_DIR) -I$(RTL_DIR)/libs
-BOARD_CFLAGS += -DVX_CFG_XLEN=32 -DVX_CFG_XLEN_32 -DVX_CFG_FPU_TYPE=STD -DSYNTHESIS -DVIVADO -DNDEBUG
+BOARD_CFLAGS += $(YPCB_CONFIGS) -DVX_CFG_XLEN=32 -DVX_CFG_XLEN_32 -DVX_CFG_FPU_TYPE=STD -DSYNTHESIS -DVIVADO -DNDEBUG
 BOARD_SOURCES := $(wildcard $(SRC_DIR)/VX_ypcb_*.sv) $(SRC_DIR)/ypcb_top.sv
 
 # Use the synthesizable RTL FPU, with the same choice in the simulation oracle.
@@ -48,7 +50,7 @@ CFLAGS += -I$(RTL_DIR)/dxa
 RTL_PKGS += $(RTL_DIR)/dxa/VX_dxa_pkg.sv
 endif
 
-.PHONY: sources open-sv2v open-synth frontend-test frontend-slang-test open-slang-import open-slang-synth ddr-sources ddr-host-config ddr-host-test ddr-synth cdc-sources cdc-test wb-cdc-sources wb-cdc-test memory-test pio-test pio-host-test pio-memory-test pio-synth pcie-test pcie-synth control-test control-synth control-mapped-test ddr-control-test ddr-control-synth startup-test startup-host-test startup-synth scrub-test elaborate synth
+.PHONY: sources open-sv2v open-synth frontend-test frontend-slang-test open-slang-import open-slang-synth ddr-sources ddr-host-config ddr-host-test ddr-synth cdc-sources cdc-test wb-cdc-sources wb-cdc-test memory-test pio-test pio-host-test pio-host-test-dual pio-memory-test pio-synth pcie-test pcie-synth control-test control-synth control-mapped-test ddr-control-test ddr-control-synth startup-test startup-host-test startup-synth scrub-test elaborate synth
 .PHONY: afu-control-test board-sv2v board-bind board-constraints board-afu board-synth board-pcie
 .PHONY: shell-test-build shell-test scopeinfo-test
 
@@ -71,7 +73,7 @@ board-synth: board-bind
 	$(YOSYS) -l $(BOARD_OUT_DIR)/yosys-synth.log -p 'read_rtlil $(BOARD_OUT_DIR)/ypcb_bound.il; synth_xilinx -family xc7 -top ypcb_top -flatten -run begin:prepare; write_rtlil $(BOARD_OUT_DIR)/ypcb_begin.il; synth_xilinx -family xc7 -top ypcb_top -flatten -run prepare:map_dsp; write_rtlil $(BOARD_OUT_DIR)/ypcb_prepare.il; synth_xilinx -family xc7 -top ypcb_top -flatten -run map_dsp:map_luts; write_rtlil $(BOARD_OUT_DIR)/ypcb_pre_luts.il; synth_xilinx -family xc7 -top ypcb_top -run map_luts:; delete t:$$scopeinfo; check -assert; select -assert-none ypcb_top/t:$$*; stat; write_json $(BOARD_OUT_DIR)/ypcb.json'
 
 board-constraints:
-	python3 $(SRC_DIR)/gen_constraints.py --reference $(ROOT_DIR)/board_reference --package $(ROOT_DIR)/board_reference/package_pins-xc7k480tffg1156-2.csv --audit $(ROOT_DIR)/board-pin-audit.json --top $(SRC_DIR)/ypcb_top.sv --output $(BOARD_OUT_DIR)/ypcb-reference.xdc
+	python3 $(SRC_DIR)/gen_constraints.py --reference $(ROOT_DIR)/board_reference --package $(ROOT_DIR)/board_reference/package_pins-xc7k480tffg1156-2.csv --audit $(ROOT_DIR)/board-pin-audit.json --top $(SRC_DIR)/ypcb_top.sv --output $(BOARD_OUT_DIR)/ypcb-reference.xdc $(if $(filter -DVX_CFG_YPCB_DUAL_CHANNEL_ENABLE,$(YPCB_DUAL_CHANNEL_FLAG)),--dual-channel)
 
 afu-control-test:
 	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_afu_control --Mdir $(CURDIR)/afu-control-test -o afu-control-test $(SRC_DIR)/VX_ypcb_afu_control.sv $(SRC_DIR)/tests/afu_control.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror'
@@ -114,7 +116,13 @@ open-slang-synth: open-slang-import
 	$(YOSYS) -l $(OUT_DIR)/yosys-slang-synth.log -p 'read_rtlil $(OUT_DIR)/vortex_afu_slang.il; synth_xilinx -family xc7 -top $(TOP) -flatten -noiopad -noclkbuf -run begin:map_luts; write_rtlil $(OUT_DIR)/vortex_afu_slang_pre_luts.il; synth_xilinx -family xc7 -top $(TOP) -noiopad -noclkbuf -run map_luts:; delete t:$$scopeinfo; check -assert; select -assert-none $(TOP)/t:$$*; stat; write_json $(OUT_DIR)/vortex_afu_slang.json'
 
 ddr-sources:
+ifneq (,$(filter -DVX_CFG_YPCB_DUAL_CHANNEL_ENABLE,$(YPCB_DUAL_CHANNEL_FLAG)))
+	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/opentpu/gen_core.py --physical-channel=0 --output $(DDR_CH0_OUT_DIR) --cc $(CALIBRATION_CC)
+	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/opentpu/gen_core.py --physical-channel=1 --output $(DDR_CH1_OUT_DIR) --cc $(CALIBRATION_CC)
+	python3 $(SRC_DIR)/gen_dual_ddr.py --ch0 $(DDR_CH0_OUT_DIR) --ch1 $(DDR_CH1_OUT_DIR) --output $(DDR_OUT_DIR)
+else
 	env PYTHONPATH=$(LITEDRAM_PYTHONPATH) $(LITEDRAM_PYTHON) $(SRC_DIR)/opentpu/gen_core.py --output $(DDR_OUT_DIR) --cc $(CALIBRATION_CC)
+endif
 
 ddr-host-config:
 	python3 $(VORTEX_HOME)/ci/ypcb_wl_config.py --ddr $(DDR_OUT_DIR) --output $(DDR_CONFIG_HEADER)
@@ -159,8 +167,12 @@ pio-test:
 	$(CURDIR)/pio-test/pio-test
 
 pio-host-test:
-	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-host-test -o pio-host-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-host-test -o pio-host-test -GDUAL_CHANNEL=0 $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
 	$(CURDIR)/pio-host-test/pio-host-test
+
+pio-host-test-dual:
+	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-host-test-dual -o pio-host-test-dual -GDUAL_CHANNEL=1 $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -DTEST_PIO_DUAL_CHANNEL -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
+	$(CURDIR)/pio-host-test-dual/pio-host-test-dual
 
 pio-memory-test:
 	$(VERILATOR) --build --cc --exe --assert -Wall -j 1 --top-module VX_ypcb_pio --Mdir $(CURDIR)/pio-memory-test -o pio-memory-test $(filter-out -DSYNTHESIS -DNDEBUG,$(CFLAGS)) -DSIMULATION $(SRC_DIR)/VX_ypcb_pio.sv $(SRC_DIR)/tests/pio.cpp $(SW_COMMON_DIR)/ypcb_transport.cpp $(SW_COMMON_DIR)/ypcb_host_memory.cpp -CFLAGS '-std=c++17 -Wall -Wextra -Werror -pthread -DTEST_PIO_TRANSPORT -DTEST_HOST_MEMORY -I$(SW_COMMON_DIR)' -LDFLAGS '-pthread'
