@@ -55,8 +55,8 @@ proc access_words {write address count values} {
     }
     return $result
 }
-if {[access_word 0 0x3000 0] != 0x56595043 || [access_word 0 0x3004 0] != 4} {
-    error "JTAG AXI does not expose the CH1 YPCB register ABI"
+if {[access_word 0 0x3000 0] != 0x56595043 || [access_word 0 0x3004 0] ni {4 5}} {
+    error "JTAG AXI does not expose a supported YPCB register ABI"
 }
 proc consume {channel} {
     global client
