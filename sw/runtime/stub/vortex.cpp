@@ -57,6 +57,19 @@ vx_result_t dispatcher_get_callbacks(const callbacks_t** out) {
     const char* drv = std::getenv("VORTEX_DRIVER");
     if (drv == nullptr) drv = "simx";   // default backend
     std::string lib = std::string("libvortex-") + drv + ".so";
+#ifdef __APPLE__
+    Dl_info location{};
+    if (!dladdr(reinterpret_cast<const void*>(&dispatcher_get_callbacks), &location)
+            || location.dli_fname == nullptr) {
+        return VX_ERR_DEVICE_LOST;
+    }
+    const std::string runtime_path(location.dli_fname);
+    const auto separator = runtime_path.find_last_of('/');
+    if (separator == std::string::npos) {
+        return VX_ERR_DEVICE_LOST;
+    }
+    lib = runtime_path.substr(0, separator + 1) + lib;
+#endif
 
     void* h = dlopen(lib.c_str(), RTLD_LAZY);
     if (h == nullptr) {

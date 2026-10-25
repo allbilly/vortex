@@ -45,6 +45,7 @@ namespace vt = tensor;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+template <typename = void>
 static void convert_row_to_col_major_4bit(uint8_t *dst, uint32_t width, uint32_t height, const uint8_t *src) {
   // Calculate output size and stride
   uint32_t out_bytes = (width * height + 1) / 2;
@@ -219,7 +220,7 @@ template <>
 class Comparator<vt::fp16> {
 public:
   static uint16_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftoh_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint16_t a, uint16_t b, int index, int errors) {
@@ -237,7 +238,7 @@ template <>
 class Comparator<vt::bf16> {
 public:
   static uint16_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftob_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint16_t a, uint16_t b, int index, int errors) {
@@ -255,7 +256,7 @@ template <>
 class Comparator<vt::fp8> {
 public:
   static uint8_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftoe4m3_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint8_t a, uint8_t b, int index, int errors) {
@@ -273,7 +274,7 @@ template <>
 class Comparator<vt::bf8> {
 public:
   static uint8_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftoe5m2_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint8_t a, uint8_t b, int index, int errors) {
@@ -291,7 +292,7 @@ template <>
 class Comparator<vt::tf32> {
 public:
   static uint32_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftotf32_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint32_t a, uint32_t b, int index, int errors) {
@@ -309,7 +310,7 @@ template <>
 class Comparator<vt::fp32> {
 public:
   static float generate() {
-    return static_cast<float>(rand()) / RAND_MAX;
+    return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
   }
   static bool compare(float a, float b, int index, int errors) {
     if constexpr (std::is_same<vt::ITYPE, vt::fp8>::value || std::is_same<vt::ITYPE, vt::bf8>::value) {

@@ -99,13 +99,6 @@ constexpr uint8_t  CP_OPCODE_LAUNCH_QMD = 0x0B;
 constexpr uint8_t  CP_OPCODE_DRAW       = 0x0C;
 constexpr std::size_t CP_CL_BYTES    = 64;
 
-// CMD_EVENT_WAIT comparison operations (encoded in arg2[1:0]).
-// Mirrors hw/rtl/cp/VX_cp_pkg.sv:wait_op_e.
-constexpr uint8_t  CP_WAIT_OP_EQ = 0;
-constexpr uint8_t  CP_WAIT_OP_GE = 1;
-constexpr uint8_t  CP_WAIT_OP_GT = 2;
-constexpr uint8_t  CP_WAIT_OP_NE = 3;
-
 // The Device on which this thread has an open CP batch, if any.
 //
 // cp_batch_begin holds cp_mu_ for the batch's whole duration, so a submitter

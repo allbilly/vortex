@@ -1,0 +1,2475 @@
+{
+  "schema": 1,
+  "profile": "ypcb_blackwell_like_4gb",
+  "bitstream_sha256": "d6ad50f70469d6cf3d25f8ca0f8dee1875988b0ac07bec0fa88b8cd0ff06dfb3",
+  "board_abi": 5,
+  "payload_bytes": 4294967296,
+  "compute_MHz": 125,
+  "pcie_vendor": 4334,
+  "pcie_device": 1152,
+  "bar0_bytes": 65536,
+  "CH0_ECC": false,
+  "CH1_ECC": true,
+  "cflags": [
+    "-DVX_CFG_XLEN=32",
+    "-DVX_CFG_XLEN_32",
+    "-DVX_CFG_FLEN=32",
+    "-DVX_CFG_FLEN_32",
+    "-DVX_CFG_FPU_TYPE=STD",
+    "-DVX_CFG_FPU_TYPE_STD",
+    "-DVX_CFG_TCU_TYPE=TFR",
+    "-DVX_CFG_TCU_TYPE_TFR",
+    "-DVX_CFG_PLATFORM_MEMORY_TYPE=HBM2",
+    "-DVX_CFG_PLATFORM_MEMORY_TYPE_HBM2",
+    "-DVX_CFG_NUM_CLUSTERS=1",
+    "-DVX_CFG_NUM_CORES=1",
+    "-DVX_CFG_SOCKET_SIZE=1",
+    "-DVX_CFG_YPCB_DUAL_CHANNEL_ENABLE",
+    "-DVX_CFG_YPCB_DUAL_CHANNEL_ENABLED=1",
+    "-DVX_CFG_RESET_DELAY=8",
+    "-DVX_CFG_ICACHE_ENABLE",
+    "-DVX_CFG_ICACHE_ENABLED=1",
+    "-DVX_CFG_DCACHE_ENABLE",
+    "-DVX_CFG_DCACHE_ENABLED=1",
+    "-DVX_CFG_LMEM_ENABLE",
+    "-DVX_CFG_LMEM_ENABLED=1",
+    "-DVX_CFG_L2_ENABLE",
+    "-DVX_CFG_L2_ENABLED=1",
+    "-DVX_CFG_L3_ENABLED=0",
+    "-DVX_CFG_VM_ENABLED=0",
+    "-DVX_CFG_EXT_D_ENABLED=0",
+    "-DVX_CFG_FLEN=32",
+    "-DVX_CFG_EXT_M_ENABLE",
+    "-DVX_CFG_EXT_M_ENABLED=1",
+    "-DVX_CFG_EXT_F_ENABLE",
+    "-DVX_CFG_EXT_F_ENABLED=1",
+    "-DVX_CFG_EXT_C_ENABLED=0",
+    "-DVX_CFG_EXT_A_ENABLE",
+    "-DVX_CFG_EXT_A_ENABLED=1",
+    "-DVX_CFG_EXT_ZACAS_ENABLE",
+    "-DVX_CFG_EXT_ZACAS_ENABLED=1",
+    "-DVX_CFG_EXT_ZICOND_ENABLE",
+    "-DVX_CFG_EXT_ZICOND_ENABLED=1",
+    "-DVX_CFG_EXT_TCU_ENABLE",
+    "-DVX_CFG_EXT_TCU_ENABLED=1",
+    "-DVX_CFG_EXT_DMA_ENABLED=0",
+    "-DVX_CFG_EXT_DXA_ENABLE",
+    "-DVX_CFG_EXT_DXA_ENABLED=1",
+    "-DVX_CFG_EXT_TEX_ENABLED=0",
+    "-DVX_CFG_EXT_RASTER_ENABLED=0",
+    "-DVX_CFG_EXT_OM_ENABLED=0",
+    "-DVX_CFG_EXT_RTU_ENABLED=0",
+    "-DVX_CFG_VLEN=128",
+    "-DVX_CFG_NUM_WARPS=8",
+    "-DVX_CFG_NUM_THREADS=8",
+    "-DVX_CFG_NUM_BARRIERS=8",
+    "-DVX_CFG_MAX_BAR_EVENTS=32",
+    "-DVX_CFG_IBUF_SIZE=4",
+    "-DVX_CFG_DISPATCH_QUEUE_SIZE=4",
+    "-DVX_CFG_ISSUE_WIDTH=1",
+    "-DVX_CFG_SIMD_WIDTH=8",
+    "-DVX_CFG_NUM_OPCS=2",
+    "-DVX_CFG_NUM_GPR_BANKS=4",
+    "-DVX_CFG_NUM_VGPR_BANKS=2",
+    "-DVX_CFG_MEM_BLOCK_SIZE=64",
+    "-DVX_CFG_MEM_ADDR_WIDTH=32",
+    "-DVX_CFG_L1_LINE_SIZE=64",
+    "-DVX_CFG_L2_LINE_SIZE=128",
+    "-DVX_CFG_L2_SECTOR_SIZE=64",
+    "-DVX_CFG_L3_LINE_SIZE=64",
+    "-DVX_CFG_L3_SECTOR_SIZE=64",
+    "-DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1",
+    "-DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=32",
+    "-DVX_CFG_PLATFORM_MEMORY_DATA_SIZE=64",
+    "-DVX_CFG_PLATFORM_MEMORY_INTERLEAVE=1",
+    "-DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400",
+    "-DVX_CFG_PLATFORM_CLOCK_RATE=125",
+    "-DVX_CFG_PLATFORM_MEMORY_TYPE=HBM2",
+    "-DVX_CFG_PLATFORM_MEMORY_DATA_RATE=250",
+    "-DVX_CFG_PLATFORM_MEMORY_LATENCY=0",
+    "-DVX_CFG_PLATFORM_MEMORY_QUEUE_SIZE=0",
+    "-DVX_CFG_NUM_ALU_LANES=8",
+    "-DVX_CFG_NUM_ALU_BLOCKS=1",
+    "-DVX_CFG_NUM_SFU_LANES=8",
+    "-DVX_CFG_NUM_SFU_BLOCKS=1",
+    "-DVX_CFG_NUM_LSU_LANES=8",
+    "-DVX_CFG_NUM_LSU_BLOCKS=1",
+    "-DVX_CFG_LSU_STACK_INTERLEAVE_ENABLE",
+    "-DVX_CFG_LSU_STACK_INTERLEAVE_ENABLED=1",
+    "-DVX_CFG_LSU_LINE_SIZE=32",
+    "-DVX_CFG_LSU_QUEUE_IN_SIZE=4",
+    "-DVX_CFG_LSU_PENDING_SIZE=16",
+    "-DVX_CFG_FPU_TYPE=STD",
+    "-DVX_CFG_NUM_FPU_LANES=8",
+    "-DVX_CFG_NUM_FPU_BLOCKS=1",
+    "-DVX_CFG_FPU_QUEUE_SIZE=2",
+    "-DVX_CFG_FPU_USE_DSP=0",
+    "-DVX_CFG_FMA_LATENCY=8",
+    "-DVX_CFG_FDIV_LATENCY=17",
+    "-DVX_CFG_FSQRT_LATENCY=17",
+    "-DVX_CFG_FNCP_LATENCY=2",
+    "-DVX_CFG_FCVT_LATENCY=5",
+    "-DVX_CFG_FMA_PE_RATIO=1",
+    "-DVX_CFG_FDIV_PE_RATIO=1",
+    "-DVX_CFG_FSQRT_PE_RATIO=1",
+    "-DVX_CFG_FCVT_PE_RATIO=1",
+    "-DVX_CFG_FNCP_PE_RATIO=1",
+    "-DVX_CFG_AMO_RS_SIZE=8",
+    "-DVX_CFG_NUM_VPU_LANES=8",
+    "-DVX_CFG_NUM_VPU_BLOCKS=1",
+    "-DVX_CFG_TLB_SIZE=32",
+    "-DVX_CFG_DTLB_SIZE=16",
+    "-DVX_CFG_ITLB_SIZE=8",
+    "-DVX_CFG_L1_TLB_MSHR_SIZE=4",
+    "-DVX_CFG_L2_TLB_SIZE=512",
+    "-DVX_CFG_L2_TLB_NUM_WAYS=4",
+    "-DVX_CFG_L2_TLB_MEGA_SIZE=8",
+    "-DVX_CFG_L2_TLB_MSHR_SIZE=8",
+    "-DVX_CFG_L2_TLB_LATENCY=4",
+    "-DVX_CFG_PTW_NUM_WALKERS=2",
+    "-DVX_CFG_PTW_WALK_CACHE_SIZE=16",
+    "-DVX_CFG_VM_PINNED_REGION_SIZE=0x10000000",
+    "-DVX_CFG_ICACHE_SIZE=16384",
+    "-DVX_CFG_ICACHE_NUM_WAYS=4",
+    "-DVX_CFG_ICACHE_REPL_POLICY=1",
+    "-DVX_CFG_ICACHE_MSHR_SIZE=16",
+    "-DVX_CFG_ICACHE_MRSQ_SIZE=0",
+    "-DVX_CFG_ICACHE_MREQ_SIZE=0",
+    "-DVX_CFG_ICACHE_CRSQ_SIZE=0",
+    "-DVX_CFG_ICACHE_MEM_PORTS=1",
+    "-DVX_CFG_ICACHE_LATENCY=2",
+    "-DVX_CFG_DCACHE_SIZE=16384",
+    "-DVX_CFG_DCACHE_NUM_WAYS=4",
+    "-DVX_CFG_DCACHE_WORD_SIZE=16",
+    "-DVX_CFG_DCACHE_WRITEBACK=0",
+    "-DVX_CFG_DCACHE_DIRTYBYTES=0",
+    "-DVX_CFG_DCACHE_REPL_POLICY=1",
+    "-DVX_CFG_DCACHE_MSHR_SIZE=16",
+    "-DVX_CFG_DCACHE_LINE_SIZE=64",
+    "-DVX_CFG_DCACHE_SECTOR_SIZE=64",
+    "-DVX_CFG_DCACHE_LATENCY=2",
+    "-DVX_CFG_DCACHE_MRSQ_SIZE=4",
+    "-DVX_CFG_DCACHE_MREQ_SIZE=0",
+    "-DVX_CFG_DCACHE_CRSQ_SIZE=0",
+    "-DVX_CFG_NUM_ICACHES=1",
+    "-DVX_CFG_NUM_DCACHES=1",
+    "-DVX_CFG_DCACHE_NUM_BANKS=1",
+    "-DVX_CFG_L1_MEM_PORTS=1",
+    "-DVX_CFG_L2_SIZE=1048576",
+    "-DVX_CFG_L2_NUM_WAYS=8",
+    "-DVX_CFG_L2_WRITEBACK=1",
+    "-DVX_CFG_L2_DIRTYBYTES=0",
+    "-DVX_CFG_L2_REPL_POLICY=1",
+    "-DVX_CFG_L2_MSHR_SIZE=16",
+    "-DVX_CFG_L2_LATENCY=4",
+    "-DVX_CFG_L2_MRSQ_SIZE=4",
+    "-DVX_CFG_L2_MREQ_SIZE=0",
+    "-DVX_CFG_L2_CRSQ_SIZE=0",
+    "-DVX_CFG_L2_NUM_BANKS=1",
+    "-DVX_CFG_L2_MEM_PORTS=1",
+    "-DVX_CFG_L3_SIZE=2097152",
+    "-DVX_CFG_L3_NUM_WAYS=8",
+    "-DVX_CFG_L3_WRITEBACK=0",
+    "-DVX_CFG_L3_DIRTYBYTES=0",
+    "-DVX_CFG_L3_REPL_POLICY=1",
+    "-DVX_CFG_L3_MSHR_SIZE=16",
+    "-DVX_CFG_L3_LATENCY=4",
+    "-DVX_CFG_L3_MRSQ_SIZE=4",
+    "-DVX_CFG_L3_MREQ_SIZE=0",
+    "-DVX_CFG_L3_CRSQ_SIZE=0",
+    "-DVX_CFG_L3_NUM_BANKS=1",
+    "-DVX_CFG_L3_MEM_PORTS=0",
+    "-DVX_CFG_LMEM_NUM_BANKS=8",
+    "-DVX_CFG_LMEM_LOG_SIZE=14",
+    "-DVX_CFG_TCU_TYPE=TFR",
+    "-DVX_CFG_NUM_TCU_LANES=8",
+    "-DVX_CFG_NUM_TCU_BLOCKS=1",
+    "-DVX_CFG_TCU_USE_DSP=1",
+    "-DVX_CFG_TCU_LATENCY=5",
+    "-DVX_CFG_TCU_TF32_ENABLE",
+    "-DVX_CFG_TCU_TF32_ENABLED=1",
+    "-DVX_CFG_TCU_FP16_ENABLE",
+    "-DVX_CFG_TCU_FP16_ENABLED=1",
+    "-DVX_CFG_TCU_FP8_ENABLE",
+    "-DVX_CFG_TCU_FP8_ENABLED=1",
+    "-DVX_CFG_TCU_FP4_ENABLE",
+    "-DVX_CFG_TCU_FP4_ENABLED=1",
+    "-DVX_CFG_TCU_INT8_ENABLE",
+    "-DVX_CFG_TCU_INT8_ENABLED=1",
+    "-DVX_CFG_TCU_INT4_ENABLED=0",
+    "-DVX_CFG_TCU_MX_ENABLE",
+    "-DVX_CFG_TCU_MX_ENABLED=1",
+    "-DVX_CFG_TCU_MXFP4_ENABLE",
+    "-DVX_CFG_TCU_MXFP4_ENABLED=1",
+    "-DVX_CFG_TCU_NVFP4_ENABLE",
+    "-DVX_CFG_TCU_NVFP4_ENABLED=1",
+    "-DVX_CFG_TCU_SPARSE_ENABLE",
+    "-DVX_CFG_TCU_SPARSE_ENABLED=1",
+    "-DVX_CFG_TCU_DSM_ENABLED=0",
+    "-DVX_CFG_TCU_WGMMA_ENABLE",
+    "-DVX_CFG_TCU_WGMMA_ENABLED=1",
+    "-DVX_CFG_NUM_DXA_CORES=1",
+    "-DVX_CFG_DXA_MEM_PORTS=1",
+    "-DVX_CFG_DXA_QUEUE_SIZE=16",
+    "-DVX_CFG_DXA_MAX_INFLIGHT=8",
+    "-DVX_CFG_NUM_RTU_CORES=1",
+    "-DVX_CFG_RTU_BVH_WIDTH=4",
+    "-DVX_CFG_RTU_TLAS_ENABLED=0",
+    "-DVX_CFG_RTU_STACK_DEPTH=16",
+    "-DVX_CFG_RTU_RECIP_DSP_SEED=0",
+    "-DVX_CFG_RTU_USE_DSP=0",
+    "-DVX_CFG_RTU_FDIV_LATENCY=17",
+    "-DVX_CFG_RTU_NUM_SLOTS=1",
+    "-DVX_CFG_RTU_NUM_CTX=8",
+    "-DVX_CFG_RTU_MERGE_DEPTH=0",
+    "-DVX_CFG_NUM_RTU_BLOCKS=2",
+    "-DVX_CFG_NUM_TEX_CORES=1",
+    "-DVX_CFG_TEX_REQ_QUEUE_SIZE=8",
+    "-DVX_CFG_TEX_MEM_QUEUE_SIZE=8",
+    "-DVX_CFG_NUM_RASTER_CORES=1",
+    "-DVX_CFG_RASTER_NUM_SLICES=1",
+    "-DVX_CFG_RASTER_TILE_LOG_SIZE=5",
+    "-DVX_CFG_RASTER_BIN_LOG_SIZE=7",
+    "-DVX_CFG_RASTER_BLOCK_LOG_SIZE=2",
+    "-DVX_CFG_RASTER_MEM_FIFO_DEPTH=8",
+    "-DVX_CFG_RASTER_QUAD_FIFO_DEPTH=32",
+    "-DVX_CFG_RASTER_MEM_QUEUE_SIZE=4",
+    "-DVX_CFG_RASTER_EARLYZ_ENABLED=0",
+    "-DVX_CFG_NUM_OM_CORES=1",
+    "-DVX_CFG_OM_MEM_QUEUE_SIZE=4",
+    "-DVX_CFG_TCACHE_SIZE=8192",
+    "-DVX_CFG_TCACHE_NUM_BANKS=1",
+    "-DVX_CFG_TCACHE_NUM_WAYS=2",
+    "-DVX_CFG_TCACHE_CRSQ_SIZE=0",
+    "-DVX_CFG_TCACHE_MSHR_SIZE=16",
+    "-DVX_CFG_TCACHE_MRSQ_SIZE=0",
+    "-DVX_CFG_TCACHE_MREQ_SIZE=0",
+    "-DVX_CFG_NUM_TCACHES=1",
+    "-DVX_CFG_RCACHE_SIZE=4096",
+    "-DVX_CFG_RCACHE_NUM_BANKS=1",
+    "-DVX_CFG_RCACHE_NUM_WAYS=2",
+    "-DVX_CFG_RCACHE_CRSQ_SIZE=0",
+    "-DVX_CFG_RCACHE_MSHR_SIZE=16",
+    "-DVX_CFG_RCACHE_MRSQ_SIZE=0",
+    "-DVX_CFG_RCACHE_MREQ_SIZE=0",
+    "-DVX_CFG_NUM_RCACHES=1",
+    "-DVX_CFG_RTCACHE_SIZE=8192",
+    "-DVX_CFG_RTCACHE_NUM_BANKS=1",
+    "-DVX_CFG_RTCACHE_NUM_WAYS=2",
+    "-DVX_CFG_RTCACHE_CRSQ_SIZE=2",
+    "-DVX_CFG_RTCACHE_MSHR_SIZE=16",
+    "-DVX_CFG_RTCACHE_MREQ_SIZE=4",
+    "-DVX_CFG_RTCACHE_MRSQ_SIZE=0",
+    "-DVX_CFG_NUM_RTCACHES=1",
+    "-DVX_CFG_OCACHE_SIZE=16384",
+    "-DVX_CFG_OCACHE_NUM_BANKS=1",
+    "-DVX_CFG_OCACHE_NUM_WAYS=2",
+    "-DVX_CFG_OCACHE_CRSQ_SIZE=0",
+    "-DVX_CFG_OCACHE_MSHR_SIZE=16",
+    "-DVX_CFG_OCACHE_MRSQ_SIZE=0",
+    "-DVX_CFG_OCACHE_MREQ_SIZE=0",
+    "-DVX_CFG_NUM_OCACHES=1",
+    "-DVX_CFG_MISA_STD=9441569",
+    "-DVX_CFG_MISA_EXT=1591",
+    "-DVX_DBG_STALL_TIMEOUT=200000",
+    "-DVX_DBG_DEBUG_LEVEL=3",
+    "-DVX_PROFILE=ypcb_blackwell_like_4gb",
+    "-DVX_CFG_EXT_A_ENABLE",
+    "-DVX_CFG_EXT_DXA_ENABLE",
+    "-DVX_CFG_EXT_TCU_ENABLE",
+    "-DVX_CFG_EXT_ZACAS_ENABLE",
+    "-DVX_CFG_FPU_TYPE=STD",
+    "-DVX_CFG_ISSUE_WIDTH=1",
+    "-DVX_CFG_L2_ENABLE",
+    "-DVX_CFG_MEM_ADDR_WIDTH=32",
+    "-DVX_CFG_NUM_CLUSTERS=1",
+    "-DVX_CFG_NUM_CORES=1",
+    "-DVX_CFG_NUM_THREADS=8",
+    "-DVX_CFG_NUM_WARPS=8",
+    "-DVX_CFG_PLATFORM_CLOCK_RATE=125",
+    "-DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=32",
+    "-DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1",
+    "-DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400",
+    "-DVX_CFG_TCU_FP16_ENABLE",
+    "-DVX_CFG_TCU_FP4_ENABLE",
+    "-DVX_CFG_TCU_FP8_ENABLE",
+    "-DVX_CFG_TCU_INT8_ENABLE",
+    "-DVX_CFG_TCU_LATENCY=5",
+    "-DVX_CFG_TCU_MXFP4_ENABLE",
+    "-DVX_CFG_TCU_MX_ENABLE",
+    "-DVX_CFG_TCU_NVFP4_ENABLE",
+    "-DVX_CFG_TCU_SPARSE_ENABLE",
+    "-DVX_CFG_TCU_TF32_ENABLE",
+    "-DVX_CFG_TCU_TYPE=TFR",
+    "-DVX_CFG_TCU_USE_DSP=1",
+    "-DVX_CFG_TCU_WGMMA_ENABLE",
+    "-DVX_CFG_YPCB_DUAL_CHANNEL_ENABLE",
+    "-DNDEBUG"
+  ],
+  "runtime_sources": {
+    "stub": [
+      "sw/runtime/stub/vortex.cpp",
+      "sw/runtime/common/graphics.cpp",
+      "sw/runtime/common/result.cpp",
+      "sw/runtime/common/device.cpp",
+      "sw/runtime/common/buffer.cpp",
+      "sw/runtime/common/queue.cpp",
+      "sw/runtime/common/event.cpp",
+      "sw/runtime/common/module.cpp",
+      "sw/runtime/common/runtime_helpers.cpp",
+      "sw/runtime/common/perf.cpp",
+      "sw/runtime/common/legacy_runtime.cpp",
+      "sw/runtime/common/legacy_utils.cpp",
+      "sw/runtime/common/utils.cpp",
+      "sw/runtime/common/vm.cpp"
+    ],
+    "ypcb": [
+      "sw/runtime/ypcb/vortex.cpp",
+      "sw/common/ypcb_transport.cpp",
+      "sw/common/ypcb_wl_calibration.cpp",
+      "sw/common/ypcb_startup.cpp",
+      "sw/common/ypcb_host_memory.cpp",
+      "sw/common/ypcb_jtag.cpp"
+    ]
+  },
+  "softfloat_specialization": "RISCV",
+  "softfloat_options": [
+    "-fPIC",
+    "-DSOFTFLOAT_ROUND_ODD",
+    "-DINLINE_LEVEL=5",
+    "-DSOFTFLOAT_FAST_DIV32TO16",
+    "-DSOFTFLOAT_FAST_DIV64TO32",
+    "-DTHREAD_LOCAL=_Thread_local"
+  ],
+  "ecc_offsets": [
+    28672,
+    28680,
+    28684
+  ],
+  "targets": {
+    "tests/ypcb/memory_map/memory_map": {
+      "directory": "tests/ypcb/memory_map",
+      "executable": "memory_map",
+      "sources": [
+        "tests/ypcb/memory_map/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "tests/regression/demo/demo": {
+      "directory": "tests/regression/demo",
+      "executable": "demo",
+      "sources": [
+        "tests/regression/demo/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "tests/regression/sgemm/sgemm": {
+      "directory": "tests/regression/sgemm",
+      "executable": "sgemm",
+      "sources": [
+        "tests/regression/sgemm/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "tests/ypcb/memory_map/raw-memory": {
+      "directory": "tests/ypcb/memory_map",
+      "executable": "raw-memory",
+      "sources": [
+        "tests/ypcb/memory_map/raw.cpp",
+        "sw/common/ypcb_transport.cpp",
+        "sw/common/ypcb_jtag.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "tests/ypcb/native_bist/native_bist": {
+      "directory": "tests/ypcb/native_bist",
+      "executable": "native_bist",
+      "sources": [
+        "tests/ypcb/native_bist/main.cpp",
+        "sw/common/ypcb_jtag.cpp",
+        "sw/common/ypcb_wl_calibration.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "studies/fp16/sgemm_tcu": {
+      "directory": "studies/fp16",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/bf16/sgemm_tcu": {
+      "directory": "studies/bf16",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=bf16",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/tf32/sgemm_tcu": {
+      "directory": "studies/tf32",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=tf32",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/fp8/sgemm_tcu": {
+      "directory": "studies/fp8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/bf8/sgemm_tcu": {
+      "directory": "studies/bf8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=bf8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/int8/sgemm_tcu": {
+      "directory": "studies/int8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=int8",
+        "-DOTYPE=int32"
+      ],
+      "softfloat": true
+    },
+    "studies/uint8/sgemm_tcu": {
+      "directory": "studies/uint8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=uint8",
+        "-DOTYPE=int32"
+      ],
+      "softfloat": true
+    },
+    "studies/mxfp8/sgemm_tcu_mx": {
+      "directory": "studies/mxfp8",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxfp8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/mxbf8/sgemm_tcu_mx": {
+      "directory": "studies/mxbf8",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxbf8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/mxfp4/sgemm_tcu_mx": {
+      "directory": "studies/mxfp4",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxfp4",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/nvfp4/sgemm_tcu_mx": {
+      "directory": "studies/nvfp4",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=nvfp4",
+        "-DOTYPE=fp32",
+        "-DTCU_MX_TLS"
+      ],
+      "softfloat": true
+    },
+    "studies/sparse/sgemm_tcu_sp": {
+      "directory": "studies/sparse",
+      "executable": "sgemm_tcu_sp",
+      "sources": [
+        "tests/regression/sgemm_tcu_sp/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/sparse-mx/sgemm_tcu_sp_mx": {
+      "directory": "studies/sparse-mx",
+      "executable": "sgemm_tcu_sp_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_sp_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxfp8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "studies/wgmma/sgemm_tcu_wg": {
+      "directory": "studies/wgmma",
+      "executable": "sgemm_tcu_wg",
+      "sources": [
+        "tests/regression/sgemm_tcu_wg/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32",
+        "-DWGMMA_NRC=8",
+        "-DWGMMA_SS"
+      ],
+      "softfloat": true
+    },
+    "studies/wgmma-mx/sgemm_tcu_wg_mx": {
+      "directory": "studies/wgmma-mx",
+      "executable": "sgemm_tcu_wg_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_wg_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxfp8",
+        "-DOTYPE=fp32",
+        "-DWGMMA_NRC=8",
+        "-DWGMMA_SS"
+      ],
+      "softfloat": true
+    },
+    "studies/copy/dxa_copy": {
+      "directory": "studies/copy",
+      "executable": "dxa_copy",
+      "sources": [
+        "tests/regression/dxa_copy/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "studies/multicast/dxa_copy_mcast": {
+      "directory": "studies/multicast",
+      "executable": "dxa_copy_mcast",
+      "sources": [
+        "tests/regression/dxa_copy_mcast/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "studies/pipeline/sgemm_tcu_wg_dxa": {
+      "directory": "studies/pipeline",
+      "executable": "sgemm_tcu_wg_dxa",
+      "sources": [
+        "tests/regression/sgemm_tcu_wg_dxa/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32",
+        "-DWGMMA_NRC=8"
+      ],
+      "softfloat": true
+    },
+    "studies/sparse-pipeline/sgemm_tcu_wg_sp_dxa": {
+      "directory": "studies/sparse-pipeline",
+      "executable": "sgemm_tcu_wg_sp_dxa",
+      "sources": [
+        "tests/regression/sgemm_tcu_wg_sp_dxa/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32",
+        "-DWGMMA_NRC=8"
+      ],
+      "softfloat": true
+    },
+    "studies/atomics/amo": {
+      "directory": "studies/atomics",
+      "executable": "amo",
+      "sources": [
+        "tests/regression/amo/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    },
+    "studies/cache-reuse/sgemm_tcu": {
+      "directory": "studies/cache-reuse",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/fp16/sgemm_tcu": {
+      "directory": "formats/fp16",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp16",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/bf16/sgemm_tcu": {
+      "directory": "formats/bf16",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=bf16",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/tf32/sgemm_tcu": {
+      "directory": "formats/tf32",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=tf32",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/fp8/sgemm_tcu": {
+      "directory": "formats/fp8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=fp8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/bf8/sgemm_tcu": {
+      "directory": "formats/bf8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=bf8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/int8/sgemm_tcu": {
+      "directory": "formats/int8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=int8",
+        "-DOTYPE=int32"
+      ],
+      "softfloat": true
+    },
+    "formats/uint8/sgemm_tcu": {
+      "directory": "formats/uint8",
+      "executable": "sgemm_tcu",
+      "sources": [
+        "tests/regression/sgemm_tcu/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=uint8",
+        "-DOTYPE=int32"
+      ],
+      "softfloat": true
+    },
+    "formats/mxfp8/sgemm_tcu_mx": {
+      "directory": "formats/mxfp8",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxfp8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/mxbf8/sgemm_tcu_mx": {
+      "directory": "formats/mxbf8",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxbf8",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/mxfp4/sgemm_tcu_mx": {
+      "directory": "formats/mxfp4",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=mxfp4",
+        "-DOTYPE=fp32"
+      ],
+      "softfloat": true
+    },
+    "formats/nvfp4/sgemm_tcu_mx": {
+      "directory": "formats/nvfp4",
+      "executable": "sgemm_tcu_mx",
+      "sources": [
+        "tests/regression/sgemm_tcu_mx/main.cpp",
+        "sw/common/rvfloats.cpp",
+        "sw/common/softfloat_ext.cpp"
+      ],
+      "flags": [
+        "-DITYPE=nvfp4",
+        "-DOTYPE=fp32",
+        "-DTCU_MX_TLS"
+      ],
+      "softfloat": true
+    },
+    "studies/lrsc-order/lrsc_order": {
+      "directory": "studies/lrsc-order",
+      "executable": "lrsc_order",
+      "sources": [
+        "tests/regression/lrsc_order/main.cpp"
+      ],
+      "flags": [],
+      "softfloat": false
+    }
+  },
+  "cases": [
+    {
+      "name": "memory",
+      "kind": "memory",
+      "target": "tests/ypcb/memory_map/memory_map",
+      "arguments": []
+    },
+    {
+      "name": "demo",
+      "kind": "demo",
+      "target": "tests/regression/demo/demo",
+      "arguments": [
+        "-n64"
+      ]
+    },
+    {
+      "name": "sgemm",
+      "kind": "sgemm",
+      "target": "tests/regression/sgemm/sgemm",
+      "arguments": [
+        "-n16"
+      ]
+    },
+    {
+      "name": "raw-memory",
+      "kind": "raw",
+      "target": "tests/ypcb/memory_map/raw-memory",
+      "arguments": []
+    },
+    {
+      "name": "example-simple_add",
+      "kind": "example",
+      "example": "simple_add"
+    },
+    {
+      "name": "example-elementwise",
+      "kind": "example",
+      "example": "elementwise"
+    },
+    {
+      "name": "example-gemm",
+      "kind": "example",
+      "example": "gemm"
+    },
+    {
+      "name": "example-conv",
+      "kind": "example",
+      "example": "conv"
+    },
+    {
+      "name": "example-pooling",
+      "kind": "example",
+      "example": "pooling"
+    },
+    {
+      "name": "study-fp16",
+      "kind": "study",
+      "study": "fp16",
+      "target": "studies/fp16/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=fp16 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp16 -DOTYPE=fp32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/fp16.log",
+        "reference_log_sha256": "f60e06f79c725b72d006df14f5ee3a78e9d0a594de6343e35404159513d71c4d"
+      }
+    },
+    {
+      "name": "study-bf16",
+      "kind": "study",
+      "study": "bf16",
+      "target": "studies/bf16/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=bf16 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=bf16 -DOTYPE=fp32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/bf16.log",
+        "reference_log_sha256": "575e27ce25f75bb4d88b1b15102166af38fadd5702b8b15b2c289b09a24c7b55"
+      }
+    },
+    {
+      "name": "study-tf32",
+      "kind": "study",
+      "study": "tf32",
+      "target": "studies/tf32/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=tf32 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=tf32 -DOTYPE=fp32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/tf32.log",
+        "reference_log_sha256": "f0a8d21556f739ee0b16d3bc90e8c55f6b2bb42f8387a402c5466dc8a74650a5"
+      }
+    },
+    {
+      "name": "study-fp8",
+      "kind": "study",
+      "study": "fp8",
+      "target": "studies/fp8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=fp8 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp8 -DOTYPE=fp32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/fp8.log",
+        "reference_log_sha256": "19104ac73090dd48d2e7506594bf4367d14731e8a596b794a08ab7f1b12a5046"
+      }
+    },
+    {
+      "name": "study-bf8",
+      "kind": "study",
+      "study": "bf8",
+      "target": "studies/bf8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=bf8 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=bf8 -DOTYPE=fp32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/bf8.log",
+        "reference_log_sha256": "9cb40f34fb235cbff62de1bec2f95cd6cf7008e0435b94bef847f0c8123638fd"
+      }
+    },
+    {
+      "name": "study-int8",
+      "kind": "study",
+      "study": "int8",
+      "target": "studies/int8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=int8 -DOTYPE=int32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=int8 -DOTYPE=int32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/int8.log",
+        "reference_log_sha256": "76d4b9298fbda179d9543e48d5974430947a153478f615cb24ee2179e4e4028c"
+      }
+    },
+    {
+      "name": "study-uint8",
+      "kind": "study",
+      "study": "uint8",
+      "target": "studies/uint8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=uint8 -DOTYPE=int32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=uint8 -DOTYPE=int32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/uint8.log",
+        "reference_log_sha256": "46342d3adc37fe7c5777aa7762e3ec93a9234c0834ad7fe8604c2bdb765fe23b"
+      }
+    },
+    {
+      "name": "study-mxfp8",
+      "kind": "study",
+      "study": "mxfp8",
+      "target": "studies/mxfp8/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_mx",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=mxfp8 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=mxfp8 -DOTYPE=fp32",
+        "expected_counter_rows": 1,
+        "reference_log": "references/mxfp8.log",
+        "reference_log_sha256": "cf72fe9825255e44ff0d40cae467948fdc6a9998c3ba5d19bae506917db1b531"
+      }
+    },
+    {
+      "name": "study-mxbf8",
+      "kind": "study",
+      "study": "mxbf8",
+      "target": "studies/mxbf8/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_mx",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=mxbf8 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=mxbf8 -DOTYPE=fp32",
+        "expected_counter_rows": 1,
+        "reference_log": "references/mxbf8.log",
+        "reference_log_sha256": "f828279d3b981fc093cd58a45131f2501f82f4dcd9eca812789a052552d65c27"
+      }
+    },
+    {
+      "name": "study-mxfp4",
+      "kind": "study",
+      "study": "mxfp4",
+      "target": "studies/mxfp4/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_mx",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=mxfp4 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=mxfp4 -DOTYPE=fp32",
+        "expected_counter_rows": 1,
+        "reference_log": "references/mxfp4.log",
+        "reference_log_sha256": "325f3912cb96d19fea10032f8d1234786482b2cf30c9ec9d5bd0fbc334c7c5a7"
+      }
+    },
+    {
+      "name": "study-nvfp4",
+      "kind": "study",
+      "study": "nvfp4",
+      "target": "studies/nvfp4/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_mx",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=nvfp4 -DOTYPE=fp32 -DTCU_MX_TLS",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=nvfp4 -DOTYPE=fp32 -DTCU_MX_TLS",
+        "expected_counter_rows": 1,
+        "reference_log": "references/nvfp4.log",
+        "reference_log_sha256": "ba2dbbd72b3e638dba350a8eac01f1c396574de3a4dd079b1c5059a7e4233d9b"
+      }
+    },
+    {
+      "name": "study-sparse",
+      "kind": "study",
+      "study": "sparse",
+      "target": "studies/sparse/sgemm_tcu_sp",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_sp",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=fp16 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp16 -DOTYPE=fp32",
+        "expected_counter_rows": 1,
+        "reference_log": "references/sparse.log",
+        "reference_log_sha256": "0fcb8dcd7ad162f5523f3976ba90c70909f6aa26d49865191a05d271d35df613"
+      }
+    },
+    {
+      "name": "study-sparse-mx",
+      "kind": "study",
+      "study": "sparse-mx",
+      "target": "studies/sparse-mx/sgemm_tcu_sp_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_sp_mx",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=mxfp8 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=mxfp8 -DOTYPE=fp32",
+        "expected_counter_rows": 1,
+        "reference_log": "references/sparse-mx.log",
+        "reference_log_sha256": "f502208bc657ff8c5c05c8b215c4f9c9d9c9eb41aae50f7dce27e98ac8c2c5a0"
+      }
+    },
+    {
+      "name": "study-wgmma",
+      "kind": "study",
+      "study": "wgmma",
+      "target": "studies/wgmma/sgemm_tcu_wg",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_wg",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=fp16 -DOTYPE=fp32 -DWGMMA_NRC=8 -DWGMMA_SS",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp16 -DOTYPE=fp32 -DWGMMA_NRC=8 -DWGMMA_SS",
+        "expected_counter_rows": 2,
+        "reference_log": "references/wgmma.log",
+        "reference_log_sha256": "da8b3e4652bf586e019800b724a9fafee20d99bc280e09fc857d1f890fe78cb0"
+      }
+    },
+    {
+      "name": "study-wgmma-mx",
+      "kind": "study",
+      "study": "wgmma-mx",
+      "target": "studies/wgmma-mx/sgemm_tcu_wg_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_wg_mx",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=mxfp8 -DOTYPE=fp32 -DWGMMA_NRC=8 -DWGMMA_SS",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=mxfp8 -DOTYPE=fp32 -DWGMMA_NRC=8 -DWGMMA_SS",
+        "expected_counter_rows": 1,
+        "reference_log": "references/wgmma-mx.log",
+        "reference_log_sha256": "ef0a75751f36797cb0f6817ed56ca0493d26de4624b39b5c469d66412ab0bc09"
+      }
+    },
+    {
+      "name": "study-copy",
+      "kind": "study",
+      "study": "copy",
+      "target": "studies/copy/dxa_copy",
+      "arguments": [
+        "-d2"
+      ],
+      "reference": {
+        "executable": "dxa_copy",
+        "arguments": [
+          "-d2"
+        ],
+        "configs": "",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE",
+        "expected_counter_rows": 1,
+        "reference_log": "references/copy.log",
+        "reference_log_sha256": "6d4d37cd7e37a7b5cda23ef7b65238a0d88c6866bee8e6efc50245b8b72bfa74"
+      }
+    },
+    {
+      "name": "study-multicast",
+      "kind": "study",
+      "study": "multicast",
+      "target": "studies/multicast/dxa_copy_mcast",
+      "arguments": [
+        "-r16",
+        "-c16",
+        "-R16",
+        "-C8"
+      ],
+      "reference": {
+        "executable": "dxa_copy_mcast",
+        "arguments": [
+          "-r16",
+          "-c16",
+          "-R16",
+          "-C8"
+        ],
+        "configs": "",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE",
+        "expected_counter_rows": 1,
+        "reference_log": "references/multicast.log",
+        "reference_log_sha256": "e3c3d33c01d7f2487bf05602349670cba7eb75180d029fab9325257427afdcb2"
+      }
+    },
+    {
+      "name": "study-pipeline",
+      "kind": "study",
+      "study": "pipeline",
+      "target": "studies/pipeline/sgemm_tcu_wg_dxa",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_wg_dxa",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=fp16 -DOTYPE=fp32 -DWGMMA_NRC=8",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp16 -DOTYPE=fp32 -DWGMMA_NRC=8",
+        "expected_counter_rows": 1,
+        "reference_log": "references/pipeline.log",
+        "reference_log_sha256": "e82de748bf2a036ab3d850c502c3c7fb7be1906a070c742e837ccf5df4b9b96d"
+      }
+    },
+    {
+      "name": "study-sparse-pipeline",
+      "kind": "study",
+      "study": "sparse-pipeline",
+      "target": "studies/sparse-pipeline/sgemm_tcu_wg_sp_dxa",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu_wg_sp_dxa",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ],
+        "configs": "-DITYPE=fp16 -DOTYPE=fp32 -DWGMMA_NRC=8",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp16 -DOTYPE=fp32 -DWGMMA_NRC=8",
+        "expected_counter_rows": 1,
+        "reference_log": "references/sparse-pipeline.log",
+        "reference_log_sha256": "b67856b1d03d00878827e4a64b7894c9b3122efbc44f80bbd33f0acaf8213c11"
+      }
+    },
+    {
+      "name": "study-atomics",
+      "kind": "study",
+      "study": "atomics",
+      "target": "studies/atomics/amo",
+      "arguments": [
+        "-n8"
+      ],
+      "reference": {
+        "executable": "amo",
+        "arguments": [
+          "-n8"
+        ],
+        "configs": "",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE",
+        "expected_counter_rows": 1,
+        "reference_log": "references/atomics.log",
+        "reference_log_sha256": "26a38c497872c924ab740e6f7ea54431f9fc8a675ebdb98baf4f701e8e75bd9f"
+      }
+    },
+    {
+      "name": "study-cache-reuse",
+      "kind": "study",
+      "study": "cache-reuse",
+      "target": "studies/cache-reuse/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64",
+        "-r2"
+      ],
+      "reference": {
+        "executable": "sgemm_tcu",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64",
+          "-r2"
+        ],
+        "configs": "-DITYPE=fp16 -DOTYPE=fp32",
+        "resolved_reference_configs": "-DVX_PROFILE=ypcb_blackwell_like -DVX_CFG_EXT_A_ENABLE -DVX_CFG_EXT_DXA_ENABLE -DVX_CFG_EXT_TCU_ENABLE -DVX_CFG_EXT_ZACAS_ENABLE -DVX_CFG_FPU_TYPE=STD -DVX_CFG_ISSUE_WIDTH=1 -DVX_CFG_L2_ENABLE -DVX_CFG_MEM_ADDR_WIDTH=31 -DVX_CFG_NUM_CLUSTERS=1 -DVX_CFG_NUM_CORES=1 -DVX_CFG_NUM_THREADS=8 -DVX_CFG_NUM_WARPS=8 -DVX_CFG_PLATFORM_CLOCK_RATE=125 -DVX_CFG_PLATFORM_MEMORY_ADDR_WIDTH=31 -DVX_CFG_PLATFORM_MEMORY_NUM_BANKS=1 -DVX_CFG_PLATFORM_MEMORY_PEAK_BW=6400 -DVX_CFG_TCU_FP16_ENABLE -DVX_CFG_TCU_FP4_ENABLE -DVX_CFG_TCU_FP8_ENABLE -DVX_CFG_TCU_INT8_ENABLE -DVX_CFG_TCU_LATENCY=5 -DVX_CFG_TCU_MXFP4_ENABLE -DVX_CFG_TCU_MX_ENABLE -DVX_CFG_TCU_NVFP4_ENABLE -DVX_CFG_TCU_SPARSE_ENABLE -DVX_CFG_TCU_TF32_ENABLE -DVX_CFG_TCU_TYPE=TFR -DVX_CFG_TCU_USE_DSP=1 -DVX_CFG_TCU_WGMMA_ENABLE -DITYPE=fp16 -DOTYPE=fp32",
+        "expected_counter_rows": 3,
+        "reference_log": "references/cache-reuse.log",
+        "reference_log_sha256": "c9913ca2fefd1091dbc2228c82e0ccb84f562513fb8f9e18cbd43899c8c30925"
+      }
+    },
+    {
+      "name": "format-fp16-square",
+      "kind": "format",
+      "target": "formats/fp16/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k16",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "fp16",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 16,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/fp16",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k16",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-fp16-rectangular",
+      "kind": "format",
+      "target": "formats/fp16/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k16",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "fp16",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 16,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/fp16",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k16",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-bf16-square",
+      "kind": "format",
+      "target": "formats/bf16/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k16",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "bf16",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 16,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/bf16",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k16",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-bf16-rectangular",
+      "kind": "format",
+      "target": "formats/bf16/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k16",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "bf16",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 16,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/bf16",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k16",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-tf32-square",
+      "kind": "format",
+      "target": "formats/tf32/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k16",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "tf32",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 16,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/tf32",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k16",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-tf32-rectangular",
+      "kind": "format",
+      "target": "formats/tf32/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k16",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "tf32",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 16,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/tf32",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k16",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-fp8-square",
+      "kind": "format",
+      "target": "formats/fp8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "fp8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/fp8",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-fp8-rectangular",
+      "kind": "format",
+      "target": "formats/fp8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "fp8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/fp8",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-bf8-square",
+      "kind": "format",
+      "target": "formats/bf8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "bf8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/bf8",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-bf8-rectangular",
+      "kind": "format",
+      "target": "formats/bf8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "bf8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/bf8",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-int8-square",
+      "kind": "format",
+      "target": "formats/int8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "int8",
+        "output_type": "int32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/int8",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-int8-rectangular",
+      "kind": "format",
+      "target": "formats/int8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "int8",
+        "output_type": "int32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/int8",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-uint8-square",
+      "kind": "format",
+      "target": "formats/uint8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "uint8",
+        "output_type": "int32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/uint8",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-uint8-rectangular",
+      "kind": "format",
+      "target": "formats/uint8/sgemm_tcu",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k32",
+        "-r2"
+      ],
+      "reference": {
+        "input_type": "uint8",
+        "output_type": "int32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 32,
+        "verified_launches": 2,
+        "executable": "sgemm_tcu",
+        "directory": "formats/uint8",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k32",
+          "-r2"
+        ]
+      }
+    },
+    {
+      "name": "format-mxfp8-square",
+      "kind": "format",
+      "target": "formats/mxfp8/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k32"
+      ],
+      "reference": {
+        "input_type": "mxfp8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 32,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/mxfp8",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k32"
+        ]
+      }
+    },
+    {
+      "name": "format-mxfp8-rectangular",
+      "kind": "format",
+      "target": "formats/mxfp8/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k32"
+      ],
+      "reference": {
+        "input_type": "mxfp8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 32,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/mxfp8",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k32"
+        ]
+      }
+    },
+    {
+      "name": "format-mxbf8-square",
+      "kind": "format",
+      "target": "formats/mxbf8/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k32"
+      ],
+      "reference": {
+        "input_type": "mxbf8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 32,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/mxbf8",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k32"
+        ]
+      }
+    },
+    {
+      "name": "format-mxbf8-rectangular",
+      "kind": "format",
+      "target": "formats/mxbf8/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k32"
+      ],
+      "reference": {
+        "input_type": "mxbf8",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 32,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/mxbf8",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k32"
+        ]
+      }
+    },
+    {
+      "name": "format-mxfp4-square",
+      "kind": "format",
+      "target": "formats/mxfp4/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "input_type": "mxfp4",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 64,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/mxfp4",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ]
+      }
+    },
+    {
+      "name": "format-mxfp4-rectangular",
+      "kind": "format",
+      "target": "formats/mxfp4/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k64"
+      ],
+      "reference": {
+        "input_type": "mxfp4",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 64,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/mxfp4",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k64"
+        ]
+      }
+    },
+    {
+      "name": "format-nvfp4-square",
+      "kind": "format",
+      "target": "formats/nvfp4/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n16",
+        "-k64"
+      ],
+      "reference": {
+        "input_type": "nvfp4",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 16,
+        "depth": 64,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/nvfp4",
+        "arguments": [
+          "-m16",
+          "-n16",
+          "-k64"
+        ]
+      }
+    },
+    {
+      "name": "format-nvfp4-rectangular",
+      "kind": "format",
+      "target": "formats/nvfp4/sgemm_tcu_mx",
+      "arguments": [
+        "-m16",
+        "-n32",
+        "-k64"
+      ],
+      "reference": {
+        "input_type": "nvfp4",
+        "output_type": "fp32",
+        "rows": 16,
+        "cols": 32,
+        "depth": 64,
+        "verified_launches": 1,
+        "executable": "sgemm_tcu_mx",
+        "directory": "formats/nvfp4",
+        "arguments": [
+          "-m16",
+          "-n32",
+          "-k64"
+        ]
+      }
+    },
+    {
+      "name": "study-lrsc-order-single-long",
+      "kind": "lrsc",
+      "target": "studies/lrsc-order/lrsc_order",
+      "arguments": [
+        "-s",
+        "-n128"
+      ],
+      "reference": {
+        "directory": "studies/lrsc-order",
+        "executable": "lrsc_order",
+        "arguments": [
+          "-s",
+          "-n128"
+        ],
+        "harts": 1,
+        "iterations": 128,
+        "enabled_cases": 15863,
+        "required_failed_first_sc": 244,
+        "global_banks": 1,
+        "local_banks": 8,
+        "lsu_lanes": 8,
+        "simd_width": 8,
+        "cas_only": 0,
+        "allowed_failed_first_sc": 247
+      }
+    },
+    {
+      "name": "study-lrsc-order-all-harts",
+      "kind": "lrsc",
+      "target": "studies/lrsc-order/lrsc_order",
+      "arguments": [
+        "-n4"
+      ],
+      "reference": {
+        "directory": "studies/lrsc-order",
+        "executable": "lrsc_order",
+        "arguments": [
+          "-n4"
+        ],
+        "harts": 64,
+        "iterations": 4,
+        "enabled_cases": 15863,
+        "required_failed_first_sc": 244,
+        "global_banks": 1,
+        "local_banks": 8,
+        "lsu_lanes": 8,
+        "simd_width": 8,
+        "cas_only": 0,
+        "allowed_failed_first_sc": 247
+      }
+    }
+  ],
+  "kernel_layouts": {
+    "examples/kernels/conv/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "examples/kernels/elementwise/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746240
+    },
+    "examples/kernels/gemm/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746176
+    },
+    "examples/kernels/pooling/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746496
+    },
+    "examples/kernels/simple_add/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746112
+    },
+    "formats/bf16/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/bf8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/fp16/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/fp8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/int8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/mxbf8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/mxfp4/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/mxfp8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/nvfp4/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746432
+    },
+    "formats/tf32/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "formats/uint8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/atomics/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073747648
+    },
+    "studies/bf16/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/bf8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/cache-reuse/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/copy/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746496
+    },
+    "studies/fp16/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/fp8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/int8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/lrsc-order/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073747392
+    },
+    "studies/multicast/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746240
+    },
+    "studies/mxbf8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/mxfp4/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/mxfp8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/nvfp4/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746432
+    },
+    "studies/pipeline/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746432
+    },
+    "studies/sparse-mx/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746432
+    },
+    "studies/sparse-pipeline/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746432
+    },
+    "studies/sparse/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/tf32/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/uint8/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    },
+    "studies/wgmma-mx/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746496
+    },
+    "studies/wgmma/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746496
+    },
+    "tests/regression/demo/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746112
+    },
+    "tests/regression/sgemm/kernel.vxbin": {
+      "start": 1073741824,
+      "end": 1073746368
+    }
+  },
+  "JTAG_qualification_sha256": "636d7d3dc43782a7344347547126857c74441ec9d0f8e4509e79ce1e779cc007",
+  "physical_macOS_tested": false,
+  "physical_PCIe_tested": false,
+  "files": {
+    "generated/sw/VX_config.h": "40de583d366fdc4bae78ccc5f5711432f71ae795fbf68f10166a680d911903cd",
+    "generated/sw/VX_types.h": "8f61912379bb0eaab3bd0952d93bd4d0091b572835b45f5d04243d708f547198",
+    "generated/sw/ypcb/ypcb_wl_config.h": "96b08ff99bfc6eda98da980ce6351b10385caa6057eed247d1c3568e7479b015",
+    "kernels/examples/kernels/conv/kernel.vxbin": "10543eb424b2847e2b6590b08fcf2a6578715dc015626a75cc05e6b014c88717",
+    "kernels/examples/kernels/elementwise/kernel.vxbin": "52c0d2caaeb706f45d9d7c2a4b189af82ddff2176dbba42691aea1336f8fb0bf",
+    "kernels/examples/kernels/gemm/kernel.vxbin": "0b0e039ea5223192861bf2c56efc5c5fb4981e34e4092646a9418e640bf25e21",
+    "kernels/examples/kernels/pooling/kernel.vxbin": "3ea6a1c707f081ad79816d99b7c54a2caec5db8ddee07e75abed501108875a91",
+    "kernels/examples/kernels/simple_add/kernel.vxbin": "f3eecf8e805518e3a67aa0de5b71c6e4dbf6ec66731680de07bd86bd01da64ff",
+    "kernels/formats/bf16/kernel.vxbin": "649d50e374eaa52a7ae1e39dd3b4ece022e55a3b9888300f827746413fcf00ee",
+    "kernels/formats/bf8/kernel.vxbin": "4c7767c1d7cc95e76464e12b2faf77c82a57e49f5cf74a932696106102b2a783",
+    "kernels/formats/fp16/kernel.vxbin": "695581ef95b8d806d6e14c300e2da9c7de9c2d63e610ee463ece73465177c2e3",
+    "kernels/formats/fp8/kernel.vxbin": "ab1a638fd043bd9452ab5fa3b70935c2d0bc7b202690b39483361684e51c0022",
+    "kernels/formats/int8/kernel.vxbin": "9688d4db72517a79607284a9e28c594eae7247ea018d4b1d36d9f57e68ff98a8",
+    "kernels/formats/mxbf8/kernel.vxbin": "6b3857096d5b5063dc682ae1572c7a7d0b8303af8a4a0668c1d7946f69cea1ac",
+    "kernels/formats/mxfp4/kernel.vxbin": "c6cf7ee6e6a5f5f36f1095e0d772ef80991906eccb76111069dcc30d62b52c91",
+    "kernels/formats/mxfp8/kernel.vxbin": "1c30658fa6be786d63b75a317de69b7498af4d80e51139ed3e3223e2460a5595",
+    "kernels/formats/nvfp4/kernel.vxbin": "2959e91c13ddc5128ce9b61dbfc2fad2fc224940ba1344c1667840ca30b7b6dd",
+    "kernels/formats/tf32/kernel.vxbin": "8b4ce81650bcd3a6219e621eab5a8c0c2bf15f08fa037c1401e8d96d1fa63b5d",
+    "kernels/formats/uint8/kernel.vxbin": "2922b7c94910cae196d7539f197f6eaddba8062b012c87a1510c8a028f07f748",
+    "kernels/studies/atomics/kernel.vxbin": "7890fabe4d80f4516637a6022be1fcf9cdcd37f78a63853f2aed02465662c226",
+    "kernels/studies/bf16/kernel.vxbin": "649d50e374eaa52a7ae1e39dd3b4ece022e55a3b9888300f827746413fcf00ee",
+    "kernels/studies/bf8/kernel.vxbin": "4c7767c1d7cc95e76464e12b2faf77c82a57e49f5cf74a932696106102b2a783",
+    "kernels/studies/cache-reuse/kernel.vxbin": "695581ef95b8d806d6e14c300e2da9c7de9c2d63e610ee463ece73465177c2e3",
+    "kernels/studies/copy/kernel.vxbin": "5d2ed60b5044dad34d7502de743c8450d45c3ae82d48cee6e7ff096a0fb7f4e8",
+    "kernels/studies/fp16/kernel.vxbin": "695581ef95b8d806d6e14c300e2da9c7de9c2d63e610ee463ece73465177c2e3",
+    "kernels/studies/fp8/kernel.vxbin": "ab1a638fd043bd9452ab5fa3b70935c2d0bc7b202690b39483361684e51c0022",
+    "kernels/studies/int8/kernel.vxbin": "9688d4db72517a79607284a9e28c594eae7247ea018d4b1d36d9f57e68ff98a8",
+    "kernels/studies/lrsc-order/kernel.vxbin": "44edfb70efd9710158d2c1841b605eed008eca42103a6d9328f2416850d523f4",
+    "kernels/studies/multicast/kernel.vxbin": "dc2e3570ab1cf9d2d3b2156568e55a18983e8567f2f386bbe986917f5fabeddf",
+    "kernels/studies/mxbf8/kernel.vxbin": "6b3857096d5b5063dc682ae1572c7a7d0b8303af8a4a0668c1d7946f69cea1ac",
+    "kernels/studies/mxfp4/kernel.vxbin": "c6cf7ee6e6a5f5f36f1095e0d772ef80991906eccb76111069dcc30d62b52c91",
+    "kernels/studies/mxfp8/kernel.vxbin": "1c30658fa6be786d63b75a317de69b7498af4d80e51139ed3e3223e2460a5595",
+    "kernels/studies/nvfp4/kernel.vxbin": "2959e91c13ddc5128ce9b61dbfc2fad2fc224940ba1344c1667840ca30b7b6dd",
+    "kernels/studies/pipeline/kernel.vxbin": "34d566562daab51d91afb77f786ef5bff26d4d06d8196db772ce9d2bf72f5751",
+    "kernels/studies/sparse/kernel.vxbin": "35b285dd19c0efee8cd60179567e7b4e16fb372833b2257b2f1f72c586a5f376",
+    "kernels/studies/sparse-mx/kernel.vxbin": "0869345bfda6583473b6f7ba868e53200137c035e4d4f91e88872468b5044f8b",
+    "kernels/studies/sparse-pipeline/kernel.vxbin": "60f03933cecbbd05ebe49b929afd00098987b97e21257d7ce2c5703dab280c40",
+    "kernels/studies/tf32/kernel.vxbin": "8b4ce81650bcd3a6219e621eab5a8c0c2bf15f08fa037c1401e8d96d1fa63b5d",
+    "kernels/studies/uint8/kernel.vxbin": "2922b7c94910cae196d7539f197f6eaddba8062b012c87a1510c8a028f07f748",
+    "kernels/studies/wgmma/kernel.vxbin": "d0b7239e9cc3f3f55f6051c42cd9ff0df654952f919b082fea133f70f1ffad20",
+    "kernels/studies/wgmma-mx/kernel.vxbin": "71e3d46fa32a0b954f2ae5a00efa127b97b112e548a6f7053f91d211ac866923",
+    "kernels/tests/regression/demo/kernel.vxbin": "9384f38c211363771bc4064bba7e306101e2c2328f1caa744c5864625e789a0a",
+    "kernels/tests/regression/sgemm/kernel.vxbin": "550a2761452395773216386012036882c361fe63c3e6f4959d8beb483ce3cf34",
+    "references/atomics.log": "26a38c497872c924ab740e6f7ea54431f9fc8a675ebdb98baf4f701e8e75bd9f",
+    "references/bf16.log": "575e27ce25f75bb4d88b1b15102166af38fadd5702b8b15b2c289b09a24c7b55",
+    "references/bf8.log": "9cb40f34fb235cbff62de1bec2f95cd6cf7008e0435b94bef847f0c8123638fd",
+    "references/cache-reuse.log": "c9913ca2fefd1091dbc2228c82e0ccb84f562513fb8f9e18cbd43899c8c30925",
+    "references/copy.log": "6d4d37cd7e37a7b5cda23ef7b65238a0d88c6866bee8e6efc50245b8b72bfa74",
+    "references/fp16.log": "f60e06f79c725b72d006df14f5ee3a78e9d0a594de6343e35404159513d71c4d",
+    "references/fp8.log": "19104ac73090dd48d2e7506594bf4367d14731e8a596b794a08ab7f1b12a5046",
+    "references/int8.log": "76d4b9298fbda179d9543e48d5974430947a153478f615cb24ee2179e4e4028c",
+    "references/multicast.log": "e3c3d33c01d7f2487bf05602349670cba7eb75180d029fab9325257427afdcb2",
+    "references/mxbf8.log": "f828279d3b981fc093cd58a45131f2501f82f4dcd9eca812789a052552d65c27",
+    "references/mxfp4.log": "325f3912cb96d19fea10032f8d1234786482b2cf30c9ec9d5bd0fbc334c7c5a7",
+    "references/mxfp8.log": "cf72fe9825255e44ff0d40cae467948fdc6a9998c3ba5d19bae506917db1b531",
+    "references/nvfp4.log": "ba2dbbd72b3e638dba350a8eac01f1c396574de3a4dd079b1c5059a7e4233d9b",
+    "references/pipeline.log": "e82de748bf2a036ab3d850c502c3c7fb7be1906a070c742e837ccf5df4b9b96d",
+    "references/sparse-mx.log": "f502208bc657ff8c5c05c8b215c4f9c9d9c9eb41aae50f7dce27e98ac8c2c5a0",
+    "references/sparse-pipeline.log": "b67856b1d03d00878827e4a64b7894c9b3122efbc44f80bbd33f0acaf8213c11",
+    "references/sparse.log": "0fcb8dcd7ad162f5523f3976ba90c70909f6aa26d49865191a05d271d35df613",
+    "references/tf32.log": "f0a8d21556f739ee0b16d3bc90e8c55f6b2bb42f8387a402c5466dc8a74650a5",
+    "references/uint8.log": "46342d3adc37fe7c5777aa7762e3ec93a9234c0834ad7fe8604c2bdb765fe23b",
+    "references/wgmma-mx.log": "ef0a75751f36797cb0f6817ed56ca0493d26de4624b39b5c469d66412ab0bc09",
+    "references/wgmma.log": "da8b3e4652bf586e019800b724a9fafee20d99bc280e09fc857d1f890fe78cb0"
+  },
+  "softfloat_revision": "b51ef8f3201669b2288104c28546fc72532a1ea4",
+  "source_hashes": {
+    "ci/mac_vortex.sh": "a36fb0348aa43893b0747a95dd5cf4adf5b8c8f49e94901508646e9c2bebe37f",
+    "ci/ypcb_chestnut.py": "93bcff10a197b67ede8443ded83c2818f9b5131578552fd5322b17b1f41838d8",
+    "ci/ypcb_mac_checks.py": "87265c34c0aea6bcc332c95ad7fcb2002734208cc182697fd66375203d45c15a",
+    "ci/ypcb_macos.py": "7327b071056185d0f85858d9ce58c08b79ded1008e7bdc7ba0518c8c824080a2",
+    "examples/common.py": "68a0fada2c6518e0a5c0b280f0c9b88e1dbd55cea7d88518772ff61377136874",
+    "examples/conv.py": "8a73c55b09c63d986d72849e386638f0f6a396c6d4a9341cf16791af80b8ee9f",
+    "examples/elementwise.py": "a901c91947ae7a0a666a4395b2465317179c48d7a2e6ab1b7d80cd0fd7088553",
+    "examples/gemm.py": "c86ff34bf007d9c7451f54c2f56b4adcea6096196043132e0f636e87f7a21e76",
+    "examples/pooling.py": "80163162a3f9549422a92a062e0c88a85a82f880830a3c1374bdade7dea3be37",
+    "examples/simple_add.py": "48e954ee29707f799a95a760720d1a2e5d9450d24bb60891de096516033a1d4c",
+    "sw/common/bitmanip.h": "972f44f7274c9bf11cd1d608db6d351a0b0ec43bbd7d4c55bd37a65d3c1a88f1",
+    "sw/common/bitvector.h": "84ef691ea21678e2f446c92868e0fecaa546c3d02564ed50e506ef67989d3d46",
+    "sw/common/dxa_meta.h": "bd57790b136bdad1f5b945459bad508aec667373e82bd3cde6cbc9044551689c",
+    "sw/common/gfx_dcr.h": "1cc8deb52e0f8d95d678e53d9ba31b2dc27ba7f2a368e902eb0257480fbc0c83",
+    "sw/common/gfx_ff_model.cpp": "486cd7d32252de73e117c334c9312e882b5b120aed1d3959934aee364dbfa88e",
+    "sw/common/gfx_ff_model.h": "4dec88ec11b12f251c1845e430ffe761b82471a165b11e1f1a74d9d862723eb5",
+    "sw/common/gfx_frag_rast.h": "7e4488c17bc413e021aa5d6ba401f8f1e01d94eabc220a40cf3c503b3a61bd49",
+    "sw/common/gfx_frag_tex.h": "bda61c204dd9df5f64a446b33fcd7f9c0676879b6c9dd38184ca5d34249abdba",
+    "sw/common/gfx_frontend_abi.h": "09d8379be0ef87edd17b22951e03085227cf1cdfe85ccf142d4fdf74b86d1feb",
+    "sw/common/gfx_fs_desc_abi.h": "1c2b1b2991386121a5b504eb4b7de2fb3c78ed82c12c3f55e4f90a02f6248d5f",
+    "sw/common/gfx_setup.h": "791e026cf50b6b653bdea822cc943f1e06a88f41ab3e11326c6692f9edf081d0",
+    "sw/common/gfx_sw.h": "9b74350c2e4169d3c8a565d03459bc47e8011e4b7bc40005b1e026c8cf53c733",
+    "sw/common/gfx_sw_abi.h": "c511028ff7434ee2e068e4257c1e18ff24dd4beccaff82b1389e28fc3ad7005e",
+    "sw/common/gfx_tex_const.h": "ace318fdb6be1837c12ad909edb055b3818ab6bb2e8bd75214b54d6c44b2ea7a",
+    "sw/common/linked_list.h": "e334d610ce753df9d20b5282fa7668b8f95bb9537e6d9d0f931157ba890beec4",
+    "sw/common/mem_alloc.h": "5537e34dc013d1cc2cd115cb83e037462a3db406290c9a43ea4e809f9f90024c",
+    "sw/common/mempool.h": "f3a5ad6bca40e6dc9fffe9d8b2e99865dee02b52f603764cc221022d0c5f3143",
+    "sw/common/mp_macros.h": "d2422863ee4bc95c7c4a0f2f35dad14836caaed9279b3730830f906ffe05139c",
+    "sw/common/ringqueue.h": "09ec27281a56f3da7d8657a4a3ec16f450f0ad98dc2fb057f088339a22d27405",
+    "sw/common/rtu_cfg.h": "d406d46279e6437493487b3f7db7b690f677551926573579cb7f606782fecc56",
+    "sw/common/rvfloats.cpp": "38b41646f2f6a318abbde25829bb73c91214a6749d768e68720e4ed9f882a282",
+    "sw/common/rvfloats.h": "794043122bd863a085adf8af2b5056bd67b921202fa03cd4625cc58262ffd256",
+    "sw/common/smallfunc.h": "ca87b450a9910b8421df4dc61a16f172fbc1c494fb36864f0178fa7706fabef4",
+    "sw/common/softfloat_ext.cpp": "4bc6beb8a4bd39407a440021d20bfd044ea32211fae1eea3504ab1c68daeb2f0",
+    "sw/common/softfloat_ext.h": "eaef5771cd5c1271917c3fe9777a02d8b8ecdc5c00527bfb988f6dfe904ed375",
+    "sw/common/stringutil.h": "0f5a111a509303962ccc7999383b6bd7f1be52c226457f6e80037864359d14e3",
+    "sw/common/tensor_cfg.h": "8e57f622cc1154799528b3a708fd7c0b50d20dd8a57e4da5e2762d5fbad5e8da",
+    "sw/common/util.cpp": "9033fed4f1c88b0c3d4c225b10fa68e191dcc86608a29bf531e6d144a36eaea3",
+    "sw/common/util.h": "22df04c6d7242b40fc63f1701643d5eed8601f64893104567580bab80360a884",
+    "sw/common/vm_types.h": "20e4c8a7fba500a0ee948b9afdd59a22b43f03e5c45b3fac68e9120ecccb9252",
+    "sw/common/vx_gfx_abi.h": "138ecd5cb93280947d7f3958d52802ffc191aee294fe52ec62cc04af8272cd34",
+    "sw/common/vx_tex_lod.h": "5be88e6895595055f1e0db173918cac44c108ca952358e184ebc5c24678b0faa",
+    "sw/common/ypcb_calibration.cpp": "fd30e20e2e9c714a0b3d7fd26477c88cdc74e70cb20b2e6406852946c0c51996",
+    "sw/common/ypcb_calibration.h": "3069c8812f1c78f8e8798468b493af93602d6de1f5928ef51b674774ea7e0a44",
+    "sw/common/ypcb_calibration_abi.h": "49eaa1570a70016a8bf39587d4095e4f50a0bdaa3a2318f84a369e6a8c05b7eb",
+    "sw/common/ypcb_ddr.cpp": "ed5849bad95662285615cbd170e7e2e8e4c58e2f436e5b1d96e21ba51dd77e4e",
+    "sw/common/ypcb_ddr.h": "91aecc643dbae30eeea6afd9ec6212922f570630c87b51af6f0bb3144076c952",
+    "sw/common/ypcb_host_memory.cpp": "bdc4a589b70453f8a3e04af434dbe41fbad4039fbb294e7d1fdc1d3a1a1d3a33",
+    "sw/common/ypcb_host_memory.h": "e57fde8df71da885f8c0798e67a03822f81295191d996a02c877ec47c4f35b61",
+    "sw/common/ypcb_jtag.cpp": "b7ed9aaea04f5eb8c4053684ab25cc03eb01a391d856ba0be07645eb673f07ba",
+    "sw/common/ypcb_jtag.h": "290a0d875f31ef9392d9617e0993dd3713ee71f402e46b4ecbbacb82f041b831",
+    "sw/common/ypcb_startup.cpp": "f4427ed52e0a074df19807d108e17f8432434748a253ce8f050b28e28c1eef4c",
+    "sw/common/ypcb_startup.h": "ee9f17fff621f7094369e04300d316207160d60b38e5772620c63c4b1858ee84",
+    "sw/common/ypcb_transport.cpp": "20b7007d5f3dd31038db3d94d16157869106f245560224473d286043e22e334f",
+    "sw/common/ypcb_transport.h": "8ece1de4a8fd5686a67b01745cfa39b92f4711154d0fb245647541351d493979",
+    "sw/common/ypcb_wl_calibration.cpp": "dee0cff4257b799e6a7f375ad5495989c03997ed4c6cca353d931d0761ae8893",
+    "sw/common/ypcb_wl_calibration.h": "8a7e9d8d3f1032c2e2b005c5260672433789d42e4fc8ac8b1c9737d6961356b9",
+    "sw/kernel/include/vx_barrier.h": "523e44e423f594f14c9aabe95cf82481d7223ffceb405344e08fe5268274b5c8",
+    "sw/kernel/include/vx_dxa.h": "307d983b98d2d0796fe6b1d780024f2c211a8e4fcf6cbb2d980efff293476773",
+    "sw/kernel/include/vx_graphics.h": "0023557d3b5a3574b3f5e5533ffbd610204886ed67be12f3deffb83495233ffe",
+    "sw/kernel/include/vx_intrinsics.h": "aa51d5c177225b0129aadc3ea4838f8d6ebf593f71a9d638c849b742e2965998",
+    "sw/kernel/include/vx_print.h": "cd8228b466fc1870226db525ebd52e5b4fe3c160c4e5bfa3a3f4fc8b87853d1d",
+    "sw/kernel/include/vx_raytrace.h": "6b30c14697335fc6993d221328b3cea1e9477990ad3014900ae85c8469a4a71a",
+    "sw/kernel/include/vx_spawn.h": "d044bdcd47c9f5d1bcce481bc808af7e355293058d65df663ff09eba1711ceb8",
+    "sw/kernel/include/vx_spawn2.h": "7865a242249cdc66d2843780ff9208b1e0970124001ea9927529acb18a5ac2ab",
+    "sw/kernel/include/vx_tensor.h": "175badd612e210b079831ba11068a3f4a2c4de8bd91d6b700b6746bea83cef82",
+    "sw/runtime/Makefile": "ed71278763536bb6dc010822db736529afcd0750817a241d6ed4ac280c37b372",
+    "sw/runtime/aved/Makefile": "49cc19bd9dbd0c7df78478c2290e0b250d9823fa0a4404e5fe98a92483cc6618",
+    "sw/runtime/aved/vortex.cpp": "6c3246c3e0ed335905a30aca36dca035e08e9d1bd72abc3dda5261131b59d229",
+    "sw/runtime/common.mk": "2af4343c0738db4a665c96e24f90f78912302b20597dda74d9592afb6676736e",
+    "sw/runtime/common/buffer.cpp": "7c0c31f33367aa22430d4dbd59d827b1339565086cfb6fdc070f0975ac621cf9",
+    "sw/runtime/common/callbacks.h": "880f5f535181fdad5d3ff153d0c937d41463795261c9340de01ff56eb960e27e",
+    "sw/runtime/common/callbacks.inc": "8bea5ead1ec7041d028960e7b99c9a89d23451a1132a697f584500029bfea0b5",
+    "sw/runtime/common/caps.h": "3c8ab623d233cd94c0d15f79adff5b4048054b46926dd1368ec1e9ad84996a42",
+    "sw/runtime/common/common.h": "c7c8f66b626efbe6dde77081f4bde7f0c1e663c451d310cdaa4b2cb11428a55e",
+    "sw/runtime/common/device.cpp": "39b5a43c22ab20e769a929a3d4f7ce25793bec526f20c33ba94f92044b956c27",
+    "sw/runtime/common/dispatcher.h": "702fd81a2f0b1a15eea612b0da6b3293827b36063357a8a924b71abfb3d17259",
+    "sw/runtime/common/event.cpp": "7a9b9a39a0d77295f62a8435a0a962d367fa0d2623d3ca580a3b2ba748c11b67",
+    "sw/runtime/common/graphics.cpp": "ec5da9577e58dd8d3edf38651922fff8b0938d499df7a6591a818aa7de1f19bf",
+    "sw/runtime/common/legacy_runtime.cpp": "23250707d656cf96c46d2dcdb49904c823e34b426642dbdaee256ae0cc783eb8",
+    "sw/runtime/common/legacy_utils.cpp": "e1863ab5b1feeeaadde2a9333a3f4681328f5ecf7375b2ee16277b7585317eef",
+    "sw/runtime/common/module.cpp": "a8ade3f9dad14bf7811017cef8010b0df7fe5313a4e2b79a768e12a710c2288b",
+    "sw/runtime/common/nlohmann_json.hpp": "3dd4b858daf50eed95e720e7679ca31d1cc9808e4e43bdcd096256fd4a0818f9",
+    "sw/runtime/common/perf.cpp": "5d4f9d63a15a0295625d16773b9be3b2895239793b6e7a12095a619d5a6311df",
+    "sw/runtime/common/queue.cpp": "fb53e69273dcb01d286daa23ac7c84a677d3f78e98da030a831219399142df30",
+    "sw/runtime/common/result.cpp": "051f6234ddf5973ed9f01bfaf22a159292983c6fa8287eff0f9d1a427d9a7aea",
+    "sw/runtime/common/runtime_helpers.cpp": "8d140762330b3200fb198eb3a75f8480b189550130ad84247dda6869f91712cd",
+    "sw/runtime/common/scope.cpp": "2a40a40344f74cc2e614971f116130b044e7247215040b3bf53c70194b46693f",
+    "sw/runtime/common/scope.h": "a6f376f0f227ddf1d907af56cc0b3bc90e4ace399adaea1ee9cbc3337e3eb202",
+    "sw/runtime/common/utils.cpp": "a5a268ef8c4a84964a71adfb310832278204f74e7222cb35b333a0bda47cc433",
+    "sw/runtime/common/vm.cpp": "19bdd2c134e6b730768e37ca7acacde2077db8bafd24132b4066539605ecb975",
+    "sw/runtime/common/vm.h": "29818a9b17f7de47ad73ea0b6aa9cbd1b6d20e7ed3316fcc52219c487ed5d1fc",
+    "sw/runtime/common/vortex2_internal.h": "50391e6991a10f980de6d1cb4430b25b0c35c6e3afaf387f98f85edc299f9dbe",
+    "sw/runtime/firesim/Makefile": "0283453852c71673492875d252e8ac1fa92c54d942343736a444c39cd33f7d1e",
+    "sw/runtime/firesim/vortex.cpp": "5b8e7ac32b02e943d7a4fd855500a64e3f033b3a5edede02f3a5c71113e6b15e",
+    "sw/runtime/gem5/Makefile": "ce91c04c4440b33ec2dc9c0742e81b08bcd1e922480b0534dbe924fa02bdd984",
+    "sw/runtime/gem5/driver.cpp": "0a4096812e2f25d509e592f6e413e4f172030fb275d128c3abea95070d1b2fa2",
+    "sw/runtime/gem5/driver.h": "e519160e72cfbd312b4fa5c8b1019b6cfd47685df8efd24b02e7be9788600c84",
+    "sw/runtime/gem5/vortex.cpp": "1ca15952b6d7a5cfba8350fe36bbc50eb772403624577ddbbd753b6e36d18069",
+    "sw/runtime/include/dxa.h": "7db1a124216bf159ed6fbc84524a43034c8f1acfdd70254575df258d39a2be7f",
+    "sw/runtime/include/graphics.h": "438eaad00823b3b433e7bcdc923f73baac24347477834426ec7e6799fa4e0033",
+    "sw/runtime/include/raytrace.h": "4d82b18a21ddf7ac8129af0984f1b9feed531e9580433ad41ed9efbf65ed103c",
+    "sw/runtime/include/tensor_mx.h": "bd29b743eaa75a620536a85e0a0d1e69fddaf3c779758de035c3ee7f5da0e449",
+    "sw/runtime/include/tensor_sp.h": "3c46d7663d8412e3473d0f7dbbebb9b863e7d3e33d5e1227f0ec8389bc41d885",
+    "sw/runtime/include/vortex.h": "aad4d5b79f7b2f1525759c3ac6af88ef9006e5ed83b7276c505fc9e160b26026",
+    "sw/runtime/include/vortex2.h": "6b7bfcf4c040fcc5085f1a7682e0fa9ac74f6c81d491e421b240d1416dbdc753",
+    "sw/runtime/opae/Makefile": "12a0a0e7feb216aedf22dd0736ec706890284d6a3e7c88e284eba21c82b4fb90",
+    "sw/runtime/opae/driver.cpp": "ea1de902706180f7029b67f605c5021b72a8c57a031f3420326c6721bee37159",
+    "sw/runtime/opae/driver.h": "e1981c4406b07aec6b583e67d1062d80eb028bb3117149bc9507b38259cadae2",
+    "sw/runtime/opae/vortex.cpp": "e8e522c754483a1bea267445a6104907d58cc5f194dcdb497807987447531da5",
+    "sw/runtime/rtlsim/Makefile": "4c9a1b7c64d40a9726d1aafda30b416ebb08fde10d3f4dbde584c76aa45e03d3",
+    "sw/runtime/rtlsim/vortex.cpp": "9a78823146aa9a1f7c26de6d8ac6c8ebd00f2b73a97f9dd84b360d29c92e0537",
+    "sw/runtime/rtlsim_config.stamp": "c86188f4810b858c39e49febc770c251f5950845677919c7beb6daaecf305492",
+    "sw/runtime/simx/Makefile": "3b26629daef8a6b5bb2106aff3d56644b271c236c663e40f1f80bff6b56c0d45",
+    "sw/runtime/simx/vortex.cpp": "24d9a01799a25984571c0db7551e45cfd7e3c6c3f421d67208fb521f07313cae",
+    "sw/runtime/stub/Makefile": "d5c50f1e770aefdbad6a7797ee860ebaa5da87eb383d0bc4abc3e008812693dc",
+    "sw/runtime/stub/vortex.cpp": "527b0a109dae15ec562629657e8b9d97279f40582f1c6bb8020a180ec7942031",
+    "sw/runtime/vortex-kernel.pc.in": "f87f8e79c5c5957878765a455ac72f48987085427d4c0f11a0dc2020a95750c8",
+    "sw/runtime/vortex-runtime.pc.in": "86f749215d627f0a71a0b688785ce2fb9d37f6aee378a8bd0f54e5f2ba8a085c",
+    "sw/runtime/xrt/Makefile": "947252d0c33b6cf8ec2609b692c07c6b966e017361783e50a6fe65fc3f41c662",
+    "sw/runtime/xrt/vortex.cpp": "eb20053d13f8c0eec481e1efee1f0df71ea5a595991f3a70aca8e6f3d54492ea",
+    "sw/runtime/xrt/xrt.ini.in": "06c0aa0e3d1a63b71b03f0226b053e06c1f5c4ad13f9a0936fb443d79b0ac5c8",
+    "sw/runtime/xrt/xsim.tcl": "874c3153a6f43fb66cb478c52b0438855e2b516aba72f23ceb074ccaf9442058",
+    "sw/runtime/ypcb/Makefile": "4da5c7c737a3b1584a9dbea37d1b8c7ef8b6a5afca18210910f2959310d57d00",
+    "sw/runtime/ypcb/vortex.cpp": "7073fad3f75391f7df40bb76235d02c04c28ae309e804ab0ec8d9a29d2ec0676",
+    "tests/regression/amo/Makefile": "9fb940b2ba61bf85cb0d6393d26331c723a8a3eb415407aa7ee77549be8ca645",
+    "tests/regression/amo/common.h": "f63e3fd93f6cdc2037333535152bd31a81829a280caaeb7658ee530273157012",
+    "tests/regression/amo/kernel.cpp": "1bb5d4836436d82908c3e1b7d9a9ee21316f77a42916efdf1d64e28d03a45107",
+    "tests/regression/amo/main.cpp": "6394ef572a3c896fe1eb64d570ebaaf64b6160d8246e02e3f33aead69a21b8ad",
+    "tests/regression/amo/testcases.h": "720014951761251c1b29b67d35c4b481affd63487949958272dd0a76503002dd",
+    "tests/regression/demo/Makefile": "9b236ee1aafa211af3c51c62803e2143610d44d9aa70831cf8a6551200b6b10a",
+    "tests/regression/demo/common.h": "c2d393eeda07d29785adc3994bc3e1c32cf590ad3f7ee263a77066e60135ff0c",
+    "tests/regression/demo/kernel.cpp": "d9cf321928d9941326fe89b2eceb1c899cf599eb3f3ff533d5c08b57202479da",
+    "tests/regression/demo/main.cpp": "f7281698bb29f7890225a2551abec792a6531ff1e7b56555fed9e603f706fda3",
+    "tests/regression/dxa_copy/Makefile": "8fb3e1f55188bd7d8ac7cc7b14c28dac742a2a7a9d0aabe4ef65853cf2de3468",
+    "tests/regression/dxa_copy/common.h": "82440f66408d0d4e391e750356035b07cbe0092179468da62f1d8e141b1d242c",
+    "tests/regression/dxa_copy/kernel.cpp": "8c30f9a69bc0b65b3b692e41b1873b24546d8e4738bdf14c7e9e72deb6fca499",
+    "tests/regression/dxa_copy/main.cpp": "9eeb808e794c773942f89994d21670fbdf33a22cc771bce8058b071cc0f99a81",
+    "tests/regression/dxa_copy_mcast/Makefile": "bdb29a1d5aca37a9d2424415d76862a4af5754b50d21f07c2974bb84c326228d",
+    "tests/regression/dxa_copy_mcast/common.h": "91d300000c60998403034fd4895e5c84bcb25d4b573dce36b1e89f18ab6e68ff",
+    "tests/regression/dxa_copy_mcast/kernel.cpp": "2ea1f885a273ee6e8262c4a9041c2f3883ca85e215a8998ca09e00124f16ca46",
+    "tests/regression/dxa_copy_mcast/main.cpp": "67a7455ff4d0f93c881a2968435e86f8350edcc6cf28d5bd84d1fee66a94f725",
+    "tests/regression/lrsc_order/Makefile": "30cc765e6e5c4bf96ca35ad77b9c3b1c03f8ac72684d6e7c0d619ef3c5510797",
+    "tests/regression/lrsc_order/README.md": "bfa4c3f8517e74c6b73ee26f3a61713114f33c63713d721ba59b8fafd91896f6",
+    "tests/regression/lrsc_order/common.h": "47b0a8bed2735f3fb0cb8c0c328e102968646987da2d705e46319130aba2656d",
+    "tests/regression/lrsc_order/kernel.cpp": "bf4a6b9511bdec73572b6de48c41be618148becd92b325d6fb297360961bd0e7",
+    "tests/regression/lrsc_order/main.cpp": "636baaf684946914529792bc15a1b8d889550fbffd75008a6988b23351b84b8d",
+    "tests/regression/sgemm/Makefile": "27710ad2089a490c6836ece7b1dd4d8cd33b1a5d161551b77749e17f31333440",
+    "tests/regression/sgemm/common.h": "b664dcb86397eef7487962fdd95d1bcb2eae393c5f1f2d9b3ecf53f1f970965c",
+    "tests/regression/sgemm/kernel.cpp": "7ee158eb28ca23cd6e07d82a1e02ac970737a77e229e0bd10beed7bef5b70376",
+    "tests/regression/sgemm/main.cpp": "51aa5622b14630c5708b3c262f5bbc4b3ac3b620eb6ef3546ef7bba211d77260",
+    "tests/regression/sgemm_tcu/Makefile": "5b0cc565b886eec4bda8b2eddc5eb7b282d6d006aa7d4dbdc31c3c730b432c67",
+    "tests/regression/sgemm_tcu/common.h": "5b8bb9bf67f092d1d0bb210fa7f85f1babeee193fecd77fe53e5ade317369f11",
+    "tests/regression/sgemm_tcu/kernel.cpp": "65e8db73c8ad44eea41148c07185cfbc356b265a6f52576e1766a52b462622d7",
+    "tests/regression/sgemm_tcu/main.cpp": "cf79815e8dea46d065b94e5adf0bd059801cbf241c8cb6d9db4868f61b507fc1",
+    "tests/regression/sgemm_tcu_mx/Makefile": "e400591dca3ef87ccf7f39b9b875f3abc023ecef5bf1d67bfb6e2a7cfa4f642b",
+    "tests/regression/sgemm_tcu_mx/common.h": "ef5e85550ede901e8a4b373db535a6d2be5ad19ee3d3c78dc93982d84c34f6a2",
+    "tests/regression/sgemm_tcu_mx/kernel.cpp": "8677bad7e8891705d1e0b7e80145fdc8bfa922ea16fed04dbd16e187f02e6d64",
+    "tests/regression/sgemm_tcu_mx/main.cpp": "a494dae57e60983cf6a13423e86bb76c25138188437c8d65274ab0b96ae3ef1f",
+    "tests/regression/sgemm_tcu_sp/Makefile": "c7cbc65a42d7c7fad94e21b4952a49e8a46e42d737ea74acbbf71ff879b23c9f",
+    "tests/regression/sgemm_tcu_sp/common.h": "3da146058cdee46fd14b73c2371866d9c8188d20e5aca3bf1dd22c27219e4ce1",
+    "tests/regression/sgemm_tcu_sp/kernel.cpp": "ec7be1b65941a4db29a8061204aa9bbfeb7270061f0a81e18ac19c3333e16787",
+    "tests/regression/sgemm_tcu_sp/main.cpp": "e5ff94e3e9310764dce77dd60df25b889c5570fef41c4c230dce315dcd0f024c",
+    "tests/regression/sgemm_tcu_sp_mx/Makefile": "d647d78584b4507e7e1a783277f02b7bdb1de825f08e54d147be143bb6dd85bc",
+    "tests/regression/sgemm_tcu_sp_mx/common.h": "ad9072b7a96cca3eed12ea3f978514a7bf41dd8aed366a8e0baa4709a6e1ceae",
+    "tests/regression/sgemm_tcu_sp_mx/kernel.cpp": "c43b07d58b8cb22ab04659f26a6d986769a459269203bb8977cb165426642d9c",
+    "tests/regression/sgemm_tcu_sp_mx/main.cpp": "de3d6de19e575e94ddeb8fdffb264a3eb4d9df6927290894b3d4176ae7fddec8",
+    "tests/regression/sgemm_tcu_wg/Makefile": "514dcb27da4afd82f87374716ed8fac9cb2cf22dab38d6e943c90d92c6b1e239",
+    "tests/regression/sgemm_tcu_wg/common.h": "62a53cc0e3474a0be34e778e566a098be04129154300430624d3ecb52eda5ce4",
+    "tests/regression/sgemm_tcu_wg/kernel.cpp": "978bbf5afab7a9e12d47efdab5a90fb17351e1a694e9ea6792b9be2cbfe2d023",
+    "tests/regression/sgemm_tcu_wg/main.cpp": "fa4d052a553f8d0d1d84f7a9a0d220fad0b6f28598209b28e85bc7f43d2c443e",
+    "tests/regression/sgemm_tcu_wg_dxa/Makefile": "5bb3c6d8879861a4241fd00a58425aaf6d0794d1aa81ef3149a7264f7e1de2a2",
+    "tests/regression/sgemm_tcu_wg_dxa/common.h": "f422781e585608bc78ff96a570bbeeaf689ea94dfc062ed697e87b9099473b78",
+    "tests/regression/sgemm_tcu_wg_dxa/kernel.cpp": "f935283862985002f66ce033777d1d852eacb3ce1ed1b2f6f558259d584f530d",
+    "tests/regression/sgemm_tcu_wg_dxa/main.cpp": "cb15ea5e8ddaebdcf2dc791549c6eb69a74ca42fd2517c55669a34e21cfb138b",
+    "tests/regression/sgemm_tcu_wg_mx/Makefile": "07506c3baed0e2d20805d9db65f5909ebe7a0d4f432dbd9391a32ce3617690ae",
+    "tests/regression/sgemm_tcu_wg_mx/common.h": "c46ac94bbaee8274e05c10d7510e4bcc2df33a5ca6147c48683c8d80ce3f10ef",
+    "tests/regression/sgemm_tcu_wg_mx/kernel.cpp": "6382802d709e6ab1e42590844eaa9d6d92a920a64697d207bdc30c97c8208b8a",
+    "tests/regression/sgemm_tcu_wg_mx/main.cpp": "84a52f117f74db8a0096adae00c127d9e702d387f0c028d409d9914a18382a55",
+    "tests/regression/sgemm_tcu_wg_sp_dxa/Makefile": "d8156f7fbc8ad47215db4e55b63abcb0831b48b1f90a107adfa6009561d157c5",
+    "tests/regression/sgemm_tcu_wg_sp_dxa/common.h": "b9999f8c128d5f503fe54d8cb05927a5a0ab36366008c02e741491c1babe8066",
+    "tests/regression/sgemm_tcu_wg_sp_dxa/kernel.cpp": "103aeb794d4f0461f11184d8bf4b9b836d0212f4cbffea2b0d00979ee105eb87",
+    "tests/regression/sgemm_tcu_wg_sp_dxa/main.cpp": "781dba121cd2bb214b321619158dab11fe5be16bfcb5b6b2c157a0777502d2df",
+    "tests/ypcb/memory_map/Makefile": "c4f2583b240b4b25d9a5cfd78cb0a6b361102f9efc1f9503bf16d0c6d218e716",
+    "tests/ypcb/memory_map/main.cpp": "c0f8be1a72be4ffa74a05d3e69dd9f60662993a0ae7a8017fa91b96c85408b7c",
+    "tests/ypcb/memory_map/raw.cpp": "c3ac114de58a74b560190c329ce255f2680974f3b8e2aaeff1a62dc18f976db2",
+    "tests/ypcb/native_bist/Makefile": "2103d672ff81533956bb428e61ac9216ccad75178d2a095d5e685a4d5c6e42d8",
+    "tests/ypcb/native_bist/main.cpp": "74bb1bf8a2f04a124654ad644ce0df4c221bcd428a2fc283d0e046f8ccae4704",
+    "tests/ypcb/native_bist/protocol.h": "b8e15dda99aa222e983d551b5e7f5a3a9e48cfe7876883d1510f99904db948ee",
+    "tests/ypcb/native_bist/test.cpp": "da94b647d562439e53ccfc09671af9998e5cfb57372fd72c65de329251b374b5"
+  },
+  "qualified_image_hardware_revision": "97b4b532a4a399fadcea12e8e0d3b9b9f38b19e6",
+  "qualified_JTAG_runtime_revision": "5ea0b4504ec8998dc21957b5a1df95ebca322a5a"
+}

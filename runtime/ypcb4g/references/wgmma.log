@@ -1,0 +1,29 @@
+open device connection
+CONFIGS: num_threads=8, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0x7fff0000, num_barriers=8
+input data type: fp16 (id=2)
+output data type: fp32 (id=0)
+WMMA Core Dimension: M=4, N=2, K=8
+WGMMA Per-Warp Tile: M=8, N=8, K=8
+WGMMA CTA Tile: M=8, N=8, K=8
+Grid dimension: 2x2
+Block dimension: 8x1
+matrix A: 16x64
+matrix B: 64x16
+matrix C: 16x16
+allocate device memory
+A_addr=0x10000
+B_addr=0x10800
+C_addr=0x11000
+upload matrix A buffer
+upload matrix B buffer
+load kernel module
+start device
+download destination buffer
+wait for completion
+Elapsed time: 8587 ms
+PERF: instrs=14684, cycles=35799, IPC=0.410
+verify result
+reference drift: max=5 ULP, bound=12 ULP (K=64)
+cleanup
+PERF: instrs=14684, cycles=35799, IPC=0.410
+PASSED!

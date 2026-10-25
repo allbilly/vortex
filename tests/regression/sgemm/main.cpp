@@ -107,8 +107,8 @@ int main(int argc, char** argv) {
 
     std::vector<TYPE> h_A(size_sq), h_B(size_sq), h_C(size_sq);
     for (uint32_t i = 0; i < size_sq; ++i) {
-        h_A[i] = static_cast<TYPE>(std::rand()) / RAND_MAX;
-        h_B[i] = static_cast<TYPE>(std::rand()) / RAND_MAX;
+        h_A[i] = static_cast<TYPE>(std::rand()) / static_cast<TYPE>(RAND_MAX);
+        h_B[i] = static_cast<TYPE>(std::rand()) / static_cast<TYPE>(RAND_MAX);
     }
 
     auto t0 = std::chrono::high_resolution_clock::now();

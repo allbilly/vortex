@@ -152,8 +152,13 @@ private:
       std::fprintf(stderr, "[VXDRV] Another YPCB runtime owns JTAG or PCIe\n");
       return -1;
     }
-    if (interface == "jtag") {
-      const char* port_text = std::getenv("VORTEX_YPCB_JTAG_PORT");
+    if (interface == "jtag" || interface == "chestnut") {
+      const char* port_text = std::getenv(interface == "chestnut"
+          ? "VORTEX_YPCB_CHESTNUT_PORT" : "VORTEX_YPCB_JTAG_PORT");
+      if (interface == "chestnut" && port_text == nullptr) {
+        std::fprintf(stderr, "[VXDRV] VORTEX_YPCB_CHESTNUT_PORT is required\n");
+        return -1;
+      }
       char* end = nullptr;
       const unsigned long port = port_text ? std::strtoul(port_text, &end, 10) : 3124;
       if (port == 0 || port > 65535 || (port_text && (end == port_text || *end != '\0'))) {
@@ -161,7 +166,7 @@ private:
       }
       jtag_ = std::make_unique<Jtag>();
       if (jtag_->connect(unsigned(port)) != 0) {
-        std::fprintf(stderr, "[VXDRV] Cannot connect to the local JTAG MMIO server\n");
+        std::fprintf(stderr, "[VXDRV] Cannot connect to the local %s MMIO server\n", interface.c_str());
         return -1;
       }
     } else if (interface == "pcie") {
@@ -169,7 +174,7 @@ private:
         return -1;
       }
     } else {
-      std::fprintf(stderr, "[VXDRV] VORTEX_YPCB_INTERFACE must be jtag or pcie\n");
+      std::fprintf(stderr, "[VXDRV] VORTEX_YPCB_INTERFACE must be jtag, pcie or chestnut\n");
       return -1;
     }
     uint32_t signature, version, status;

@@ -51,7 +51,7 @@ public:
     return "float";
   }
   static float generate() {
-    return static_cast<float>(rand()) / RAND_MAX;
+    return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
   }
   static bool compare(float a, float b, int index, int errors) {
     union fi_t { float f; int32_t i; };

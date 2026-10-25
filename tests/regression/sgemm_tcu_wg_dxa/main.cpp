@@ -53,7 +53,7 @@ template <>
 class Comparator<vt::fp32> {
 public:
   static float generate() {
-    return static_cast<float>(rand()) / RAND_MAX;
+    return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
   }
   static bool compare(float a, float b, int index, int errors) {
     union fi_t {
@@ -79,7 +79,7 @@ template <>
 class Comparator<vt::fp16> {
 public:
   static uint16_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftoh_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint16_t a, uint16_t b, int index, int errors) {
@@ -131,7 +131,7 @@ template <>
 class Comparator<vt::tf32> {
 public:
   static uint32_t generate() {
-    auto fvalue = float(rand()) / RAND_MAX;
+    auto fvalue = float(rand()) / static_cast<float>(RAND_MAX);
     return rv_ftotf32_s(bit_cast<uint32_t>(fvalue), 0, nullptr);
   }
   static bool compare(uint32_t a, uint32_t b, int index, int errors) {

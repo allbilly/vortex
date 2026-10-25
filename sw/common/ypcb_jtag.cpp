@@ -7,6 +7,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -21,10 +22,21 @@ int Jtag::connect(unsigned port) {
   if (socket_ >= 0 || port == 0 || port > 65535) {
     return -1;
   }
+#ifdef __APPLE__
+  socket_ = socket(AF_INET, SOCK_STREAM, 0);
+#else
   socket_ = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#endif
   if (socket_ < 0) {
     return -1;
   }
+#ifdef __APPLE__
+  const int no_sigpipe = 1;
+  if (fcntl(socket_, F_SETFD, FD_CLOEXEC) != 0
+      || setsockopt(socket_, SOL_SOCKET, SO_NOSIGPIPE, &no_sigpipe, sizeof(no_sigpipe)) != 0) {
+    return -1;
+  }
+#endif
   timeval timeout{30, 0};
   if (setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0
       || setsockopt(socket_, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) != 0) {
@@ -54,7 +66,12 @@ int Jtag::exchange(const std::string& command, uint32_t* values, size_t words) {
   if (socket_ < 0 || poisoned_ || !values || words == 0 || words > 16) return -1;
   size_t sent = 0;
   while (sent < command.size()) {
-    const auto count = send(socket_, command.data() + sent, command.size() - sent, MSG_NOSIGNAL);
+#ifdef __APPLE__
+    constexpr int send_flags = 0;
+#else
+    constexpr int send_flags = MSG_NOSIGNAL;
+#endif
+    const auto count = send(socket_, command.data() + sent, command.size() - sent, send_flags);
     if (count < 0 && errno == EINTR) {
       continue;
     }
@@ -83,7 +100,7 @@ int Jtag::exchange(const std::string& command, uint32_t* values, size_t words) {
                 && converted.ptr == start + 8;
       }
       if (!valid) {
-        std::fprintf(stderr, "[VXDRV] JTAG MMIO rejected: %s", response.data());
+        std::fprintf(stderr, "[VXDRV] Socket MMIO rejected: %s", response.data());
         poisoned_ = true;
         return -1;
       }

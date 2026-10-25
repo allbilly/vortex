@@ -324,10 +324,10 @@ int main(int argc, char *argv[]) {
   std::vector<float> h_A_dense(M * K_logical);
   std::vector<float> h_B_dense(K_logical * N);
   for (auto &v : h_A_dense) {
-    v = (static_cast<float>(std::rand()) / RAND_MAX) * 2.0f - 1.0f;
+    v = (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) * 2.0f - 1.0f;
   }
   for (auto &v : h_B_dense) {
-    v = (static_cast<float>(std::rand()) / RAND_MAX) * 2.0f - 1.0f;
+    v = (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) * 2.0f - 1.0f;
   }
 
   std::vector<itype_t> h_A(sizeA);

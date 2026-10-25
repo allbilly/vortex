@@ -81,10 +81,6 @@ static inline int calc_utility(uint64_t useful, uint64_t stalls) {
   return calc_percent(useful, useful + stalls);
 }
 
-static inline double bytes_to_GB(uint64_t bytes) {
-  return (double)bytes / 1e9;
-}
-
 static inline void perf_print_core(FILE *stream, int core_id, const char *fmt, ...) {
   std::va_list args;
   va_start(args, fmt);

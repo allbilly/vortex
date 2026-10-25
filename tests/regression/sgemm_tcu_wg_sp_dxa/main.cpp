@@ -55,8 +55,6 @@ static constexpr uint32_t kMSteps        = wg_cfg_t::m_steps;
 static constexpr uint32_t kKSteps        = wg_cfg_t::k_steps;
 static constexpr uint32_t kHalfKSteps    = kKSteps / 2;
 static constexpr uint32_t kMetaRowBits   = kTcK * 2 * kRtlIRatio;
-static constexpr uint32_t kMetaStrWords  = (kTcM * kMetaRowBits + 31) / 32;
-static constexpr uint32_t kWgMetaBanks   = kMSteps * kHalfKSteps;
 // Per-thread metadata layout: lane T loads h_meta[slot*NT + T], lands in
 // SRAM cell (bank = T % PWD_wmma, col = T / PWD_wmma).
 static constexpr uint32_t kWordsPerTile  = VX_CFG_NUM_THREADS;
@@ -93,7 +91,7 @@ static void matmul_cpu(otype_t *C, const itype_t *A_pruned, const itype_t *B,
 
 // Pack sparse masks into WGMMA smem bank layout.
 // For each (tile_row, k_tile): kWordsPerTile words, organized as
-//   [bank0: kMetaStrWords words][bank1: ...]...[bank(kWgMetaBanks-1)]
+// Each bank contains ceil(kTcM * kMetaRowBits / 32) words.
 // bank = step_m * kHalfKSteps + step_k
 // Within a bank: bit block_bit = row_i * kMetaRowBits + meta_bit
 static void pack_metadata_wg(std::vector<uint32_t> &h_meta,
@@ -334,11 +332,11 @@ int main(int argc, char *argv[]) {
   std::vector<itype_t> h_A_full(sizeA_full);
   std::vector<itype_t> h_B(sizeB);
   for (uint32_t i = 0; i < sizeA_full; ++i) {
-    auto fv = float(rand()) / RAND_MAX;
+    auto fv = float(rand()) / static_cast<float>(RAND_MAX);
     h_A_full[i] = rv_ftoh_s(bit_cast<uint32_t>(fv), 0, nullptr);
   }
   for (uint32_t i = 0; i < sizeB; ++i) {
-    auto fv = float(rand()) / RAND_MAX;
+    auto fv = float(rand()) / static_cast<float>(RAND_MAX);
     h_B[i] = rv_ftoh_s(bit_cast<uint32_t>(fv), 0, nullptr);
   }
 

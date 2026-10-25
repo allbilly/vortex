@@ -1,0 +1,7 @@
+CONFIGS: num_threads=8, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0x7fff0000, num_barriers=8
+input data type: mxfp8 (id=8)
+output data type: fp32 (id=0)
+WMMA Tile Dimension: M=8, N=8, K(logical)=32, K(storage)=32
+Elapsed time: 1628 ms
+PERF: instrs=856, cycles=2528, IPC=0.339
+PASSED!

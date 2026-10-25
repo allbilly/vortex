@@ -1,0 +1,55 @@
+iters per hart: 8
+kernel: kernel.vxbin
+CONFIGS: num_threads=8, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0x7fff0000, num_barriers=8
+num_harts: 64
+shared_addr=0x10000, per_hart_addr=0x11000
+Test0: amoadd
+Test0-amoadd PASSED
+Test1: amoor
+Test1-amoor PASSED
+Test2: amoand
+Test2-amoand PASSED
+Test3: amoxor
+Test3-amoxor PASSED
+Test4: amomax
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=142 target=143 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x000000003b2cff00 HEAD_ADDR=0x000000003b2dff80 CMPL_ADDR=0x000000003b2e0040
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x00000000000023c0
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+Test4-amomax PASSED
+Test5: amominu
+Test5-amominu PASSED
+Test6: amoswap
+Test6-amoswap PASSED
+Test7: lrsc_counter
+Test7-lrsc_counter PASSED
+Test8: amoadd_aqrl
+Test8-amoadd_aqrl PASSED
+Test9: lrsc_counter_aqrl
+Test9-lrsc_counter_aqrl PASSED
+Test10: atomic_reduction
+Test10-atomic_reduction PASSED
+Test11: atomic_critical
+Test11-atomic_critical PASSED
+Test12: self_consistency
+Test12-self_consistency PASSED
+Test13: amoadd_lmem
+Test13-amoadd_lmem PASSED
+Test14: lrsc_lmem
+Test14-lrsc_lmem PASSED
+Test15: cas_ladder
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=461 target=462 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x000000003b2cff00 HEAD_ADDR=0x000000003b2dff80 CMPL_ADDR=0x000000003b2e0040
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000007380
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+Test15-cas_ladder PASSED
+Test16: cas_lmem
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=490 target=491 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x000000003b2cff00 HEAD_ADDR=0x000000003b2dff80 CMPL_ADDR=0x000000003b2e0040
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000007ac0
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+Test16-cas_lmem PASSED
+PERF: instrs=51556, cycles=2626191, IPC=0.020

@@ -1,0 +1,74 @@
+open device connection
+CONFIGS: num_threads=8, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0x7fff0000, num_barriers=8
+input data type: fp16 (id=2)
+output data type: fp32 (id=0)
+WMMA Core Dimension: M=4, N=2, K=2
+WMMA Tile Dimension: M=8, N=8, K=16
+matrix A: 16x64
+matrix B: 64x16
+matrix C: 16x16
+allocate device memory
+A_addr=0x10000
+B_addr=0x10400
+C_addr=0x10c00
+meta_sp_addr=0x11000
+upload matrix A buffer
+upload matrix B buffer
+upload metadata buffer
+load kernel module
+start device
+download destination buffer
+wait for completion
+Elapsed time: 1621 ms
+=== DEBUG: ITYPE::bits=10 I_RATIO=2 TC_K=2 TC_M=4 meta_cols=1 tileK=10 k_steps=4 half_k_steps=2
+Masks row 0: g0=0x9 g1=0x3 g2=0xc g3=0xa g4=0xa g5=0x9 g6=0xa g7=0x6
+Compressed A row 0 (hex): 0x3b28 0x3bcf 0x395f 0x3810 0x36e5 0x3862 0x28e0 0x3b60 0x392f 0x382c 0x3853 0x3bb6 0x3aed 0x394a 0x387e 0x3952
+Metadata words (tile_row=0, k_tile=0): [0]=0x74aaaa2d [1]=0xe20f99b8 [2]=0x3caa87d1 [3]=0x6aa696a9 [4]=0x00000000 [5]=0x00000000 [6]=0x00000000 [7]=0x00000000
+  sram_row0 decoded (TC_M=4 rows, 8 bits each):
+    TC_M row 0: bits=0x2d (binary:00101101)
+    TC_M row 1: bits=0xaa (binary:10101010)
+    TC_M row 2: bits=0xaa (binary:10101010)
+    TC_M row 3: bits=0x74 (binary:01110100)
+Pruned A row 0 (full, first 16 hex): 0x3b28 0x0 0x0 0x3bcf 0x395f 0x3810 0x0 0x0 0x0 0x0 0x36e5 0x3862 0x0 0x28e0 0x0 0x3b60
+verify result
+sparse_ref vs cpu_ref: ALL MATCH
+GPU vs sparse_ref: ALL MATCH
+First 8 entries: cpu_ref / sparse_ref / gpu
+  [0] 10.348557 / 10.348558 / 10.348557
+  [1] 11.162902 / 11.162901 / 11.162901
+  [2] 9.768294 / 9.768292 / 9.768293
+  [3] 11.995256 / 11.995255 / 11.995256
+  [4] 9.989549 / 9.989548 / 9.989549
+  [5] 11.622200 / 11.622200 / 11.622199
+  [6] 10.608480 / 10.608479 / 10.608479
+  [7] 10.352869 / 10.352870 / 10.352868
+
+=== DETAILED ERROR ANALYSIS ===
+Config: tileM=8 tileN=8 tileK=16 tcM=4 tcN=2 tcK=2
+Steps: m_steps=2 n_steps=4 k_steps=4
+Matrix: M=16 N=16 K=64, Grid=2x2
+Sparse: meta_cols=1 per_warp_depth=4
+
+Total errors: 0 / 256
+
+
+First 16 entries (raw values):
+  [0] ref=0x412593b1 (10.348557) gpu=0x412593b0 (10.348557) DIFF
+  [1] ref=0x41329b3f (11.162902) gpu=0x41329b3e (11.162901) DIFF
+  [2] ref=0x411c4aef (9.768294) gpu=0x411c4aee (9.768293) DIFF
+  [3] ref=0x413fec92 (11.995256) gpu=0x413fec92 (11.995256) EXACT
+  [4] ref=0x411fd531 (9.989549) gpu=0x411fd531 (9.989549) EXACT
+  [5] ref=0x4139f488 (11.622200) gpu=0x4139f487 (11.622199) DIFF
+  [6] ref=0x4129bc56 (10.608480) gpu=0x4129bc55 (10.608479) DIFF
+  [7] ref=0x4125a55a (10.352869) gpu=0x4125a559 (10.352868) DIFF
+  [8] ref=0x4128c83b (10.548884) gpu=0x4128c83a (10.548883) DIFF
+  [9] ref=0x413e04f4 (11.876209) gpu=0x413e04f4 (11.876209) EXACT
+  [10] ref=0x41289b90 (10.537979) gpu=0x41289b8f (10.537978) DIFF
+  [11] ref=0x4126025e (10.375578) gpu=0x4126025d (10.375577) DIFF
+  [12] ref=0x41242f31 (10.261521) gpu=0x41242f31 (10.261521) EXACT
+  [13] ref=0x4111c763 (9.111178) gpu=0x4111c763 (9.111178) EXACT
+  [14] ref=0x4118b59d (9.544339) gpu=0x4118b59c (9.544338) DIFF
+  [15] ref=0x412f0c74 (10.940540) gpu=0x412f0c73 (10.940539) DIFF
+cleanup
+PERF: instrs=968, cycles=2623, IPC=0.369
+PASSED!

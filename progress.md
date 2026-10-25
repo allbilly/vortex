@@ -1,10 +1,54 @@
 # Current Vortex status — October 25, 2026
 
+**Permanent flash programming is complete for the tested 4 GiB image.** The
+exact bitstream remains
+`d6ad50f70469d6cf3d25f8ca0f8dee1875988b0ac07bec0fa88b8cd0ff06dfb3`.
+Native program/verify, a separate verification pass, full 64 MiB readback and
+byte-exact image comparison passed. JTAG-triggered boot from flash passed with
+no fallback, ID or CRC error. On the flash-booted image, all eight full-capacity
+DDR BIST passes, scalar demo, and repeated FP16/INT8 tensor launches passed
+with clean CH1 ECC. The independent flash audit passes 33 checks. All helpers
+stopped and both hardware leases are released. **Physical power-off/on cold
+boot and physical PCIe execution remain untested.** User confirmation of a
+card power cycle is pending before the final cold-boot smoke test.
+
+The user selected macOS/Chestnut for the remaining physical PCIe tests and
+specified a Git-only workflow. All required scripts and the small matched
+runtime data are now in the repository: `ci/mac_vortex.sh`, `ci/ypcb_macos.py`,
+`ci/ypcb_chestnut.py`, and `runtime/ypcb4g/`. The runtime data contains 40
+unchanged qualified GPU kernels, three generated headers, 21 reference logs
+and the exact test settings, about 360 KiB in total. Host sources are used
+directly from the checkout; SoftFloat is the existing pinned Git submodule.
+The archive/export approach is retired and its generator removed from source.
+No archive transfer, duplicated source tree or Linux host binary is needed.
+
+The Git-based preflight and complete Clang/Linux native host build passed.
+All 41 offline client/transport/runtime-data tests passed, plus nine subtests.
+A full Mac run covers all 53 application cases and the raw memory probe.
+`--cold-boot` also requires eight full-capacity BIST passes on a physically
+power-cycled card. Native macOS and physical PCIe results remain pending for
+the actual Mac run. Instructions are in `docs/mac_vortex.md`; no new FPGA
+programming, flash write or bitstream build was performed for this workflow.
+
+The alternative local read-only cold-boot worker remains prepared in
+`build_ypcb_4gb32/cold-boot-qualification-20261025-v1/`; it was not launched
+without physical card-power-cycle confirmation. Archived-image test scope is
+recorded separately in the remaining-test ledger and was not broadened into
+reprogramming retired development images.
+
+Flash evidence: `build_ypcb_4gb32/flash-4gib-permanent-20261025-v1/`, including
+`manifest.json`, `completion-audit.json`, `unit-exit.json`, the converted MCS,
+full programmed-flash readback and two matching previous-flash backups.
+The backup SHA-256 is
+`311059bc9ba1c37608c8cad515c8e88dcd1306b03c7be002c37982c9efaf847d`.
+Flash bytes from `0x01200000` onward were verified unchanged.
+
 The full 4 GiB `ypcb_blackwell_like_4gb` image passed **all 57 physical JTAG
 commands** and an independent **303-check completion audit**. All owned
 hardware helpers stopped, the producer exited zero, and both JTAG/runtime
-leases were verified available. No flash was written. Both JTAG and PCIe
-interfaces are present; physical PCIe execution remains untested.
+leases were verified available. That qualification run wrote no flash; the
+subsequent flash operation is recorded above. Both JTAG and PCIe interfaces
+are present; physical PCIe execution remains untested.
 
 The image provides 2 GiB CH0 without ECC using physical data lanes
 `[0,1,2,3,4,5,8,7]`, plus 2 GiB CH1 with ECC. Compute remains at 125 MHz with

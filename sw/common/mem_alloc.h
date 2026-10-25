@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cinttypes>
 #include <assert.h>
 #include <stdio.h>
 
@@ -78,14 +79,14 @@ public:
 
     // Check if the reservation is within memory capacity bounds
     if (addr + size > baseAddress_ + capacity_) {
-      printf("Error: address range out of bounds - requested=0x%lx, base+capacity=0x%lx\n", (addr + size), (baseAddress_ +capacity_));
+      printf("Error: address range out of bounds - requested=0x%" PRIx64 ", base+capacity=0x%" PRIx64 "\n", (addr + size), (baseAddress_ +capacity_));
       return -1;
     }
 
     // Ensure the reservation does not overlap with existing pages
     uint64_t overlapStart, overlapEnd;
     if (hasPageOverlap(addr, size, &overlapStart, &overlapEnd)) {
-      printf("Error: address range overlaps with existing allocation - requested=[0x%lx-0x%lx], existing=[0x%lx, 0x%lx]\n", addr, addr+size, overlapStart, overlapEnd);
+      printf("Error: address range overlaps with existing allocation - requested=[0x%" PRIx64 "-0x%" PRIx64 "], existing=[0x%" PRIx64 ", 0x%" PRIx64 "]\n", addr, addr+size, overlapStart, overlapEnd);
       return -1;
     }
 
@@ -149,7 +150,7 @@ public:
     }
 
     if (nullptr == usedBlock) {
-      printf("warning: release address not found: 0x%lx\n", addr);
+      printf("warning: release address not found: 0x%" PRIx64 "\n", addr);
       return -1;
     }
 
@@ -490,7 +491,6 @@ private:
   uint32_t pageAlign_;
   uint32_t blockAlign_;
   page_t*  pages_;
-  uint64_t nextAddress_;
   uint64_t allocated_;
 };
 
