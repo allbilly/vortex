@@ -1,3 +1,59 @@
+# Current Vortex status — October 25, 2026
+
+The full 4 GiB `ypcb_blackwell_like_4gb` image passed **all 57 physical JTAG
+commands** and an independent **303-check completion audit**. All owned
+hardware helpers stopped, the producer exited zero, and both JTAG/runtime
+leases were verified available. No flash was written. Both JTAG and PCIe
+interfaces are present; physical PCIe execution remains untested.
+
+The image provides 2 GiB CH0 without ECC using physical data lanes
+`[0,1,2,3,4,5,8,7]`, plus 2 GiB CH1 with ECC. Compute remains at 125 MHz with
+the full selected tensor, sparse, WGMMA, data-movement and atomic features.
+All 4 GiB of physical payload passed native BIST; application allocations
+continue to reserve hart stacks, the local-memory/top window and host staging.
+
+The physical suite passed all five basic examples (13 numerical groups), all
+21 studies, all 22 square/rectangular format cases (36 launches, 13,824 verified
+outputs), and both dedicated LR/SC cases. The atomic study passed all 17
+subtests. All 55 CH1 ECC checkpoints were enabled and clean. All 53 software
+cases also passed in SimX.
+
+Memory qualification includes eight complete write/read pattern passes, each
+covering 33,554,432 native words / 2 GiB payload per channel, with zero errors;
+seven public transfer regions; the 2 GiB channel boundary; the final physical
+byte at `0xffffffff`; and 27 independent address lines with no aliases.
+CH0 uses eight raw lanes and CH1 retains nine raw lanes including ECC.
+
+The bitstream SHA-256 is
+`d6ad50f70469d6cf3d25f8ca0f8dee1875988b0ac07bec0fa88b8cd0ff06dfb3`.
+All seven offline report gates pass: setup +0.039 ns, hold +0.014 ns,
+374,509/374,509 nets routed, zero routing errors and complete CRC coverage.
+The read-only primitive review passed 49 checks. Fresh synthesis plus
+implementation took about 88 min 51 s; physical qualification took about
+3 h 22 min 28 s, predominantly JTAG transfers and runtime checks.
+
+Authoritative evidence:
+
+- `build_ypcb_4gb32/qualified-blackwell-like-4gib-baseline-20261025-v1.json`
+- `build_ypcb_4gb32/dual-4gib-image-20261025-v2/offline-signoff.json`
+- `build_ypcb_4gb32/fpga-4gib-full57-20261025-v2/manifest.json`
+- `build_ypcb_4gb32/fpga-4gib-full57-20261025-v2/completion-audit.json`
+- `build_ypcb_4gb32/physical-run-20261025-v2/unit-exit.json`
+
+The image hardware source is `97b4b532a4a399fadcea12e8e0d3b9b9f38b19e6`.
+The physical run used host software at
+`5ea0b4504ec8998dc21957b5a1df95ebca322a5a`; subsequent guidance and this
+handoff do not change the compiled hardware. The 4 GiB source worktree is
+`build_ypcb_4gb32/source/` on `ypcb-ch0-spare-4gb`.
+
+The original 2 GiB full-profile image remains a preserved fallback: all 55
+physical commands and its 292-check audit passed. Its bitstream SHA-256 is
+`7e3207174fd2bf266b12ba6aa2ca5e48df36727681856b7227666ff2d4f7a734`.
+Fallback record:
+`build_ypcb_blackwell_fixed32/qualified-blackwell-like-2gib-baseline-20261025-v1.json`.
+
+---
+
 # Current Vortex status — October 23, 2026
 
 The five Git-review findings are fixed in local commit `236c21e6f`: PCIe
