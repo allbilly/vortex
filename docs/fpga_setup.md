@@ -104,6 +104,12 @@ check the synthesized Gray-pointer drivers before applying their delay and
 skew budgets. DDR external I/O timing still needs its own board and memory
 delay budget.
 
+For asynchronous FIFO payload constraints, derive the two clock domains from
+the preserved Gray-pointer synchronizer clock pins. Rebuilt hierarchy can
+remove a module's `bus_clk` or `memory_clk` port alias. Require exactly two
+domains, then apply the existing datapath budget in both directions through
+the FIFO RAM output pins.
+
 Review status and error sidebands separately from the data mailbox. PCIe error
 flags are sticky, independent bits; YPCB crosses each through two `ASYNC_REG`
 stages before the board-clock status register consumes it. The constraints
@@ -150,6 +156,13 @@ the primitive's programmable inversion attribute during optimization. The
 unoptimized synthesized netlist can therefore have a LUT1 at S0 while the
 optimized netlist has one shared selector register and inverted S0 polarity.
 
+Bind the PCIe TXOUTCLK clock to the single `GTXE2_CHANNEL/TXOUTCLK` output
+pin. With `synth_design -flatten_hierarchy rebuilt`, Vivado can remove the
+`PIPE_TXOUTCLK_OUT` RTL net alias even though the transceiver output remains.
+Require exactly one GTX channel and one output pin, and verify the resulting
+clock's source pin and period. A missing alias must not leave the clock
+unconstrained.
+
 For a low-memory run, set both `general.maxThreads` and `synth.maxThreads`
 to the chosen worker count. They are independent limits; changing only the
 general setting can leave synthesis using several worker processes. Run large
@@ -164,6 +177,14 @@ Use `synth_ip` only in the non-project flow, initialized with `set_part`.
 A disk-backed `create_project` requires `create_ip_run` and `launch_runs`;
 mixing these flows produces a critical warning even if synthesis continues.
 See [AMD UG896](https://docs.amd.com/r/2025.1-English/ug896-vivado-ip/Scripting-Examples).
+
+Implementation directives depend on the command and device family. Vivado
+2026.1 generic help lists `place_design -directive AggressiveExplore`, but the
+Kintex-7 placer rejects it with `Constraints 18-641`. The YPCB flow uses
+`place_design -directive Explore`; `AggressiveExplore` remains a separate
+`phys_opt_design` directive. Check the
+[7-series placement guide](https://docs.amd.com/r/en-US/ug904-vivado-implementation/place_design-Command-7-Series-and-UltraScale)
+and record actual command acceptance on the selected part before a long run.
 
 LiteX's standalone CDC exports include wall-clock banner timestamps. The YPCB
 checkpoint-reuse check permits differences only in those two known comment lines
