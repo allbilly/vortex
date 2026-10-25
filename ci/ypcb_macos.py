@@ -4,6 +4,7 @@
 
 import argparse
 from collections import Counter
+from contextlib import contextmanager
 import ctypes
 import datetime
 import hashlib
@@ -101,26 +102,64 @@ def save(path, value):
     temporary.replace(path)
 
 
+@contextmanager
+def interrupt_handlers(handler):
+    previous = {number: signal.signal(number, handler) for number in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        yield
+    finally:
+        for number, saved in previous.items():
+            signal.signal(number, saved)
+
+
+@contextmanager
+def defer_interrupts():
+    pending = []
+    with interrupt_handlers(lambda number, frame: pending.append(number)):
+        yield
+    if pending:
+        signal.raise_signal(pending[0])
+
+
+def interrupt(number, frame):
+    for kind in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(kind, signal.SIG_IGN)
+    raise InterruptedError('Received ' + signal.Signals(number).name)
+
+
 def command(args, cwd, log, timeout=1800, environment=None):
     started = time.monotonic()
     timed_out = False
     interruption = None
     with log.open('wb') as stream:
-        child = subprocess.Popen(list(map(str, args)), cwd=cwd, env=environment,
-                                 stdout=stream, stderr=subprocess.STDOUT,
-                                 start_new_session=True)
+        child = None
         try:
+            # Retain the child handle before delivering a signal received during spawn.
+            with defer_interrupts():
+                child = subprocess.Popen(list(map(str, args)), cwd=cwd, env=environment,
+                                         stdout=stream, stderr=subprocess.STDOUT,
+                                         start_new_session=True)
             code = child.wait(timeout=timeout)
         except BaseException as error:
+            if child is None:
+                raise
             timed_out = isinstance(error, subprocess.TimeoutExpired)
             interruption = repr(error)
-            if child.poll() is None:
-                os.killpg(child.pid, signal.SIGTERM)
+            with interrupt_handlers(signal.SIG_IGN):
+                try:
+                    os.killpg(child.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
                 try:
                     child.wait(timeout=10)
                 except subprocess.TimeoutExpired:
+                    pass
+                # A leader may exit while another member of its session is still alive.
+                try:
                     os.killpg(child.pid, signal.SIGKILL)
-                    child.wait()
+                except ProcessLookupError:
+                    pass
+                child.wait()
             code = child.returncode
     result = {'command': list(map(str, args)), 'cwd': str(cwd), 'exit_code': code,
               'actual_exit_available': True, 'timed_out': timed_out,
@@ -239,12 +278,21 @@ def validate_case(case, text, assets, flags):
                       'gpu_counters': [{}] * record['expected_counter_rows']}
         return study_checks(case['study'], text, configured, reference.read_text(), flags)
     if kind == 'example':
-        expected = {'simple_add': 1, 'elementwise': 7, 'gemm': 1, 'conv': 1, 'pooling': 3}
-        rows = re.findall(r'^PASS [^:\n]+: driver=ypcb, float32 elements=(\d+), max_abs_error=(\S+)$', text, re.M)
-        if len(rows) != expected[case['example']] or any(
-                int(count) <= 0 or not math.isfinite(float(error)) or float(error) < 0 for count, error in rows):
+        labels = {'simple_add': ('simple_add',),
+                  'elementwise': ('add', 'sub', 'mul', 'div', 'min', 'max', 'relu'),
+                  'gemm': ('gemm ',), 'conv': ('conv output=',),
+                  'pooling': ('pooling max output=', 'pooling avg output=', 'pooling min output=')}
+        expected = labels[case['example']]
+        rows = re.findall(r'^PASS ([^:\n]+): driver=ypcb, float32 elements=(\d+), max_abs_error=(\S+)$', text, re.M)
+        if len(rows) != len(expected) or any(
+                int(count) <= 0 or not math.isfinite(float(error)) or float(error) < 0
+                for _, count, error in rows):
             raise ValueError('Basic example numerical checks are incomplete')
-        return {'numerical_groups': len(rows)}
+        for label in expected:
+            if sum(name == label or label.endswith((' ', '=')) and name.startswith(label)
+                   for name, _, _ in rows) != 1:
+                raise ValueError('Basic example has missing, duplicate or unexpected operations')
+        return {'numerical_groups': len(rows), 'operations': [name for name, _, _ in rows]}
     if 'PASSED' not in text:
         raise ValueError('Numerical success marker absent: ' + case['name'])
     if kind == 'memory':
@@ -331,7 +379,9 @@ def main():
                                    LD_LIBRARY_PATH=str(host / 'sw/runtime'))
                 if args.cold_boot:
                     binary = host / 'tests/ypcb/native_bist/native_bist'
+                    server.wait_idle()
                     text = command([binary], binary.parent, out / 'native-bist.log', environment=environment)
+                    server.wait_idle()
                     rows = re.findall(r'^BIST PASS: CH([01]) mode=([0-3]) words=(\d+) payload_bytes=(\d+) '
                                       r'raw_bytes=(\d+) ticks=(\d+) errors=(\d+) lanes=(\d+)$', text, re.M)
                     if (len(rows) != 8 or [(int(v[0]), int(v[1])) for v in rows] !=
@@ -362,7 +412,9 @@ def main():
                         record = data['targets'][case['target']]
                         cwd = host / record['directory']
                         argv = [cwd / record['executable'], *case['arguments']]
+                    server.wait_idle()
                     text = command(argv, cwd, out / (case['name'] + '.log'), environment=environment)
+                    server.wait_idle()
                     checked = validate_case(case, text, assets, set(data['cflags']))
                     ecc = [transport.read32(offset) for offset in data['ecc_offsets']]
                     if ecc != [1, 0, 0]:
@@ -383,31 +435,38 @@ def main():
             result['hardware_accessed'] = None
             result['hardware_access_detail'] = 'Setup failed; USB/configuration access may have occurred'
     finally:
-        cleanup_errors = []
-        if server is not None:
-            try:
-                server.close()
-            except BaseException as error:
-                cleanup_errors.append(repr(error))
-        if transport is not None:
-            if runtime_started:
-                try:
-                    transport.quiesce()
-                except BaseException as error:
-                    cleanup_errors.append(repr(error))
-            try:
-                transport.close()
-            except BaseException as error:
-                cleanup_errors.append(repr(error))
-        result['cleanup'] = {'status': 'PASS' if not cleanup_errors else 'FAIL', 'errors': cleanup_errors}
-        if cleanup_errors:
-            result.update(status='FAIL', physical_PCIe_qualified=False, cold_boot_verified=False)
-            failure = RuntimeError('Cleanup failed')
-        result['finished_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        save(out / 'manifest.json', result)
+        with interrupt_handlers(signal.SIG_IGN):
+            failure = cleanup(server, transport, runtime_started, result, out, failure)
     print(json.dumps({'status': result['status'], 'out': str(out), 'error': str(failure) if failure else None}))
     return 1 if failure else 0
 
 
+def cleanup(server, transport, runtime_started, result, out, failure):
+    cleanup_errors = []
+    if server is not None:
+        try:
+            server.close()
+        except BaseException as error:
+            cleanup_errors.append(repr(error))
+    if transport is not None:
+        if runtime_started:
+            try:
+                transport.quiesce()
+            except BaseException as error:
+                cleanup_errors.append(repr(error))
+        try:
+            transport.close()
+        except BaseException as error:
+            cleanup_errors.append(repr(error))
+    result['cleanup'] = {'status': 'PASS' if not cleanup_errors else 'FAIL', 'errors': cleanup_errors}
+    if cleanup_errors:
+        result.update(status='FAIL', physical_PCIe_qualified=False, cold_boot_verified=False)
+        failure = RuntimeError('Cleanup failed')
+    result['finished_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    save(out / 'manifest.json', result)
+    return failure
+
+
 if __name__ == '__main__':
-    raise SystemExit(main())
+    with interrupt_handlers(interrupt):
+        raise SystemExit(main())

@@ -23,7 +23,12 @@ The archive/export approach is retired and its generator removed from source.
 No archive transfer, duplicated source tree or Linux host binary is needed.
 
 The Git-based preflight and complete Clang/Linux native host build passed.
-All 41 offline client/transport/runtime-data tests passed, plus nine subtests.
+All 48 offline client/transport/runtime-data tests passed, plus 38 subtests.
+The three Mac workflow review findings are fixed: SIGTERM now unwinds owned
+children and hardware cleanup, successive applications wait for MMIO session
+teardown, and every basic example operation must appear exactly once. New
+subprocess, delayed-teardown and named-operation regressions passed; runtime
+source hashes were refreshed without changing kernels, headers or references.
 A full Mac run covers all 53 application cases and the raw memory probe.
 `--cold-boot` also requires eight full-capacity BIST passes on a physically
 power-cycled card. Native macOS and physical PCIe results remain pending for

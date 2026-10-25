@@ -2280,9 +2280,9 @@
   "softfloat_revision": "b51ef8f3201669b2288104c28546fc72532a1ea4",
   "source_hashes": {
     "ci/mac_vortex.sh": "a36fb0348aa43893b0747a95dd5cf4adf5b8c8f49e94901508646e9c2bebe37f",
-    "ci/ypcb_chestnut.py": "93bcff10a197b67ede8443ded83c2818f9b5131578552fd5322b17b1f41838d8",
+    "ci/ypcb_chestnut.py": "09b314802132bb4abeb992e5e8f5f0c0c7bb188f202316dfc5775318eab1d01b",
     "ci/ypcb_mac_checks.py": "87265c34c0aea6bcc332c95ad7fcb2002734208cc182697fd66375203d45c15a",
-    "ci/ypcb_macos.py": "7327b071056185d0f85858d9ce58c08b79ded1008e7bdc7ba0518c8c824080a2",
+    "ci/ypcb_macos.py": "0c375ee38df0e0b9e2754b9351d559bdb1005254b682301c18273a3629ef0848",
     "examples/common.py": "68a0fada2c6518e0a5c0b280f0c9b88e1dbd55cea7d88518772ff61377136874",
     "examples/conv.py": "8a73c55b09c63d986d72849e386638f0f6a396c6d4a9341cf16791af80b8ee9f",
     "examples/elementwise.py": "a901c91947ae7a0a666a4395b2465317179c48d7a2e6ab1b7d80cd0fd7088553",

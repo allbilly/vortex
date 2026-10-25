@@ -49,6 +49,14 @@ code; Linux ELF libraries and Linux SoftFloat archives are not reused.
 Connect the powered FPGA card through Chestnut. Coordinate access with other
 FPGA users. The helper holds the same `chestnut-3801-0001` device lock used by
 OpenTPU, temporarily maps PCIe configuration and restores it on exit.
+SIGINT and SIGTERM stop the owned native process group, record the actual
+child exit and complete MMIO shutdown, AFU drain and PCIe restoration before
+releasing access. Repeated interrupts are ignored during cleanup. A timeout
+or interruption remains a failure even if the child exits successfully.
+Each application waits up to 30 seconds for the preceding MMIO session to
+finish; a stuck session or transport error stops the suite without retrying
+hardware operations. Basic examples must report every expected operation
+once, including all seven elementwise operations and all three pooling modes.
 
 First verify the checkout/runtime data and build the native host code. Neither command
 opens a device:

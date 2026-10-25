@@ -170,6 +170,64 @@ class ProtocolTests(unittest.TestCase):
         self.server.close()
         self.assertFalse(self.server.thread.is_alive())
 
+    def test_sequential_client_waits_for_previous_handler_teardown(self):
+        teardown = threading.Event()
+        release = threading.Event()
+        waiting = threading.Event()
+        drained = threading.Event()
+        errors = []
+        shutdown = self.server.shutdown_request
+
+        def delayed_shutdown(request):
+            teardown.set()
+            if not release.wait(5):
+                errors.append('Teardown was not released')
+            shutdown(request)
+
+        def wait_for_drain():
+            waiting.set()
+            try:
+                self.server.wait_idle(timeout=5)
+            except BaseException as error:
+                errors.append(error)
+            drained.set()
+
+        self.server.shutdown_request = delayed_shutdown
+        port = self.server.start()
+        waiter = threading.Thread(target=wait_for_drain)
+        try:
+            with socket.create_connection(('127.0.0.1', port), timeout=5) as first:
+                first.sendall(b'R 3000\n')
+                self.assertEqual(first.recv(128), b'OK 00003000\n')
+            self.assertTrue(teardown.wait(5))
+            waiter.start()
+            self.assertTrue(waiting.wait(5))
+            with self.assertRaisesRegex(TimeoutError, 'did not drain'):
+                self.server.wait_idle(timeout=0)
+            self.assertFalse(drained.is_set())
+            self.transport.write32.assert_not_called()
+            release.set()
+            self.assertTrue(drained.wait(5))
+            self.assertFalse(errors)
+            with socket.create_connection(('127.0.0.1', port), timeout=5) as second:
+                second.sendall(b'R 3004\n')
+                self.assertEqual(second.recv(128), b'OK 00003004\n')
+            self.server.wait_idle(timeout=5)
+        finally:
+            release.set()
+            if waiter.ident is not None:
+                waiter.join(timeout=5)
+        self.assertFalse(waiter.is_alive())
+
+    def test_drain_rejects_failed_or_closed_server(self):
+        self.server.last_error = 'Injected transport failure'
+        with self.assertRaisesRegex(RuntimeError, 'Injected transport failure'):
+            self.server.wait_idle(timeout=0)
+        self.server.last_error = None
+        self.server.close()
+        with self.assertRaisesRegex(RuntimeError, 'closing'):
+            self.server.wait_idle(timeout=0)
+
 
 class UsbReplyTests(unittest.TestCase):
     def test_bridge_status_failure_is_checked(self):

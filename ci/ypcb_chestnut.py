@@ -323,8 +323,39 @@ class MmioServer(socketserver.ThreadingTCPServer):
         self.thread = None
         self.connections = set()
         self.connections_lock = threading.Lock()
+        self.sessions = threading.Condition()
+        self.active_requests = 0
         self.closing = False
         super().__init__(('127.0.0.1', 0), _Handler)
+
+    def process_request(self, request, client_address):
+        with self.sessions:
+            self.active_requests += 1
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.request_finished()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.request_finished()
+
+    def request_finished(self):
+        with self.sessions:
+            self.active_requests -= 1
+            self.sessions.notify_all()
+
+    def wait_idle(self, timeout=30):
+        with self.sessions:
+            if not self.sessions.wait_for(lambda: self.active_requests == 0, timeout):
+                raise TimeoutError('Previous Chestnut MMIO session did not drain')
+            if self.closing:
+                raise RuntimeError('Chestnut MMIO server is closing')
+            if self.last_error is not None:
+                raise RuntimeError('Chestnut MMIO server reported: ' + self.last_error)
 
     def transact(self, line):
         if len(line) > 256 or not line.endswith(b'\n'):
